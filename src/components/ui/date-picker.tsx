@@ -1,0 +1,79 @@
+"use client";
+
+import * as React from "react";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+interface DatePickerProps {
+  value?: Date;
+  onChange?: (date: Date | undefined) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  id?: string;
+  max?: string; // For compatibility with max date
+}
+
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = "Pilih tanggal...",
+  disabled = false,
+  className,
+  id,
+  max,
+  ...props
+}: DatePickerProps) {
+  const [open, setOpen] = React.useState(false);
+
+  // Convert max string to Date if provided
+  const maxDate = max ? new Date(max) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !value && "text-muted-foreground",
+            className
+          )}
+          disabled={disabled}
+          {...props}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+          {value ? format(value, "dd/MM/yyyy") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-0 bg-background border-border shadow-lg"
+        align="start"
+      >
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={(date) => {
+            onChange?.(date);
+            setOpen(false);
+          }}
+          disabled={(date) => {
+            if (maxDate && date > maxDate) return true;
+            return false;
+          }}
+          initialFocus
+          className="bg-background"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}

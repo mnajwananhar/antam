@@ -87,6 +87,7 @@ model User {
   // Relations
   department          Department?          @relation(fields: [departmentId], references: [id])
   operationalReports  OperationalReport[]
+  lastUpdatedReports  OperationalReport[]  @relation("LastUpdatedBy")
   ktaKpiData         KtaKpiData[]
   notifications      Notification[]
   orders             Order[]
@@ -95,6 +96,7 @@ model User {
   approvalRequests   ApprovalRequest[]
   approvedBy         ApprovalRequest[]    @relation("ApprovedBy")
   equipmentStatusChanges EquipmentStatusHistory[] @relation("EquipmentStatusChanger")
+  activityDetails    ActivityDetail[]     @relation("ActivityDetailCreator")
 
   @@index([username])
   @@index([role])
@@ -142,6 +144,7 @@ model OperationalReport {
   equipmentId  Int
   departmentId Int
   createdById  Int
+  lastUpdatedById Int?
   totalWorking Int       @default(0)
   totalStandby Int       @default(0)
   totalBreakdown Int     @default(0)
@@ -155,6 +158,7 @@ model OperationalReport {
   equipment        Equipment         @relation(fields: [equipmentId], references: [id])
   department       Department        @relation(fields: [departmentId], references: [id])
   createdBy        User              @relation(fields: [createdById], references: [id])
+  lastUpdatedBy    User?             @relation("LastUpdatedBy", fields: [lastUpdatedById], references: [id])
   activityDetails  ActivityDetail[]
 
   @@unique([reportDate, equipmentId])
@@ -167,17 +171,22 @@ model ActivityDetail {
   id                  Int               @id @default(autoincrement())
   operationalReportId Int
   equipmentId         Int
-  startTime           DateTime?         @db.Time
-  endTime             DateTime?         @db.Time
+  startDateTime       DateTime?
+  endDateTime         DateTime?
   maintenanceType     String?           @db.VarChar(100)
   description         String?           @db.Text
+  object              String?           @db.VarChar(255)
+  cause               String?           @db.Text
+  effect              String?           @db.Text
   status              EquipmentStatus
+  createdById         Int
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
   // Relations
   operationalReport   OperationalReport @relation(fields: [operationalReportId], references: [id], onDelete: Cascade)
   equipment           Equipment         @relation(fields: [equipmentId], references: [id])
+  createdBy           User              @relation("ActivityDetailCreator", fields: [createdById], references: [id])
 
   @@index([operationalReportId])
   @@map("activity_details")
