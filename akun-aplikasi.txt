@@ -1,0 +1,83 @@
+=== DAFTAR AKUN APLIKASI ANTAM SIMBAPRO ===
+
+Password untuk semua akun: password123
+
+=== ADMIN ===
+Username: admin
+Password: password123
+Role: ADMIN
+Deskripsi: Administrator sistem dengan akses penuh
+
+=== PLANNER (Per Departemen) ===
+1. Username: planner_mtceng
+   Password: password123
+   Role: PLANNER
+   Department: MTCENG (Maintenance, Technical & Engineering)
+
+2. Username: planner_mmtc
+   Password: password123
+   Role: PLANNER
+   Department: MMTC (Mine Mechanical Technical Center)
+
+3. Username: planner_pmtc
+   Password: password123
+   Role: PLANNER
+   Department: PMTC (Plant Mechanical Technical Center)
+
+4. Username: planner_ecdc
+   Password: password123
+   Role: PLANNER
+   Department: ECDC (Equipment Control & Development Center)
+
+5. Username: planner_hetu
+   Password: password123
+   Role: PLANNER
+   Department: HETU (Heavy Equipment Strategic Unit)
+
+=== INPUTTER (Per Shift) ===
+1. Username: inputter_shift1
+   Password: password123
+   Role: INPUTTER
+   Deskripsi: Input data shift 1
+
+2. Username: inputter_shift2
+   Password: password123
+   Role: INPUTTER
+   Deskripsi: Input data shift 2
+
+3. Username: inputter_shift3
+   Password: password123
+   Role: INPUTTER
+   Deskripsi: Input data shift 3
+
+4. Username: inputter_longshift1
+   Password: password123
+   Role: INPUTTER
+   Deskripsi: Input data long shift 1
+
+5. Username: inputter_longshift2
+   Password: password123
+   Role: INPUTTER
+   Deskripsi: Input data long shift 2
+
+=== VIEWER ===
+Username: viewer
+Password: password123
+Role: VIEWER
+Deskripsi: Akses hanya untuk melihat data
+
+=== CATATAN KEAMANAN ===
+- Admin dan Inputter menggunakan sistem single session
+- Planner dan Viewer dapat login dari beberapa perangkat
+- Perubahan role memerlukan logout dan login ulang
+- Disarankan untuk mengganti password default setelah login pertama
+
+=== TOTAL AKUN ===
+- Admin: 1 akun
+- Planner: 5 akun (per departemen)
+- Inputter: 5 akun (per shift)
+- Viewer: 1 akun
+- Total: 12 akun
+
+File ini dibuat pada: $(Get-Date)
+Aplikasi: ANTAM SIMBAPRO v0.1.0

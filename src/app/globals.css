@@ -1,26 +1,618 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* === BRAND COLORS (Kuning & Hitam ANTAM) === */
+
+  /* Primary - Kuning Brand ANTAM */
+  --color-primary: oklch(78% 0.12 85); /* Kuning brand ANTAM */
+  --color-primary-50: oklch(98% 0.015 85); /* Kuning sangat terang */
+  --color-primary-100: oklch(95% 0.03 85); /* Kuning terang */
+  --color-primary-200: oklch(90% 0.06 85); /* Kuning light */
+  --color-primary-300: oklch(85% 0.09 85); /* Kuning medium-light */
+  --color-primary-400: oklch(78% 0.12 85); /* Kuning standard */
+  --color-primary-500: oklch(70% 0.15 85); /* Kuning medium */
+  --color-primary-600: oklch(62% 0.13 85); /* Kuning medium-dark */
+  --color-primary-700: oklch(50% 0.11 85); /* Kuning dark */
+  --color-primary-800: oklch(35% 0.08 85); /* Kuning very dark */
+  --color-primary-900: oklch(20% 0.04 85); /* Kuning hampir hitam */
+  --color-primary-foreground: oklch(12% 0 0); /* Hitam untuk kontras */
+
+  /* Secondary - Hitam Brand */
+  --color-secondary: oklch(12% 0 0); /* Hitam brand */
+  --color-secondary-50: oklch(98% 0 0); /* Putih */
+  --color-secondary-100: oklch(95% 0 0); /* Gray sangat terang */
+  --color-secondary-200: oklch(88% 0 0); /* Gray terang */
+  --color-secondary-300: oklch(78% 0 0); /* Gray light */
+  --color-secondary-400: oklch(65% 0 0); /* Gray medium */
+  --color-secondary-500: oklch(50% 0 0); /* Gray */
+  --color-secondary-600: oklch(35% 0 0); /* Gray dark */
+  --color-secondary-700: oklch(22% 0 0); /* Gray very dark */
+  --color-secondary-800: oklch(12% 0 0); /* Hitam brand */
+  --color-secondary-900: oklch(6% 0 0); /* Hitam pekat */
+  --color-secondary-foreground: oklch(78% 0.12 85); /* Kuning untuk kontras */
+
+  /* === SYSTEM COLORS === */
+
+  /* Background & Foreground */
+  --color-background: oklch(99% 0 0); /* Putih bersih */
+  --color-foreground: oklch(12% 0 0); /* Hitam brand */
+
+  /* Card & Surfaces */
+  --color-card: oklch(99% 0 0); /* Putih card */
+  --color-card-foreground: oklch(12% 0 0); /* Hitam text */
+
+  /* Popover */
+  --color-popover: oklch(99% 0 0);
+  --color-popover-foreground: oklch(12% 0 0);
+
+  /* Muted Elements */
+  --color-muted: oklch(96% 0.015 85); /* Kuning sangat subtle */
+  --color-muted-foreground: oklch(45% 0 0); /* Gray untuk muted text */
+
+  /* Accent */
+  --color-accent: oklch(90% 0.06 85); /* Kuning light untuk accent */
+  --color-accent-foreground: oklch(20% 0 0); /* Dark gray untuk kontras */
+
+  /* Border & Input */
+  --color-border: oklch(85% 0.04 85); /* Border kuning subtle */
+  --color-input: oklch(96% 0.015 85); /* Input background */
+  --color-ring: oklch(70% 0.15 85); /* Focus ring kuning */
+
+  /* === STATUS COLORS === */
+
+  /* Success - Hijau */
+  --color-success: oklch(65% 0.15 145);
+  --color-success-foreground: oklch(98% 0 0);
+
+  /* Warning - Orange (komplementer kuning) */
+  --color-warning: oklch(70% 0.15 65);
+  --color-warning-foreground: oklch(12% 0 0);
+
+  /* Destructive - Merah */
+  --color-destructive: oklch(55% 0.2 25);
+  --color-destructive-foreground: oklch(98% 0 0);
+
+  /* Info - Menggunakan primary theme, bukan biru */
+  --color-info: oklch(78% 0.12 85);
+  --color-info-foreground: oklch(12% 0 0);
+
+  /* === CHART COLORS (Brand-themed) === */
+  --color-chart-1: oklch(78% 0.12 85); /* Kuning brand */
+  --color-chart-2: oklch(12% 0 0); /* Hitam brand */
+  --color-chart-3: oklch(65% 0.15 145); /* Hijau */
+  --color-chart-4: oklch(70% 0.15 65); /* Orange */
+  --color-chart-5: oklch(50% 0.15 300); /* Purple */
+
+  /* === DARK MODE COLORS === */
+
+  /* Dark Background & Foreground */
+  --color-dark-background: oklch(8% 0 0); /* Hitam pekat */
+  --color-dark-foreground: oklch(90% 0.06 85); /* Kuning terang */
+
+  /* Dark Cards */
+  --color-dark-card: oklch(12% 0 0); /* Card dark */
+  --color-dark-card-foreground: oklch(88% 0.05 85);
+
+  /* Dark Popover */
+  --color-dark-popover: oklch(12% 0 0);
+  --color-dark-popover-foreground: oklch(88% 0.05 85);
+
+  /* Dark Primary - Kuning lebih cerah di dark mode */
+  --color-dark-primary: oklch(85% 0.15 85);
+  --color-dark-primary-foreground: oklch(8% 0 0);
+
+  /* Dark Secondary - Gray untuk secondary di dark */
+  --color-dark-secondary: oklch(18% 0 0);
+  --color-dark-secondary-foreground: oklch(78% 0.12 85);
+
+  /* Dark Muted */
+  --color-dark-muted: oklch(16% 0.02 85);
+  --color-dark-muted-foreground: oklch(68% 0.06 85);
+
+  /* Dark Accent */
+  --color-dark-accent: oklch(22% 0.04 85);
+  --color-dark-accent-foreground: oklch(85% 0.12 85);
+
+  /* Dark Borders */
+  --color-dark-border: oklch(18% 0.03 85);
+  --color-dark-input: oklch(14% 0.02 85);
+  --color-dark-ring: oklch(78% 0.12 85);
+
+  /* Dark Status Colors */
+  --color-dark-success: oklch(70% 0.15 145);
+  --color-dark-warning: oklch(75% 0.15 65);
+  --color-dark-destructive: oklch(65% 0.2 25);
+  --color-dark-info: oklch(78% 0.12 85);
+
+  /* Dark Chart Colors */
+  --color-dark-chart-1: oklch(85% 0.15 85); /* Kuning bright */
+  --color-dark-chart-2: oklch(75% 0.05 85); /* Kuning muted */
+  --color-dark-chart-3: oklch(70% 0.15 145); /* Hijau */
+  --color-dark-chart-4: oklch(75% 0.15 65); /* Orange */
+  --color-dark-chart-5: oklch(65% 0.15 300); /* Purple */
+
+  /* === UTILITY STATUS COLORS === */
+
+  /* Working/Success States - Hijau */
+  --color-status-working-bg: oklch(95% 0.05 145);
+  --color-status-working-text: oklch(25% 0.15 145);
+  --color-status-working-border: oklch(85% 0.12 145);
+
+  /* Standby/Warning States - Orange */
+  --color-status-standby-bg: oklch(95% 0.05 65);
+  --color-status-standby-text: oklch(30% 0.15 65);
+  --color-status-standby-border: oklch(85% 0.12 65);
+
+  /* Breakdown/Error States - Merah */
+  --color-status-breakdown-bg: oklch(95% 0.05 25);
+  --color-status-breakdown-text: oklch(30% 0.2 25);
+  --color-status-breakdown-border: oklch(85% 0.15 25);
+
+  /* Normal Priority - Kuning Brand */
+  --color-urgency-normal-bg: oklch(95% 0.03 85);
+  --color-urgency-normal-text: oklch(20% 0.08 85);
+  --color-urgency-normal-border: oklch(85% 0.09 85);
+
+  /* Urgent Priority - Orange */
+  --color-urgency-urgent-bg: oklch(95% 0.05 65);
+  --color-urgency-urgent-text: oklch(30% 0.15 65);
+  --color-urgency-urgent-border: oklch(85% 0.12 65);
+
+  /* Emergency Priority - Merah */
+  --color-urgency-emergency-bg: oklch(95% 0.05 25);
+  --color-urgency-emergency-text: oklch(30% 0.2 25);
+  --color-urgency-emergency-border: oklch(85% 0.15 25);
+
+  /* Spacing & Layout */
+  --radius: 0.5rem;
+  --container-tight: 64rem;
+  --container-wide: 80rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark mode implementation */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-background: var(--color-dark-background);
+    --color-foreground: var(--color-dark-foreground);
+    --color-card: var(--color-dark-card);
+    --color-card-foreground: var(--color-dark-card-foreground);
+    --color-popover: var(--color-dark-popover);
+    --color-popover-foreground: var(--color-dark-popover-foreground);
+    --color-primary: var(--color-dark-primary);
+    --color-primary-foreground: var(--color-dark-primary-foreground);
+    --color-secondary: var(--color-dark-secondary);
+    --color-secondary-foreground: var(--color-dark-secondary-foreground);
+    --color-muted: var(--color-dark-muted);
+    --color-muted-foreground: var(--color-dark-muted-foreground);
+    --color-accent: var(--color-dark-accent);
+    --color-accent-foreground: var(--color-dark-accent-foreground);
+    --color-destructive: var(--color-dark-destructive);
+    --color-destructive-foreground: var(--color-dark-destructive-foreground);
+    --color-border: var(--color-dark-border);
+    --color-input: var(--color-dark-input);
+    --color-ring: var(--color-dark-ring);
+    --color-chart-1: var(--color-dark-chart-1);
+    --color-chart-2: var(--color-dark-chart-2);
+    --color-chart-3: var(--color-dark-chart-3);
+    --color-chart-4: var(--color-dark-chart-4);
+    --color-chart-5: var(--color-dark-chart-5);
+    --color-info: var(--color-dark-info);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom utilities using @utility directive */
+@utility status-working {
+  background-color: var(--color-status-working-bg);
+  color: var(--color-status-working-text);
+  border-color: var(--color-status-working-border);
 }
+
+@utility status-standby {
+  background-color: var(--color-status-standby-bg);
+  color: var(--color-status-standby-text);
+  border-color: var(--color-status-standby-border);
+}
+
+@utility status-breakdown {
+  background-color: var(--color-status-breakdown-bg);
+  color: var(--color-status-breakdown-text);
+  border-color: var(--color-status-breakdown-border);
+}
+
+@utility urgency-normal {
+  background-color: var(--color-urgency-normal-bg);
+  color: var(--color-urgency-normal-text);
+  border-color: var(--color-urgency-normal-border);
+}
+
+@utility urgency-urgent {
+  background-color: var(--color-urgency-urgent-bg);
+  color: var(--color-urgency-urgent-text);
+  border-color: var(--color-urgency-urgent-border);
+}
+
+@utility urgency-emergency {
+  background-color: var(--color-urgency-emergency-bg);
+  color: var(--color-urgency-emergency-text);
+  border-color: var(--color-urgency-emergency-border);
+}
+
+/* Brand-specific utilities */
+@utility brand-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@utility brand-secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+}
+
+@utility brand-accent {
+  background-color: var(--color-accent);
+  color: var(--color-accent-foreground);
+}
+
+@utility dashboard-card {
+  border-radius: var(--radius);
+  border-width: 1px;
+  border-color: var(--color-border);
+  background-color: var(--color-card);
+  color: var(--color-card-foreground);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  transition: box-shadow 0.15s ease-in-out;
+
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    border-color: var(--color-primary-300);
+  }
+}
+
+@utility dashboard-card-highlighted {
+  border-radius: var(--radius);
+  border-width: 2px;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-50);
+  color: var(--color-foreground);
+  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Dashboard Carousel Animations */
+@utility carousel-slide-enter {
+  animation: slideEnter 0.7s ease-in-out;
+}
+
+@utility carousel-slide-exit {
+  animation: slideExit 0.7s ease-in-out;
+}
+
+@keyframes slideEnter {
+  from {
+    opacity: 0;
+    transform: translateX(100px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes slideExit {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100px) scale(0.95);
+  }
+}
+
+@keyframes progressBarGlow {
+  0%, 100% { 
+    box-shadow: 0 0 5px color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+  50% { 
+    box-shadow: 0 0 15px color-mix(in srgb, var(--color-primary) 80%, transparent);
+  }
+}
+
+@utility progress-bar-animated {
+  animation: progressBarGlow 2s ease-in-out infinite;
+}
+
+/* Card Hover Effects */
+@utility card-hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 
+      0 10px 25px -5px rgb(0 0 0 / 0.1),
+      0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+}
+
+@utility icon-bounce {
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+/* Fixed Layout untuk Dashboard - CRITICAL untuk memenuhi requirement */
+@utility dashboard-fixed-layout {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Department Cards - Fixed 5 columns, no wrapping */
+@utility dept-cards-fixed {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 200px;
+}
+
+/* Responsive text untuk cards yang kecil */
+@utility dept-card-text {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+@utility dept-card-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+}
+
+/* Quick Actions - Fixed 3 columns */
+@utility quick-actions-fixed {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Sidebar - Fixed width */
+@utility sidebar-fixed {
+  min-width: 280px;
+  max-width: 280px;
+}
+
+/* Compact cards untuk sidebar */
+@utility sidebar-card-compact {
+  padding: 1rem;
+  min-height: auto;
+}
+
+/* Base styles */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Prevent horizontal scroll globally */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Container yang tidak scroll */
+.container {
+  max-width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Sidebar specific styles to prevent horizontal scroll */
+.sidebar-container {
+  width: 16rem; /* w-64 = 256px = 16rem */
+  min-width: 16rem;
+  max-width: 16rem;
+  overflow-x: hidden;
+}
+
+/* Ensure all sidebar content respects container width */
+.sidebar-container * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix button overflow in sidebar */
+.sidebar-container button {
+  max-width: calc(100% - 1rem);
+  overflow: hidden;
+}
+
+/* Fix badge overflow */
+.sidebar-container .badge {
+  max-width: 4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: color-mix(in srgb, var(--color-muted) 30%, transparent);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(
+    in srgb,
+    var(--color-muted-foreground) 30%,
+    transparent
+  );
+  border-radius: calc(var(--radius) - 2px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--color-muted-foreground) 50%,
+    transparent
+  );
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+}
+
+/* Anti-aliasing untuk font yang lebih smooth */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Focus styles yang consistent dengan brand */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-primary-foreground);
+}
+
+/* Smooth transitions untuk semua interactive elements */
+button, 
+input, 
+select, 
+textarea,
+[role="button"],
+[tabindex] {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Carousel specific styles */
+.carousel-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.carousel-slide {
+  transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-progress {
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    color-mix(in srgb, var(--color-primary) 80%, white) 50%,
+    var(--color-primary) 100%
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 50%, transparent);
+}
+
+/* Enhanced card animations */
+.department-card {
+  transform-origin: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.department-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 10px 10px -5px rgb(0 0 0 / 0.04);
+}
+
+/* Quick action cards */
+.quick-action-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 15px -3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Responsive breakpoints untuk memastikan layout fixed */
+@media (max-width: 1536px) {
+  .dept-cards-fixed {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 1280px) {
+  .dept-cards-fixed {
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 0.375rem;
+  }
+  
+  .dept-card-text {
+    font-size: 0.6875rem;
+  }
+  
+  .dept-card-title {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Untuk screen yang sangat kecil, tetap pertahankan 5 kolom */
+@media (max-width: 1024px) {
+  .dept-cards-fixed {
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 0.25rem;
+  }
+  
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Text truncation utilities */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.3;
+  max-height: 2.6em;
+}
+
+/*
+=== IMPORTANT LAYOUT RULES ===
+
+Dashboard ini menggunakan FIXED LAYOUT sesuai permintaan atasan:
+
+1. ✅ 5 Department cards dalam 1 baris (grid-cols-5)
+2. ✅ Tidak ada horizontal scroll (overflow-x: hidden)
+3. ✅ Semua terlihat dalam 1 viewport
+4. ✅ Layout responsive tapi tetap 5 kolom
+5. ✅ Sidebar fixed width di kanan
+6. ✅ Quick actions 3 kolom fixed
+
+JANGAN DIUBAH tanpa persetujuan atasan!
+*/

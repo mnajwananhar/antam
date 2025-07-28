@@ -1,0 +1,436 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  PLANNER
+  INPUTTER
+  VIEWER
+}
+
+enum DataType {
+  KTA_TTA
+  KPI_UTAMA
+}
+
+enum NotificationUrgency {
+  NORMAL
+  URGENT
+  EMERGENCY
+}
+
+enum NotificationStatus {
+  PROCESS
+  COMPLETE
+}
+
+enum MaintenanceType {
+  PREM  // Preventive Maintenance
+  CORM  // Corrective Maintenance
+}
+
+enum EquipmentStatus {
+  WORKING
+  STANDBY
+  BREAKDOWN
+}
+
+enum ApprovalStatus {
+  PENDING
+  PENDING_ADMIN_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+// Core Tables
+model Department {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique @db.VarChar(100)
+  code        String        @unique @db.VarChar(10)
+  description String?       @db.Text
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  users               User[]
+  operationalReports  OperationalReport[]
+  ktaKpiData         KtaKpiData[]
+  notifications      Notification[]
+  maintenanceRoutine MaintenanceRoutine[]
+  criticalIssues     CriticalIssue[]
+
+  @@map("departments")
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique @db.VarChar(255)
+  password     String     @db.VarChar(255)
+  role         UserRole
+  departmentId Int?
+  isActive     Boolean    @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  department          Department?          @relation(fields: [departmentId], references: [id])
+  operationalReports  OperationalReport[]
+  ktaKpiData         KtaKpiData[]
+  notifications      Notification[]
+  orders             Order[]
+  maintenanceRoutine MaintenanceRoutine[]
+  criticalIssues     CriticalIssue[]
+  approvalRequests   ApprovalRequest[]
+  approvedBy         ApprovalRequest[]    @relation("ApprovedBy")
+  equipmentStatusChanges EquipmentStatusHistory[] @relation("EquipmentStatusChanger")
+
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+model EquipmentCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique @db.VarChar(100)
+  code        String     @unique @db.VarChar(20)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  equipment   Equipment[]
+
+  @@index([name])
+  @@map("equipment_categories")
+}
+
+model Equipment {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(255)
+  code         String     @unique @db.VarChar(50)
+  categoryId   Int
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  category               EquipmentCategory    @relation(fields: [categoryId], references: [id])
+  operationalReports     OperationalReport[]
+  equipmentStatusHistory EquipmentStatusHistory[]
+  activityDetails        ActivityDetail[]
+
+  @@index([code])
+  @@index([categoryId])
+  @@map("equipment")
+}
+
+model OperationalReport {
+  id           Int       @id @default(autoincrement())
+  reportDate   DateTime  @db.Date
+  equipmentId  Int
+  departmentId Int
+  createdById  Int
+  totalWorking Int       @default(0)
+  totalStandby Int       @default(0)
+  totalBreakdown Int     @default(0)
+  shiftType    String    @db.VarChar(50)
+  isComplete   Boolean   @default(false)
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  equipment        Equipment         @relation(fields: [equipmentId], references: [id])
+  department       Department        @relation(fields: [departmentId], references: [id])
+  createdBy        User              @relation(fields: [createdById], references: [id])
+  activityDetails  ActivityDetail[]
+
+  @@unique([reportDate, equipmentId])
+  @@index([reportDate])
+  @@index([departmentId])
+  @@map("operational_reports")
+}
+
+model ActivityDetail {
+  id                  Int               @id @default(autoincrement())
+  operationalReportId Int
+  equipmentId         Int
+  startTime           DateTime?         @db.Time
+  endTime             DateTime?         @db.Time
+  maintenanceType     String?           @db.VarChar(100)
+  description         String?           @db.Text
+  status              EquipmentStatus
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  operationalReport   OperationalReport @relation(fields: [operationalReportId], references: [id], onDelete: Cascade)
+  equipment           Equipment         @relation(fields: [equipmentId], references: [id])
+
+  @@index([operationalReportId])
+  @@map("activity_details")
+}
+
+model EquipmentStatusHistory {
+  id          Int             @id @default(autoincrement())
+  equipmentId Int
+  status      EquipmentStatus
+  changedAt   DateTime        @default(now())
+  changedById Int
+  notes       String?         @db.Text
+
+  // Relations
+  equipment   Equipment       @relation(fields: [equipmentId], references: [id])
+  changedBy   User            @relation("EquipmentStatusChanger", fields: [changedById], references: [id])
+
+  @@index([equipmentId])
+  @@index([changedAt])
+  @@map("equipment_status_history")
+}
+
+model KtaKpiData {
+  id                    Int      @id @default(autoincrement())
+  noRegister            String?  @db.VarChar(50)
+  nppPelapor            String?  @db.VarChar(20)
+  namaPelapor           String?  @db.VarChar(100)
+  perusahaanBiro        String?  @db.VarChar(100)
+  tanggal               DateTime @db.Date
+  lokasi                String?  @db.VarChar(200)
+  areaTemuan            String?  @db.VarChar(200)
+  keterangan            String?  @db.Text
+  fotoUrl               String?  @db.VarChar(500)
+  kategori              String?  @db.VarChar(100)
+  sumberTemuan          String?  @db.VarChar(100)
+  picDepartemenId       Int
+  kriteriaKtaTta        String?  @db.VarChar(200)
+  perusahaanPengelola   String?  @db.VarChar(100)
+  tindakLanjutLangsung  String?  @db.Text
+  statusTindakLanjut    String?  @db.VarChar(50)
+  biro                  String?  @db.VarChar(50)
+  dueDate               DateTime? @db.Date
+  updateStatus          String?  @db.VarChar(50)
+  dataType              DataType
+  createdById           Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  picDepartemen         Department @relation(fields: [picDepartemenId], references: [id])
+  createdBy             User       @relation(fields: [createdById], references: [id])
+
+  @@index([dataType])
+  @@index([tanggal])
+  @@index([picDepartemenId])
+  @@map("kta_kpi_data")
+}
+
+model Notification {
+  id            Int                  @id @default(autoincrement())
+  uniqueNumber  String               @unique @db.VarChar(50)
+  departmentId  Int
+  reportTime    DateTime             @db.Time
+  urgency       NotificationUrgency
+  problemDetail String               @db.Text
+  status        NotificationStatus   @default(PROCESS)
+  type          MaintenanceType      @default(CORM)
+  createdById   Int
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  department    Department           @relation(fields: [departmentId], references: [id])
+  createdBy     User                 @relation(fields: [createdById], references: [id])
+  orders        Order[]
+
+  @@index([departmentId])
+  @@index([status])
+  @@map("notifications")
+}
+
+model Order {
+  id             Int           @id @default(autoincrement())
+  notificationId Int
+  jobName        String        @db.VarChar(255)
+  startDate      DateTime      @db.Date
+  endDate        DateTime?     @db.Date
+  description    String?       @db.Text
+  createdById    Int
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  notification   Notification  @relation(fields: [notificationId], references: [id])
+  createdBy      User          @relation(fields: [createdById], references: [id])
+  activities     OrderActivity[]
+
+  @@index([notificationId])
+  @@map("orders")
+}
+
+model OrderActivity {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  activity    String  @db.VarChar(255)
+  object      String  @db.VarChar(255)
+  isCompleted Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_activities")
+}
+
+model MaintenanceRoutine {
+  id             Int        @id @default(autoincrement())
+  uniqueNumber   String     @unique @db.VarChar(50)
+  jobName        String     @db.VarChar(255)
+  startDate      DateTime   @db.Date
+  endDate        DateTime?  @db.Date
+  description    String?    @db.Text
+  type           MaintenanceType @default(PREM)
+  departmentId   Int
+  createdById    Int
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  department     Department @relation(fields: [departmentId], references: [id])
+  createdBy      User       @relation(fields: [createdById], references: [id])
+  activities     MaintenanceActivity[]
+
+  @@index([departmentId])
+  @@map("maintenance_routine")
+}
+
+model MaintenanceActivity {
+  id                    Int                @id @default(autoincrement())
+  maintenanceRoutineId  Int
+  activity              String             @db.VarChar(255)
+  object                String             @db.VarChar(255)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  // Relations
+  maintenanceRoutine    MaintenanceRoutine @relation(fields: [maintenanceRoutineId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceRoutineId])
+  @@map("maintenance_activities")
+}
+
+model CriticalIssue {
+  id            Int        @id @default(autoincrement())
+  issueName     String     @db.VarChar(255)
+  departmentId  Int
+  status        EquipmentStatus
+  description   String     @db.Text
+  createdById   Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  department    Department @relation(fields: [departmentId], references: [id])
+  createdBy     User       @relation(fields: [createdById], references: [id])
+
+  @@index([departmentId])
+  @@index([status])
+  @@map("critical_issues")
+}
+
+// Safety & Environment Data (MTC&ENG Bureau only)
+model SafetyIncident {
+  id         Int      @id @default(autoincrement())
+  month      Int      // 1-12
+  year       Int
+  nearmiss   Int      @default(0)
+  kecAlat    Int      @default(0)
+  kecKecil   Int      @default(0)
+  kecRingan  Int      @default(0)
+  kecBerat   Int      @default(0)
+  fatality   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([month, year])
+  @@map("safety_incidents")
+}
+
+model EnergyTarget {
+  id           Int      @id @default(autoincrement())
+  year         Int
+  month        Int      // 1-12
+  ikesTarget   Float?   // IKES target
+  emissionTarget Float? // Emission target
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("energy_targets")
+}
+
+model EnergyRealization {
+  id               Int      @id @default(autoincrement())
+  year             Int
+  month            Int      // 1-12
+  ikesRealization  Float?   // IKES realization
+  emissionRealization Float? // Emission realization
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("energy_realizations")
+}
+
+model EnergyConsumption {
+  id           Int      @id @default(autoincrement())
+  year         Int
+  month        Int      // 1-12
+  plnConsumption Float  @default(0) // PLN (2025) MWh
+  tambangConsumption Float @default(0) // Tambang
+  pabrikConsumption Float @default(0) // Pabrik
+  supportingConsumption Float @default(0) // Supporting
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("energy_consumption")
+}
+
+// Approval System
+model ApprovalRequest {
+  id           Int            @id @default(autoincrement())
+  requesterId  Int
+  approverId   Int?
+  status       ApprovalStatus @default(PENDING)
+  requestType  String         @db.VarChar(100) // 'data_change', 'data_creation', etc.
+  tableName    String         @db.VarChar(100)
+  recordId     Int?
+  oldData      Json?          // Store old data as JSON
+  newData      Json           // Store new data as JSON
+  reason       String?        @db.Text
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  requester    User           @relation(fields: [requesterId], references: [id])
+  approver     User?          @relation("ApprovedBy", fields: [approverId], references: [id])
+
+  @@index([status])
+  @@index([requesterId])
+  @@map("approval_requests")
+}
