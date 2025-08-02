@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Session } from "next-auth";
+import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,21 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Shield, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, Shield, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 
 interface SafetyIncidentTabProps {
-  department: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  session: {
-    user: {
-      id: string;
-      username: string;
-      role: string;
-    };
-  };
+  department: Department;
+  session: Session;
+  editId?: number;
 }
 
 interface SafetyIncident {
@@ -39,13 +32,22 @@ interface SafetyIncident {
   kecRingan: number;
   kecBerat: number;
   fatality: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
-  const [incidents] = useState<SafetyIncident[]>([]);
+  const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
+
   const [newIncident, setNewIncident] = useState({
     month: currentMonth,
     year: currentYear,
@@ -57,27 +59,85 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     fatality: 0,
   });
 
+  // Load safety incidents on component mount
+  useEffect(() => {
+    if (department.code === "MTCENG") {
+      loadSafetyIncidents();
+    }
+  }, [department.code]);
+
+  const loadSafetyIncidents = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/safety-incident");
+
+      if (response.ok) {
+        const result = await response.json();
+        setIncidents(result.data || []);
+      } else {
+        const error = await response.json();
+        console.error("Failed to load safety incidents:", error);
+        setMessage({
+          type: "error",
+          text: error.error || "Gagal memuat data safety incidents",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading safety incidents:", error);
+      setMessage({
+        type: "error",
+        text: "Error saat memuat data",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setMessage(null);
 
     try {
-      // API call would go here
-      console.log("Submitting safety incident:", newIncident);
-
-      // Reset form
-      setNewIncident({
-        month: currentMonth,
-        year: currentYear,
-        nearmiss: 0,
-        kecAlat: 0,
-        kecKecil: 0,
-        kecRingan: 0,
-        kecBerat: 0,
-        fatality: 0,
+      const response = await fetch("/api/safety-incident", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newIncident),
       });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: result.message || "Data safety incident berhasil disimpan",
+        });
+
+        // Reset form to current month/year
+        setNewIncident({
+          month: currentMonth,
+          year: currentYear,
+          nearmiss: 0,
+          kecAlat: 0,
+          kecKecil: 0,
+          kecRingan: 0,
+          kecBerat: 0,
+          fatality: 0,
+        });
+
+        // Reload data
+        loadSafetyIncidents();
+      } else {
+        throw new Error(result.error || "Failed to save safety incident");
+      }
     } catch (error) {
       console.error("Error submitting safety incident:", error);
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal menyimpan data",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -106,6 +166,25 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     "Desember",
   ];
 
+  const getTotalIncidents = (incident: SafetyIncident) => {
+    return (
+      incident.nearmiss +
+      incident.kecAlat +
+      incident.kecKecil +
+      incident.kecRingan +
+      incident.kecBerat +
+      incident.fatality
+    );
+  };
+
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
     return (
@@ -120,6 +199,13 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Messages */}
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Form Input */}
       <Card>
         <CardHeader>
@@ -141,6 +227,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                       month: parseInt(value),
                     }))
                   }
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -171,6 +258,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                   }
                   min={2020}
                   max={currentYear + 1}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -185,6 +273,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("nearmiss", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -197,6 +286,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("kecAlat", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -209,6 +299,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("kecKecil", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -221,6 +312,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("kecRingan", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -233,6 +325,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("kecBerat", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -245,14 +338,24 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                     handleNumberChange("fatality", e.target.value)
                   }
                   min={0}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
-                <Plus className="h-4 w-4 mr-2" />
-                {isSubmitting ? "Menyimpan..." : "Simpan Data Safety"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Simpan Data Safety
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -260,25 +363,30 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
       </Card>
 
       {/* Statistics Summary */}
-      {incidents.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Ringkasan Data Safety Incident
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Ringkasan Data Safety Incident
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Memuat data...</p>
+            </div>
+          ) : incidents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {incidents.map((incident) => (
                 <div
                   key={`${incident.year}-${incident.month}`}
                   className="border rounded-lg p-4"
                 >
-                  <h4 className="font-medium mb-2">
+                  <h4 className="font-medium mb-3">
                     {monthNames[incident.month - 1]} {incident.year}
                   </h4>
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Near Miss:</span>
                       <span className="font-medium">{incident.nearmiss}</span>
@@ -307,22 +415,32 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                         {incident.fatality}
                       </span>
                     </div>
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">Total:</span>
+                        <span className="font-bold">
+                          {getTotalIncidents(incident)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Update:{" "}
+                    {new Date(incident.updatedAt).toLocaleDateString("id-ID")}
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {incidents.length === 0 && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Belum ada data safety incident yang tercatat untuk tahun ini.
-          </AlertDescription>
-        </Alert>
-      )}
+          ) : (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Belum ada data safety incident yang tercatat.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

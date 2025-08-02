@@ -65,7 +65,6 @@ model Department {
   // Relations
   users               User[]
   operationalReports  OperationalReport[]
-  ktaKpiData         KtaKpiData[]
   notifications      Notification[]
   maintenanceRoutine MaintenanceRoutine[]
   criticalIssues     CriticalIssue[]
@@ -209,40 +208,57 @@ model EquipmentStatusHistory {
   @@map("equipment_status_history")
 }
 
+enum StatusTindakLanjut {
+  OPEN
+  CLOSE
+}
+
 model KtaKpiData {
   id                    Int      @id @default(autoincrement())
-  noRegister            String?  @db.VarChar(50)
+  noRegister            String   @unique @db.VarChar(50)
   nppPelapor            String?  @db.VarChar(20)
   namaPelapor           String?  @db.VarChar(100)
   perusahaanBiro        String?  @db.VarChar(100)
-  tanggal               DateTime @db.Date
+  tanggal               DateTime? @db.Date
   lokasi                String?  @db.VarChar(200)
   areaTemuan            String?  @db.VarChar(200)
   keterangan            String?  @db.Text
   fotoUrl               String?  @db.VarChar(500)
   kategori              String?  @db.VarChar(100)
   sumberTemuan          String?  @db.VarChar(100)
-  picDepartemenId       Int
+  picDepartemen         String?  @db.VarChar(100) // Store as string: "ECDC", "Mine Electrical", etc.
   kriteriaKtaTta        String?  @db.VarChar(200)
   perusahaanPengelola   String?  @db.VarChar(100)
   tindakLanjutLangsung  String?  @db.Text
-  statusTindakLanjut    String?  @db.VarChar(50)
+  statusTindakLanjut    StatusTindakLanjut?
   biro                  String?  @db.VarChar(50)
   dueDate               DateTime? @db.Date
-  updateStatus          String?  @db.VarChar(50)
+  updateStatus          String?  @db.VarChar(50) // Computed field: Close, Proses, Due Date
   dataType              DataType
   createdById           Int
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   // Relations
-  picDepartemen         Department @relation(fields: [picDepartemenId], references: [id])
   createdBy             User       @relation(fields: [createdById], references: [id])
 
   @@index([dataType])
   @@index([tanggal])
-  @@index([picDepartemenId])
+  @@index([picDepartemen])
+  @@index([statusTindakLanjut])
   @@map("kta_kpi_data")
+}
+
+// Lookup table for KTA/TTA criteria and their due date days
+model KriteriaKtaTta {
+  id       Int     @id @default(autoincrement())
+  kriteria String  @unique @db.VarChar(200)
+  days     Int     // Number of days to add for due date calculation
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kriteria_kta_tta")
 }
 
 model Notification {

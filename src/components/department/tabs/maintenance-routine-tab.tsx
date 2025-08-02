@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Session } from "next-auth";
+import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,22 +16,28 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Wrench, Calendar, CheckCircle2 } from "lucide-react";
+import {
+  Plus,
+  Wrench,
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  Trash2,
+} from "lucide-react";
 import { MaintenanceType } from "@prisma/client";
 
 interface MaintenanceRoutineTabProps {
-  department: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  session: {
-    user: {
-      id: string;
-      username: string;
-      role: string;
-    };
-  };
+  department: Department;
+  session: Session;
+  editId?: number;
+}
+
+interface MaintenanceActivity {
+  id: number;
+  activity: string;
+  object: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface MaintenanceRoutine {
@@ -41,13 +49,31 @@ interface MaintenanceRoutine {
   description?: string;
   type: MaintenanceType;
   createdAt: string;
+  department: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  createdBy: {
+    id: number;
+    username: string;
+    role: string;
+  };
+  activities: MaintenanceActivity[];
 }
 
 export function MaintenanceRoutineTab({
   department,
+  session,
 }: MaintenanceRoutineTabProps) {
-  const [routines] = useState<MaintenanceRoutine[]>([]);
+  const [routines, setRoutines] = useState<MaintenanceRoutine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const [newRoutine, setNewRoutine] = useState({
     jobName: "",
     startDate: "",
@@ -56,27 +82,135 @@ export function MaintenanceRoutineTab({
     type: MaintenanceType.PREM as MaintenanceType,
   });
 
+  const [activities, setActivities] = useState<
+    { activity: string; object: string }[]
+  >([{ activity: "", object: "" }]);
+
+  // Check if user can access maintenance routine
+  const canAccess =
+    session.user.role === "ADMIN" || session.user.role === "PLANNER";
+
+  const loadMaintenanceRoutines = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `/api/maintenance-routine?departmentId=${department.id}`
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load maintenance routines");
+      }
+
+      setRoutines(result.data || []);
+    } catch (error) {
+      console.error("Error loading maintenance routines:", error);
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat memuat data",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [department.id]);
+
+  // Load maintenance routines on component mount
+  useEffect(() => {
+    if (canAccess) {
+      loadMaintenanceRoutines();
+    }
+  }, [canAccess, loadMaintenanceRoutines]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!newRoutine.jobName.trim() || !newRoutine.startDate) {
+      setMessage({
+        type: "error",
+        text: "Nama pekerjaan dan tanggal mulai wajib diisi",
+      });
+      return;
+    }
+
+    // Validate activities
+    const validActivities = activities.filter(
+      (act) => act.activity.trim() && act.object.trim()
+    );
+
     setIsSubmitting(true);
+    setMessage(null);
 
     try {
-      // API call would go here
-      console.log("Submitting maintenance routine:", newRoutine);
-
-      // Reset form
-      setNewRoutine({
-        jobName: "",
-        startDate: "",
-        endDate: "",
-        description: "",
-        type: MaintenanceType.PREM as MaintenanceType,
+      const response = await fetch("/api/maintenance-routine", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...newRoutine,
+          departmentId: department.id,
+          activities: validActivities,
+        }),
       });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: result.message || "Maintenance routine berhasil dibuat",
+        });
+
+        // Reset form
+        setNewRoutine({
+          jobName: "",
+          startDate: "",
+          endDate: "",
+          description: "",
+          type: MaintenanceType.PREM as MaintenanceType,
+        });
+        setActivities([{ activity: "", object: "" }]);
+
+        // Reload data
+        loadMaintenanceRoutines();
+      } else {
+        throw new Error(result.error || "Failed to create maintenance routine");
+      }
     } catch (error) {
       console.error("Error submitting maintenance routine:", error);
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Gagal menyimpan maintenance routine",
+      });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const addActivity = () => {
+    setActivities([...activities, { activity: "", object: "" }]);
+  };
+
+  const removeActivity = (index: number) => {
+    if (activities.length > 1) {
+      setActivities(activities.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateActivity = (
+    index: number,
+    field: "activity" | "object",
+    value: string
+  ) => {
+    const updated = [...activities];
+    updated[index][field] = value;
+    setActivities(updated);
   };
 
   const getTypeBadge = (type: MaintenanceType) => {
@@ -92,14 +226,40 @@ export function MaintenanceRoutineTab({
     );
   };
 
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  if (!canAccess) {
+    return (
+      <Alert>
+        <Wrench className="h-4 w-4" />
+        <AlertDescription>
+          Fitur Maintenance Routine hanya dapat diakses oleh Admin dan Planner.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Messages */}
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Form Input */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5" />
-            Penjadwalan Maintenance Routine
+            Penjadwalan Maintenance Routine - {department.name}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -117,6 +277,7 @@ export function MaintenanceRoutineTab({
                   }
                   placeholder="Masukkan nama pekerjaan maintenance"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -127,6 +288,7 @@ export function MaintenanceRoutineTab({
                   onValueChange={(value: MaintenanceType) =>
                     setNewRoutine((prev) => ({ ...prev, type: value }))
                   }
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -154,6 +316,7 @@ export function MaintenanceRoutineTab({
                     }))
                   }
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -170,6 +333,7 @@ export function MaintenanceRoutineTab({
                       endDate: e.target.value,
                     }))
                   }
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -185,14 +349,81 @@ export function MaintenanceRoutineTab({
                   }))
                 }
                 placeholder="Jelaskan detail maintenance routine..."
-                rows={4}
+                rows={3}
+                disabled={isSubmitting}
               />
+            </div>
+
+            {/* Activities Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium">
+                  Aktivitas & Object
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addActivity}
+                  disabled={isSubmitting}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Tambah
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {activities.map((activity, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Aktivitas"
+                        value={activity.activity}
+                        onChange={(e) =>
+                          updateActivity(index, "activity", e.target.value)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Object"
+                        value={activity.object}
+                        onChange={(e) =>
+                          updateActivity(index, "object", e.target.value)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    {activities.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeActivity(index)}
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
-                <Plus className="h-4 w-4 mr-2" />
-                {isSubmitting ? "Menyimpan..." : "Jadwalkan Maintenance"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Jadwalkan Maintenance
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -200,21 +431,33 @@ export function MaintenanceRoutineTab({
       </Card>
 
       {/* Routines List */}
-      {routines.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Jadwal Maintenance Routine</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Jadwal Maintenance Routine</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Memuat data...</p>
+            </div>
+          ) : routines.length > 0 ? (
             <div className="space-y-4">
               {routines.map((routine) => (
                 <div key={routine.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">{routine.jobName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {routine.description}
-                      </p>
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{routine.jobName}</h4>
+                        {getTypeBadge(routine.type)}
+                      </div>
+
+                      {routine.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {routine.description}
+                        </p>
+                      )}
+
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4" />
                         <span>
@@ -233,9 +476,42 @@ export function MaintenanceRoutineTab({
                           </>
                         )}
                       </div>
+
+                      {/* Activities */}
+                      {routine.activities && routine.activities.length > 0 && (
+                        <div className="mt-3">
+                          <h5 className="text-xs font-medium text-muted-foreground mb-2">
+                            Aktivitas:
+                          </h5>
+                          <div className="space-y-1">
+                            {routine.activities.map((activity, index) => (
+                              <div
+                                key={activity.id}
+                                className="text-xs bg-muted rounded px-2 py-1"
+                              >
+                                {index + 1}. {activity.activity} -{" "}
+                                {activity.object}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>
+                          Dibuat:{" "}
+                          {new Date(routine.createdAt).toLocaleDateString(
+                            "id-ID"
+                          )}
+                        </span>
+                        <span>
+                          Oleh: {routine.createdBy.username} (
+                          {routine.createdBy.role})
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {getTypeBadge(routine.type)}
+
+                    <div className="flex flex-col items-end gap-2 ml-4">
                       <Badge variant="outline" className="text-xs">
                         {routine.uniqueNumber}
                       </Badge>
@@ -244,19 +520,17 @@ export function MaintenanceRoutineTab({
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {routines.length === 0 && (
-        <Alert>
-          <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>
-            Belum ada maintenance routine yang dijadwalkan untuk{" "}
-            {department.name}.
-          </AlertDescription>
-        </Alert>
-      )}
+          ) : (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                Belum ada maintenance routine yang dijadwalkan untuk{" "}
+                {department.name}.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

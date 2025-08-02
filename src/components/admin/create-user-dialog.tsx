@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export function CreateUserDialog({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const {
     register,
@@ -79,7 +81,7 @@ export function CreateUserDialog({
       // Success - close dialog and refresh page
       setOpen(false);
       reset();
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       console.error("Error creating user:", err);
       setError(err instanceof Error ? err.message : "Terjadi kesalahan sistem");

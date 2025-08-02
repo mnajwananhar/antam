@@ -1,9 +1,25 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+// Functional component to use router hook
+function ReloadButton({ className }: { className?: string }) {
+  const router = useRouter()
+  
+  return (
+    <Button 
+      variant="outline" 
+      onClick={() => router.refresh()}
+      className={className}
+    >
+      Muat Ulang Halaman
+    </Button>
+  )
+}
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -83,13 +99,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Coba Lagi
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.reload()}
-                  className="flex-1"
-                >
-                  Muat Ulang Halaman
-                </Button>
+                <ReloadButton className="flex-1" />
               </div>
             </CardContent>
           </Card>

@@ -6,26 +6,12 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { DashboardCarousel } from "@/components/dashboard/dashboard-carousel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DEPARTMENTS } from "@/lib/constants";
 import { departmentUtils } from "@/lib/utils";
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  ArrowRight,
-  Zap,
-  Wrench,
-  Shield,
-} from "lucide-react";
+import { Activity } from "lucide-react";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -76,7 +62,7 @@ function DashboardContent() {
       {/* Department Cards - Compact di bagian bawah */}
       <div className="flex-shrink-0 bg-black px-6 py-4">
         <div className="grid grid-cols-5 gap-3">
-          {currentDepartments.map((department, index) => (
+          {currentDepartments.map((department) => (
             <Card
               key={`${currentDeptIndex}-${department.id}`}
               className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 hover:border-yellow-500/50 transition-all duration-300 hover:scale-105 h-32"

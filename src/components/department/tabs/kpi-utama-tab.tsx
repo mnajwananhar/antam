@@ -1,193 +1,112 @@
 "use client";
 
 import { Session } from "next-auth";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { BarChart3 } from "lucide-react";
 import { Department } from "@prisma/client";
+import { ExcelUpload } from "@/components/kta-tta";
+import { getAllowedPIC, hasDataTypeAccess } from "@/lib/utils/kta-tta";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, BarChart3 } from "lucide-react";
+import { useState } from "react";
 
 interface KpiUtamaTabProps {
   department: Department;
   session: Session;
+  editId?: number;
 }
 
-export function KpiUtamaTab({ department }: KpiUtamaTabProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          KPI Utama - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Manajemen data Key Performance Indicator utama (khusus MTC&ENG Bureau)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">KPI Utama</h3>
-          <p className="text-muted-foreground">
-            Fitur khusus untuk departemen MTC&ENG Bureau dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+interface ExcelRow {
+  [key: string]: string | number | undefined;
+}
+
+export function KpiUtamaTab({ session }: KpiUtamaTabProps) {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const user = {
+    id: session.user.id,
+    username: session.user.username,
+    role: session.user.role as "ADMIN" | "PLANNER" | "INPUTTER" | "VIEWER",
+    department: session.user.departmentName,
+  };
+
+  // Check access permission
+  const hasAccess = hasDataTypeAccess(
+    user.role,
+    user.department || undefined,
+    "KPI_UTAMA"
   );
-}
-
-export function CriticalIssueTab({
-  department,
-}: {
-  department: Department;
-  session: Session;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-red-600">⚠️</span>
-          Critical Issue - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Pencatatan dan penanganan masalah kritis operasional
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <span className="mx-auto block text-6xl mb-4">⚠️</span>
-          <h3 className="text-lg font-semibold mb-2">Critical Issue</h3>
-          <p className="text-muted-foreground">
-            Sistem pelaporan masalah kritis dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+  const allowedPIC = getAllowedPIC(
+    user.role,
+    user.department || undefined,
+    "KPI_UTAMA"
   );
-}
 
-export function MaintenanceRoutineTab({
-  department,
-}: {
-  department: Department;
-  session: Session;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>🔧</span>
-          Maintenance Rutin - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Pencatatan jadwal dan detail perawatan rutin (akses terbatas untuk
-          Planner)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <span className="mx-auto block text-6xl mb-4">🔧</span>
-          <h3 className="text-lg font-semibold mb-2">Maintenance Rutin</h3>
-          <p className="text-muted-foreground">
-            Sistem manajemen maintenance rutin dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+  const handleBulkUpload = async (excelData: ExcelRow[]) => {
+    setIsUploading(true);
+    try {
+      const response = await fetch("/api/kta-tta/bulk-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          data: excelData,
+          dataType: "KPI_UTAMA",
+        }),
+      });
 
-export function SafetyIncidentTab({
-  department,
-}: {
-  department: Department;
-  session: Session;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>🛡️</span>
-          Pelaporan Insiden Keselamatan - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Input data insiden keselamatan bulanan (khusus MTC&ENG Bureau)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <span className="mx-auto block text-6xl mb-4">🛡️</span>
-          <h3 className="text-lg font-semibold mb-2">Safety Incident</h3>
-          <p className="text-muted-foreground">
-            Sistem pelaporan keselamatan dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload data");
+      }
 
-export function EnergyIkesTab({
-  department,
-}: {
-  department: Department;
-  session: Session;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>⚡</span>
-          Input IKES & Emisi - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Input data realisasi IKES dan emisi bulanan (khusus MTC&ENG Bureau)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <span className="mx-auto block text-6xl mb-4">⚡</span>
-          <h3 className="text-lg font-semibold mb-2">IKES & Emisi</h3>
-          <p className="text-muted-foreground">
-            Sistem input data energi dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+      const result = await response.json();
+      alert(
+        `Berhasil mengupload ${
+          result.results?.success || excelData.length
+        } data KPI Utama`
+      );
+    } catch (error) {
+      console.error("Error uploading data:", error);
+      alert(error instanceof Error ? error.message : "Gagal mengupload data");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-export function EnergyConsumptionTab({
-  department,
-}: {
-  department: Department;
-  session: Session;
-}) {
+  if (!hasAccess) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <Alert variant="destructive">
+            <AlertTriangle className="w-4 h-4" />
+            <AlertDescription>
+              Fitur KPI Utama hanya tersedia untuk MTC&ENG Bureau.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>🔌</span>
-          Konsumsi Energi Listrik - {department.name}
-        </CardTitle>
-        <CardDescription>
-          Input data konsumsi energi listrik per area (khusus MTC&ENG Bureau)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <span className="mx-auto block text-6xl mb-4">🔌</span>
-          <h3 className="text-lg font-semibold mb-2">Konsumsi Energi</h3>
-          <p className="text-muted-foreground">
-            Sistem monitoring konsumsi energi dalam pengembangan.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <BarChart3 className="w-5 h-5" />
+            <span>Input Data KPI Utama</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ExcelUpload
+            onUpload={handleBulkUpload}
+            allowedPIC={allowedPIC}
+            dataType="KPI_UTAMA"
+            isUploading={isUploading}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

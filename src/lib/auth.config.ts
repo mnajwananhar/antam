@@ -28,6 +28,7 @@ export interface ExtendedUser {
 const SINGLE_SESSION_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.INPUTTER];
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -94,9 +95,23 @@ export const authConfig: NextAuthConfig = {
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // Update session every hour
   },
   callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: ExtendedUser }) {
+    async jwt({
+      token,
+      user,
+      trigger,
+    }: {
+      token: JWT;
+      user?: ExtendedUser;
+      trigger?: string;
+    }) {
+      // Handle session update gracefully
+      if (trigger === "update" && !user) {
+        // Return existing token if this is just a session update
+        return token;
+      }
       if (user) {
         token.id = user.id;
         token.username = user.username;
@@ -109,6 +124,10 @@ export const authConfig: NextAuthConfig = {
           token.enforcesSingleSession = true;
         }
       }
+
+      // Add timestamp for token validation
+      token.iat = Math.floor(Date.now() / 1000);
+
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {

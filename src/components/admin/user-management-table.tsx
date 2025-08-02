@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -66,6 +67,7 @@ export function UserManagementTable({
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const router = useRouter();
 
   // Filter users based on search and filters
   const filteredUsers = users.filter((user) => {
@@ -158,7 +160,7 @@ export function UserManagementTable({
       });
 
       // Refresh the page to get updated data
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error("Error toggling user status:", error);
       setMessage({

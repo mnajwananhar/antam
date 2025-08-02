@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Database,
+  Eye,
   Bell,
   ClipboardList,
   Users,
@@ -56,6 +57,11 @@ const navigationItems: NavItem[] = [
         icon: Database,
       },
     ],
+  },
+  {
+    title: "Review Data",
+    href: "/data-review",
+    icon: Eye,
   },
   {
     title: "Notifikasi",

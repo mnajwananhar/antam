@@ -54,33 +54,21 @@ export async function GET(request: NextRequest) {
     const equipment = await prisma.equipment.findMany({
       where: whereClause,
       include: {
-        department: {
+        category: {
           select: {
             id: true,
             name: true,
-            code: true,
-          },
-        },
-        equipmentStatusHistory: {
-          take: 1,
-          orderBy: {
-            changedAt: "desc",
-          },
-          select: {
-            status: true,
-            changedAt: true,
           },
         },
       },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
+      orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     });
 
     // Transform data to include current status
     const equipmentWithStatus = equipment.map((eq) => ({
       ...eq,
-      currentStatus: eq.equipmentStatusHistory[0]?.status || "WORKING",
-      lastStatusChange: eq.equipmentStatusHistory[0]?.changedAt || eq.createdAt,
-      equipmentStatusHistory: undefined, // Remove from response
+      currentStatus: "WORKING", // Default status since history is removed
+      lastStatusChange: eq.createdAt,
     }));
 
     return Response.json(

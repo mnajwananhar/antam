@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Session } from "next-auth";
+import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,21 +21,14 @@ import {
   Factory,
   Pickaxe,
   Building,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 interface EnergyConsumptionTabProps {
-  department: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  session: {
-    user: {
-      id: string;
-      username: string;
-      role: string;
-    };
-  };
+  department: Department;
+  session: Session;
+  editId?: number;
 }
 
 interface EnergyConsumption {
@@ -44,43 +39,130 @@ interface EnergyConsumption {
   tambangConsumption: number;
   pabrikConsumption: number;
   supportingConsumption: number;
+  totalConsumption: number;
+  breakdown: {
+    plnPercentage: number;
+    tambangPercentage: number;
+    pabrikPercentage: number;
+    supportingPercentage: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function EnergyConsumptionTab({
   department,
 }: EnergyConsumptionTabProps) {
-  const [consumptionData] = useState<EnergyConsumption[]>([]);
+  const [consumptionData, setConsumptionData] = useState<EnergyConsumption[]>(
+    []
+  );
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
+
   const [newConsumption, setNewConsumption] = useState({
     month: currentMonth,
     year: currentYear,
-    plnConsumption: 0,
-    tambangConsumption: 0,
-    pabrikConsumption: 0,
-    supportingConsumption: 0,
+    plnConsumption: "",
+    tambangConsumption: "",
+    pabrikConsumption: "",
+    supportingConsumption: "",
   });
+
+  // Load energy consumption data on component mount
+  useEffect(() => {
+    if (department.code === "MTCENG") {
+      loadEnergyConsumption();
+    }
+  }, [department.code]);
+
+  const loadEnergyConsumption = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/energy-consumption");
+
+      if (response.ok) {
+        const result = await response.json();
+        setConsumptionData(result.data || []);
+      } else {
+        const error = await response.json();
+        console.error("Failed to load energy consumption:", error);
+        setMessage({
+          type: "error",
+          text: error.error || "Gagal memuat data energy consumption",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading energy consumption:", error);
+      setMessage({
+        type: "error",
+        text: "Error saat memuat data",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setMessage(null);
+
+    // Convert string inputs to numbers
+    const submitData = {
+      month: newConsumption.month,
+      year: newConsumption.year,
+      plnConsumption: parseFloat(newConsumption.plnConsumption) || 0,
+      tambangConsumption: parseFloat(newConsumption.tambangConsumption) || 0,
+      pabrikConsumption: parseFloat(newConsumption.pabrikConsumption) || 0,
+      supportingConsumption:
+        parseFloat(newConsumption.supportingConsumption) || 0,
+    };
 
     try {
-      // API call would go here
-      console.log("Submitting energy consumption:", newConsumption);
-
-      // Reset form
-      setNewConsumption({
-        month: currentMonth,
-        year: currentYear,
-        plnConsumption: 0,
-        tambangConsumption: 0,
-        pabrikConsumption: 0,
-        supportingConsumption: 0,
+      const response = await fetch("/api/energy-consumption", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submitData),
       });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: result.message || "Data energy consumption berhasil disimpan",
+        });
+
+        // Reset form
+        setNewConsumption({
+          month: currentMonth,
+          year: currentYear,
+          plnConsumption: "",
+          tambangConsumption: "",
+          pabrikConsumption: "",
+          supportingConsumption: "",
+        });
+
+        // Reload data
+        loadEnergyConsumption();
+      } else {
+        throw new Error(result.error || "Failed to save energy consumption");
+      }
     } catch (error) {
       console.error("Error submitting energy consumption:", error);
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal menyimpan data",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -90,8 +172,7 @@ export function EnergyConsumptionTab({
     field: keyof typeof newConsumption,
     value: string
   ) => {
-    const numValue = parseFloat(value) || 0;
-    setNewConsumption((prev) => ({ ...prev, [field]: Math.max(0, numValue) }));
+    setNewConsumption((prev) => ({ ...prev, [field]: value }));
   };
 
   const monthNames = [
@@ -111,12 +192,21 @@ export function EnergyConsumptionTab({
 
   const getTotalConsumption = (data: EnergyConsumption) => {
     return (
+      data.totalConsumption ||
       data.plnConsumption +
-      data.tambangConsumption +
-      data.pabrikConsumption +
-      data.supportingConsumption
+        data.tambangConsumption +
+        data.pabrikConsumption +
+        data.supportingConsumption
     );
   };
+
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -132,6 +222,13 @@ export function EnergyConsumptionTab({
 
   return (
     <div className="space-y-6">
+      {/* Messages */}
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Form Input */}
       <Card>
         <CardHeader>
@@ -153,6 +250,7 @@ export function EnergyConsumptionTab({
                       month: parseInt(value),
                     }))
                   }
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -183,6 +281,7 @@ export function EnergyConsumptionTab({
                   }
                   min={2020}
                   max={currentYear + 1}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -202,6 +301,7 @@ export function EnergyConsumptionTab({
                   }
                   min={0}
                   placeholder="Konsumsi PLN"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -219,6 +319,7 @@ export function EnergyConsumptionTab({
                   }
                   min={0}
                   placeholder="Konsumsi Tambang"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -236,6 +337,7 @@ export function EnergyConsumptionTab({
                   }
                   min={0}
                   placeholder="Konsumsi Pabrik"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -253,14 +355,24 @@ export function EnergyConsumptionTab({
                   }
                   min={0}
                   placeholder="Konsumsi Supporting"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
-                <Plus className="h-4 w-4 mr-2" />
-                {isSubmitting ? "Menyimpan..." : "Simpan Data Konsumsi"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Simpan Data Konsumsi
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -268,15 +380,20 @@ export function EnergyConsumptionTab({
       </Card>
 
       {/* Consumption Data */}
-      {consumptionData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Data Energy Consumption
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Data Energy Consumption
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Memuat data...</p>
+            </div>
+          ) : consumptionData.length > 0 ? (
             <div className="space-y-4">
               {consumptionData.map((data) => (
                 <div
@@ -286,33 +403,53 @@ export function EnergyConsumptionTab({
                   <h4 className="font-medium mb-3">
                     {monthNames[data.month - 1]} {data.year}
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground">PLN</span>
                       <span className="font-medium text-blue-600">
                         {data.plnConsumption.toFixed(2)} MWh
                       </span>
+                      {data.breakdown && (
+                        <span className="text-xs text-muted-foreground">
+                          ({data.breakdown.plnPercentage.toFixed(1)}%)
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-muted-foreground">Tambang</span>
                       <span className="font-medium text-amber-600">
                         {data.tambangConsumption.toFixed(2)} MWh
                       </span>
+                      {data.breakdown && (
+                        <span className="text-xs text-muted-foreground">
+                          ({data.breakdown.tambangPercentage.toFixed(1)}%)
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-muted-foreground">Pabrik</span>
                       <span className="font-medium text-green-600">
                         {data.pabrikConsumption.toFixed(2)} MWh
                       </span>
+                      {data.breakdown && (
+                        <span className="text-xs text-muted-foreground">
+                          ({data.breakdown.pabrikPercentage.toFixed(1)}%)
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-muted-foreground">Supporting</span>
                       <span className="font-medium text-purple-600">
                         {data.supportingConsumption.toFixed(2)} MWh
                       </span>
+                      {data.breakdown && (
+                        <span className="text-xs text-muted-foreground">
+                          ({data.breakdown.supportingPercentage.toFixed(1)}%)
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t">
+                  <div className="pt-3 border-t">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">
                         Total Consumption:
@@ -322,21 +459,23 @@ export function EnergyConsumptionTab({
                       </span>
                     </div>
                   </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Update:{" "}
+                    {new Date(data.updatedAt).toLocaleDateString("id-ID")}
+                  </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {consumptionData.length === 0 && (
-        <Alert>
-          <BarChart3 className="h-4 w-4" />
-          <AlertDescription>
-            Belum ada data energy consumption yang tercatat untuk tahun ini.
-          </AlertDescription>
-        </Alert>
-      )}
+          ) : (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Belum ada data energy consumption yang tercatat untuk tahun ini.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

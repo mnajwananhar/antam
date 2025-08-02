@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -22,20 +21,17 @@ interface DatePickerProps {
   max?: string; // For compatibility with max date
 }
 
+/**
+ * @deprecated Use CustomCalendar instead
+ */
 export function DatePicker({
   value,
-  onChange,
   placeholder = "Pilih tanggal...",
   disabled = false,
   className,
   id,
-  max,
-  ...props
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-
-  // Convert max string to Date if provided
-  const maxDate = max ? new Date(max) : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +45,6 @@ export function DatePicker({
             className
           )}
           disabled={disabled}
-          {...props}
         >
           <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
           {value ? format(value, "dd/MM/yyyy") : <span>{placeholder}</span>}
@@ -59,6 +54,7 @@ export function DatePicker({
         className="w-auto p-0 bg-background border-border shadow-lg"
         align="start"
       >
+        {/* 
         <Calendar
           mode="single"
           selected={value}
@@ -73,6 +69,11 @@ export function DatePicker({
           initialFocus
           className="bg-background"
         />
+        */}
+        <div className="p-4 text-center text-muted-foreground">
+          <p>This component is deprecated.</p>
+          <p>Use CustomCalendar instead.</p>
+        </div>
       </PopoverContent>
     </Popover>
   );

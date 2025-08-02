@@ -138,8 +138,8 @@ export const operationalReportWithActivitiesSchema =
 // KTA/KPI data schemas
 export const ktaKpiDataSchema = z.object({
   noRegister: z.string().optional(),
-  nppPelapor: z.string().optional(),
-  namaPelapor: z.string().optional(),
+  nppPelapor: z.string().min(1, "NPP Pelapor is required"),
+  namaPelapor: z.string().min(1, "Nama Pelapor is required"),
   perusahaanBiro: z.string().optional(),
   tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
   lokasi: z.string().optional(),
@@ -148,7 +148,7 @@ export const ktaKpiDataSchema = z.object({
   fotoUrl: z.string().url().optional().or(z.literal("")),
   kategori: z.string().optional(),
   sumberTemuan: z.string().optional(),
-  picDepartemenId: z.number(),
+  picDepartemen: z.string().min(1, "PIC Departemen is required"),
   kriteriaKtaTta: z.string().optional(),
   perusahaanPengelola: z.string().optional(),
   tindakLanjutLangsung: z.string().optional(),

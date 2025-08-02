@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Session } from "next-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,12 +28,8 @@ import {
 } from "lucide-react";
 import { FEATURE_LABELS } from "@/lib/constants";
 import { roleUtils } from "@/lib/utils";
-import { Equipment, Department, EquipmentStatus } from "@prisma/client";
-
-interface EquipmentWithStatus extends Equipment {
-  currentStatus: EquipmentStatus;
-  lastStatusChange: Date;
-}
+import { Department } from "@prisma/client";
+import { EquipmentWithStatus } from "@/types/equipment";
 
 interface DepartmentInputTabsProps {
   department: Department;
@@ -47,7 +44,33 @@ export function DepartmentInputTabs({
   availableFeatures,
   session,
 }: DepartmentInputTabsProps) {
-  const [activeTab, setActiveTab] = useState(availableFeatures[0] || "");
+  const searchParams = useSearchParams();
+  
+  // Get URL parameters
+  const urlTab = searchParams.get("tab");
+  const editId = searchParams.get("edit");
+  
+  // Set initial active tab based on URL parameter or first available feature
+  const [activeTab, setActiveTab] = useState(() => {
+    if (urlTab && availableFeatures.includes(urlTab)) {
+      return urlTab;
+    }
+    return availableFeatures[0] || "";
+  });
+
+  // Update active tab when URL changes
+  useEffect(() => {
+    if (urlTab && availableFeatures.includes(urlTab)) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab, availableFeatures]);
+
+  // Log for debugging
+  useEffect(() => {
+    if (editId) {
+      console.log(`Edit mode activated for tab: ${activeTab}, record ID: ${editId}`);
+    }
+  }, [activeTab, editId]);
 
   const getTabIcon = (feature: string) => {
     const iconMap = {
@@ -91,6 +114,13 @@ export function DepartmentInputTabs({
       );
     }
 
+    // Pass editId to each tab component
+    const commonProps = {
+      department,
+      session,
+      editId: editId ? parseInt(editId) : undefined
+    };
+
     switch (feature) {
       case "EQUIPMENT_STATUS":
         return (
@@ -106,33 +136,30 @@ export function DepartmentInputTabs({
             equipment={equipment}
             department={department}
             session={session}
+            editId={editId ? parseInt(editId) : undefined}
           />
         );
 
       case "KTA_TTA":
-        return <KtaTtaTab department={department} session={session} />;
+        return <KtaTtaTab {...commonProps} />;
 
       case "KPI_UTAMA":
-        return <KpiUtamaTab department={department} session={session} />;
+        return <KpiUtamaTab {...commonProps} />;
 
       case "CRITICAL_ISSUE":
-        return <CriticalIssueTab department={department} session={session} />;
+        return <CriticalIssueTab {...commonProps} />;
 
       case "MAINTENANCE_ROUTINE":
-        return (
-          <MaintenanceRoutineTab department={department} session={session} />
-        );
+        return <MaintenanceRoutineTab {...commonProps} />;
 
       case "SAFETY_INCIDENT":
-        return <SafetyIncidentTab department={department} session={session} />;
+        return <SafetyIncidentTab {...commonProps} />;
 
       case "ENERGY_IKES":
-        return <EnergyIkesTab department={department} session={session} />;
+        return <EnergyIkesTab {...commonProps} />;
 
       case "ENERGY_CONSUMPTION":
-        return (
-          <EnergyConsumptionTab department={department} session={session} />
-        );
+        return <EnergyConsumptionTab {...commonProps} />;
 
       default:
         return (
@@ -173,18 +200,38 @@ export function DepartmentInputTabs({
 
   return (
     <div className="space-y-6">
+      {/* Edit Mode Indicator */}
+      {editId && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-500 rounded-full p-1">
+              <Settings className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-900">Mode Edit</h3>
+              <p className="text-sm text-blue-700">
+                Anda sedang mengedit data dengan ID: {editId} pada tab {FEATURE_LABELS[activeTab as keyof typeof FEATURE_LABELS]}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
           <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-1 h-auto p-1">
             {availableFeatures.map((feature) => {
               const Icon = getTabIcon(feature);
               const isAccessible = canAccessFeature(feature);
+              const isActive = activeTab === feature;
 
               return (
                 <TabsTrigger
                   key={feature}
                   value={feature}
-                  className="flex flex-col gap-1 h-16 text-xs relative"
+                  className={`flex flex-col gap-1 h-16 text-xs relative ${
+                    isActive && editId ? 'bg-blue-100 border-blue-300' : ''
+                  }`}
                   disabled={!isAccessible}
                 >
                   <Icon className="h-4 w-4" />
@@ -198,6 +245,14 @@ export function DepartmentInputTabs({
                       className="absolute -top-1 -right-1 text-xs px-1"
                     >
                       !
+                    </Badge>
+                  )}
+                  {isActive && editId && (
+                    <Badge
+                      variant="default"
+                      className="absolute -top-1 -left-1 text-xs px-1"
+                    >
+                      Edit
                     </Badge>
                   )}
                 </TabsTrigger>

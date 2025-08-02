@@ -1,5 +1,9 @@
-import { PrismaClient, UserRole, EquipmentStatus } from "@prisma/client";
+import { PrismaClient, UserRole, EquipmentStatus, DataType, NotificationUrgency, NotificationStatus, MaintenanceType, StatusTindakLanjut } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedKriteriaKtaTta } from './seeds/kriteria-kta-tta';
+import { seedOperationalData } from './seeds/operational-data';
+import { seedApprovalRequests } from './seeds/approval-requests';
+import { seedHistoricalData } from './seeds/historical-data';
 
 const prisma = new PrismaClient();
 
@@ -454,6 +458,228 @@ async function main() {
     });
   }
 
+  // Seed Kriteria KTA/TTA
+  await seedKriteriaKtaTta();
+
+  // Create sample KTA & TTA data
+  console.log("📋 Creating sample KTA & TTA data...");
+  const inputterUser = users.find((u) => u.username === "inputter_shift1")!;
+  const kriteriaList = await prisma.kriteriaKtaTta.findMany();
+  
+  const sampleKtaData = [
+    {
+      noRegister: "KTA-MMTC-2025-001",
+      nppPelapor: "NPP001",
+      namaPelapor: "Ahmad Suryadi",
+      perusahaanBiro: "PT ANTAM Tbk",
+      tanggal: new Date('2025-07-15'),
+      lokasi: "Area Tambang Level 250",
+      areaTemuan: "Shaft Utama",
+      keterangan: "Ditemukan kebocoran oli hidraulik pada LHD 08LH003",
+      kategori: "Mechanical",
+      sumberTemuan: "Inspeksi Rutin",
+      picDepartemen: "MMTC",
+      kriteriaKtaTta: kriteriaList[0]?.kriteria || "Peralatan Bergerak",
+      perusahaanPengelola: "PT ANTAM",
+      tindakLanjutLangsung: "Perbaikan seal hidraulik dan penggantian oli",
+      statusTindakLanjut: StatusTindakLanjut.OPEN,
+      biro: "MMTC",
+      dueDate: new Date('2025-07-29'),
+      updateStatus: "Proses",
+      dataType: DataType.KTA_TTA,
+      createdById: inputterUser.id,
+    },
+    {
+      noRegister: "KTA-PMTC-2025-002",
+      nppPelapor: "NPP002",
+      namaPelapor: "Budi Santoso",
+      perusahaanBiro: "PT ANTAM Tbk",
+      tanggal: new Date('2025-07-20'),
+      lokasi: "Ball Mill Area",
+      areaTemuan: "Processing Plant",
+      keterangan: "Suara tidak normal pada bearing Ball Mill 1",
+      kategori: "Mechanical",
+      sumberTemuan: "Operator Report",
+      picDepartemen: "PMTC",
+      kriteriaKtaTta: kriteriaList[6]?.kriteria || "Pelindung mesin / Mesin berat",
+      perusahaanPengelola: "PT ANTAM",
+      tindakLanjutLangsung: "Inspeksi bearing dan jadwal penggantian",
+      statusTindakLanjut: StatusTindakLanjut.OPEN,
+      biro: "PMTC",
+      dueDate: new Date('2025-08-03'),
+      updateStatus: "Proses",
+      dataType: DataType.KTA_TTA,
+      createdById: inputterUser.id,
+    },
+    {
+      noRegister: "KTA-ECDC-2025-003",
+      nppPelapor: "NPP003",
+      namaPelapor: "Candra Wijaya",
+      perusahaanBiro: "PT ANTAM Tbk",
+      tanggal: new Date('2025-07-10'),
+      lokasi: "Main Distribution Panel",
+      areaTemuan: "Electrical Room",
+      keterangan: "Ditemukan kabel yang tidak terlindungi dengan baik",
+      kategori: "Electrical",
+      sumberTemuan: "Safety Inspection",
+      picDepartemen: "ECDC",
+      kriteriaKtaTta: kriteriaList[2]?.kriteria || "Isolasi Energi",
+      perusahaanPengelola: "PT ANTAM",
+      tindakLanjutLangsung: "Pemasangan cable tray dan isolasi tambahan",
+      statusTindakLanjut: StatusTindakLanjut.CLOSE,
+      biro: "ECDC",
+      dueDate: new Date('2025-07-17'),
+      updateStatus: "Close",
+      dataType: DataType.KTA_TTA,
+      createdById: inputterUser.id,
+    }
+  ];
+
+  // Create sample KPI Utama data
+  const sampleKpiData = [
+    {
+      noRegister: "KPI-MTCENG-2025-001",
+      nppPelapor: "NPP004",
+      namaPelapor: "Dedi Kurniawan",
+      perusahaanBiro: "PT ANTAM Tbk",
+      tanggal: new Date('2025-07-25'),
+      lokasi: "Workshop Maintenance",
+      areaTemuan: "Tool Management",
+      keterangan: "Optimalisasi penggunaan spare parts untuk mengurangi downtime",
+      kategori: "Process Improvement",
+      sumberTemuan: "Analysis Report",
+      picDepartemen: "MTC&ENG Bureau",
+      kriteriaKtaTta: "Lain-lain",
+      perusahaanPengelola: "PT ANTAM",
+      tindakLanjutLangsung: "Implementasi sistem inventory real-time",
+      statusTindakLanjut: StatusTindakLanjut.OPEN,
+      biro: "MTC&ENG Bureau",
+      dueDate: new Date('2025-08-15'),
+      updateStatus: "Proses",
+      dataType: DataType.KPI_UTAMA,
+      createdById: inputterUser.id,
+    },
+    {
+      noRegister: "KPI-MTCENG-2025-002",
+      nppPelapor: "NPP005",
+      namaPelapor: "Eko Prasetyo",
+      perusahaanBiro: "PT ANTAM Tbk",
+      tanggal: new Date('2025-07-18'),
+      lokasi: "All Departments",
+      areaTemuan: "Energy Management",
+      keterangan: "Program efisiensi energi untuk mencapai target IKES bulanan",
+      kategori: "Energy Efficiency",
+      sumberTemuan: "Monthly Review",
+      picDepartemen: "ECDC",
+      kriteriaKtaTta: "Lain-lain",
+      perusahaanPengelola: "PT ANTAM",
+      tindakLanjutLangsung: "Audit penggunaan listrik per area",
+      statusTindakLanjut: StatusTindakLanjut.OPEN,
+      biro: "MTC&ENG Bureau",
+      dueDate: new Date('2025-08-08'),
+      updateStatus: "Proses",
+      dataType: DataType.KPI_UTAMA,
+      createdById: inputterUser.id,
+    }
+  ];
+
+  await prisma.ktaKpiData.createMany({
+    data: [...sampleKtaData, ...sampleKpiData],
+    skipDuplicates: true,
+  });
+
+  console.log(`✅ Created ${sampleKtaData.length + sampleKpiData.length} KTA/TTA and KPI data records`);
+
+  // Create sample notifications
+  console.log("🔔 Creating sample notifications...");
+  const today = new Date();
+  const sampleNotifications = [
+    {
+      uniqueNumber: "MMTC-24072025-001",
+      departmentId: mmtcDept.id,
+      reportTime: new Date(`${today.toISOString().split('T')[0]}T08:30:00Z`),
+      urgency: NotificationUrgency.URGENT,
+      problemDetail: "LHD 08LH006 mengalami kerusakan sistem hidraulik, tidak dapat beroperasi",
+      status: NotificationStatus.PROCESS,
+      type: MaintenanceType.CORM,
+      createdById: inputterUser.id,
+    },
+    {
+      uniqueNumber: "PMTC-25072025-001",
+      departmentId: pmtcDept.id,
+      reportTime: new Date(`${today.toISOString().split('T')[0]}T14:15:00Z`),
+      urgency: NotificationUrgency.NORMAL,
+      problemDetail: "Ball Mill 2 membutuhkan penggantian liner yang sudah aus",
+      status: NotificationStatus.COMPLETE,
+      type: MaintenanceType.CORM,
+      createdById: inputterUser.id,
+    },
+    {
+      uniqueNumber: "ECDC-26072025-001",
+      departmentId: ecdcDept.id,
+      reportTime: new Date(`${today.toISOString().split('T')[0]}T10:45:00Z`),
+      urgency: NotificationUrgency.EMERGENCY,
+      problemDetail: "Short circuit pada panel listrik utama, perlu penanganan segera",
+      status: NotificationStatus.PROCESS,
+      type: MaintenanceType.CORM,
+      createdById: inputterUser.id,
+    }
+  ];
+
+  const notifications = await Promise.all(
+    sampleNotifications.map((notif) =>
+      prisma.notification.upsert({
+        where: { uniqueNumber: notif.uniqueNumber },
+        update: {},
+        create: notif,
+      })
+    )
+  );
+
+  console.log(`✅ Created ${notifications.length} notifications`);
+
+  // Create sample critical issues
+  console.log("⚠️ Creating sample critical issues...");
+  const plannerMmtc = users.find((u) => u.username === "planner_mmtc")!;
+  const sampleCriticalIssues = [
+    {
+      issueName: "Kerusakan Major pada Crushing Plant",
+      departmentId: pmtcDept.id,
+      status: EquipmentStatus.BREAKDOWN,
+      description: "Jaw crusher mengalami kerusakan pada main bearing, produksi terhenti total",
+      createdById: inputterUser.id,
+    },
+    {
+      issueName: "Shortage Spare Parts untuk LHD",
+      departmentId: mmtcDept.id,
+      status: EquipmentStatus.STANDBY,
+      description: "Stok spare parts untuk LHD habis, beberapa unit tidak dapat beroperasi optimal",
+      createdById: plannerMmtc.id,
+    },
+    {
+      issueName: "Gangguan Sistem Kelistrikan Utama",
+      departmentId: ecdcDept.id,
+      status: EquipmentStatus.WORKING,
+      description: "Fluktuasi tegangan pada sistem distribusi utama, perlu monitoring ketat",
+      createdById: users.find((u) => u.username === "planner_ecdc")!.id,
+    }
+  ];
+
+  await prisma.criticalIssue.createMany({
+    data: sampleCriticalIssues,
+  });
+
+  console.log(`✅ Created ${sampleCriticalIssues.length} critical issues`);
+
+  // Seed operational data (orders, maintenance, reports)
+  await seedOperationalData();
+
+  // Seed approval requests
+  await seedApprovalRequests();
+
+  // Seed historical data for trending/analytics
+  await seedHistoricalData();
+
   console.log("🎉 Database seeding completed successfully!");
   console.log("\n📝 Default login credentials:");
   console.log("Admin: admin / password123");
@@ -468,6 +694,16 @@ async function main() {
   console.log("Inputter Long Shift 1: inputter_longshift1 / password123");
   console.log("Inputter Long Shift 2: inputter_longshift2 / password123");
   console.log("Viewer: viewer / password123");
+  console.log("\n📋 Sample Data Created:");
+  console.log("- 5 Departments with equipment categories and 32 equipment items");
+  console.log("- 12 User accounts across all roles");
+  console.log("- Sample KTA/TTA and KPI Utama data");
+  console.log("- Notifications and work orders");
+  console.log("- Critical issues and maintenance routines");
+  console.log("- Historical operational reports (30 days)");
+  console.log("- Safety incidents and energy consumption data");
+  console.log("- Approval workflow examples");
+  console.log("\n🚀 Your database is now ready for development and testing!");
 }
 
 main()

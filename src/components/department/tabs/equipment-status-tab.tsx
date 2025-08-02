@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -36,13 +37,8 @@ import {
   Filter,
 } from "lucide-react";
 import { dateUtils } from "@/lib/utils";
-import { EquipmentStatus, Equipment, Department, EquipmentCategory } from "@prisma/client";
-
-interface EquipmentWithStatus extends Equipment {
-  currentStatus: EquipmentStatus;
-  lastStatusChange: Date;
-  category: EquipmentCategory;
-}
+import { Department, EquipmentStatus } from "@prisma/client";
+import { EquipmentWithStatus } from "@/types/equipment";
 
 interface EquipmentStatusTabProps {
   equipment: EquipmentWithStatus[];
@@ -62,39 +58,45 @@ export function EquipmentStatusTab({
     text: string;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | EquipmentStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | EquipmentStatus>(
+    "all"
+  );
   const [categoryFilter, setCategoryFilter] = useState<"all" | string>("all");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Keyboard shortcut for search (Ctrl+K or Cmd+K)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
         event.preventDefault();
         searchInputRef.current?.focus();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // Get unique categories from equipment
   const uniqueCategories = Array.from(
-    new Set(equipment.map(eq => eq.category.name))
+    new Set(equipment.map((eq) => eq.category.name))
   ).sort();
 
   // Apply filters to equipment
   const filteredEquipment = equipment.filter((eq) => {
-    const matchesSearch = eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         eq.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         eq.category.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch =
+      eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.category.name.toLowerCase().includes(searchTerm.toLowerCase());
+
     const currentStatus = statusUpdates[eq.id]?.status || eq.currentStatus;
-    const matchesStatus = statusFilter === "all" || currentStatus === statusFilter;
-    
-    const matchesCategory = categoryFilter === "all" || eq.category.name === categoryFilter;
-    
+    const matchesStatus =
+      statusFilter === "all" || currentStatus === statusFilter;
+
+    const matchesCategory =
+      categoryFilter === "all" || eq.category.name === categoryFilter;
+
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
@@ -148,7 +150,7 @@ export function EquipmentStatusTab({
       setStatusUpdates({}); // Clear updates after successful save
 
       // Refresh the page to get updated data
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error("Error updating equipment status:", error);
       setMessage({
@@ -187,9 +189,7 @@ export function EquipmentStatusTab({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {equipment.length}
-            </div>
+            <div className="text-2xl font-bold">{equipment.length}</div>
           </CardContent>
         </Card>
 
@@ -199,11 +199,7 @@ export function EquipmentStatusTab({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {
-                equipment.filter(
-                  (eq) => eq.currentStatus === "WORKING"
-                ).length
-              }
+              {equipment.filter((eq) => eq.currentStatus === "WORKING").length}
             </div>
           </CardContent>
         </Card>
@@ -215,9 +211,8 @@ export function EquipmentStatusTab({
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
               {
-                equipment.filter(
-                  (eq) => eq.currentStatus === "BREAKDOWN"
-                ).length
+                equipment.filter((eq) => eq.currentStatus === "BREAKDOWN")
+                  .length
               }
             </div>
           </CardContent>
@@ -232,8 +227,9 @@ export function EquipmentStatusTab({
             Status Peralatan - {department.name}
           </CardTitle>
           <CardDescription>
-            Fitur ini hanya untuk mengubah status peralatan (Working/Breakdown) secara real-time.
-            Keterangan detail akan tersedia di fitur Aktivitas Harian.
+            Fitur ini hanya untuk mengubah status peralatan (Working/Breakdown)
+            secara real-time. Keterangan detail akan tersedia di fitur Aktivitas
+            Harian.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -292,9 +288,11 @@ export function EquipmentStatusTab({
 
             {/* Status Filter */}
             <div className="w-full sm:w-48">
-              <Select 
-                value={statusFilter} 
-                onValueChange={(value) => setStatusFilter(value as "all" | EquipmentStatus)}
+              <Select
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as "all" | EquipmentStatus)
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Filter Status" />
@@ -319,8 +317,8 @@ export function EquipmentStatusTab({
 
             {/* Category Filter */}
             <div className="w-full sm:w-48">
-              <Select 
-                value={categoryFilter} 
+              <Select
+                value={categoryFilter}
                 onValueChange={(value) => setCategoryFilter(value)}
               >
                 <SelectTrigger>
@@ -338,7 +336,9 @@ export function EquipmentStatusTab({
             </div>
 
             {/* Clear Filters */}
-            {(searchTerm || statusFilter !== "all" || categoryFilter !== "all") && (
+            {(searchTerm ||
+              statusFilter !== "all" ||
+              categoryFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -368,7 +368,7 @@ export function EquipmentStatusTab({
               {searchTerm && (
                 <Badge variant="secondary" className="gap-1">
                   <Search className="h-3 w-3" />
-                  "{searchTerm}"
+                  &quot;{searchTerm}&quot;
                 </Badge>
               )}
               {statusFilter !== "all" && (
@@ -466,9 +466,15 @@ export function EquipmentStatusTab({
                         <TableCell>
                           <div className="flex gap-2">
                             <Button
-                              variant={displayStatus === "WORKING" ? "default" : "outline"}
+                              variant={
+                                displayStatus === "WORKING"
+                                  ? "default"
+                                  : "outline"
+                              }
                               size="sm"
-                              onClick={() => handleStatusChange(eq.id, "WORKING")}
+                              onClick={() =>
+                                handleStatusChange(eq.id, "WORKING")
+                              }
                               className={`flex items-center gap-1 transition-all duration-200 ${
                                 displayStatus === "WORKING"
                                   ? "bg-green-600 hover:bg-green-700 text-white shadow-md"
@@ -476,12 +482,20 @@ export function EquipmentStatusTab({
                               }`}
                             >
                               <CheckCircle className="h-3 w-3" />
-                              <span className="text-xs font-medium">Working</span>
+                              <span className="text-xs font-medium">
+                                Working
+                              </span>
                             </Button>
                             <Button
-                              variant={displayStatus === "BREAKDOWN" ? "default" : "outline"}
+                              variant={
+                                displayStatus === "BREAKDOWN"
+                                  ? "default"
+                                  : "outline"
+                              }
                               size="sm"
-                              onClick={() => handleStatusChange(eq.id, "BREAKDOWN")}
+                              onClick={() =>
+                                handleStatusChange(eq.id, "BREAKDOWN")
+                              }
                               className={`flex items-center gap-1 transition-all duration-200 ${
                                 displayStatus === "BREAKDOWN"
                                   ? "bg-red-600 hover:bg-red-700 text-white shadow-md"
@@ -489,7 +503,9 @@ export function EquipmentStatusTab({
                               }`}
                             >
                               <XCircle className="h-3 w-3" />
-                              <span className="text-xs font-medium">Breakdown</span>
+                              <span className="text-xs font-medium">
+                                Breakdown
+                              </span>
                             </Button>
                           </div>
                         </TableCell>

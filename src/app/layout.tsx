@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import { APP_CONFIG } from "@/lib/constants";
+import { SessionErrorProvider } from "@/components/providers/session-error-boundary";
 import "./globals.css";
 
 const inter = Inter({
@@ -73,9 +74,16 @@ export default async function RootLayout({
         <meta name="theme-color" content="#2563eb" />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <SessionProvider session={session}>
-          {children}
-        </SessionProvider>
+        <SessionErrorProvider>
+          <SessionProvider 
+            session={session}
+            refetchInterval={5 * 60} // Refetch every 5 minutes
+            refetchOnWindowFocus={true}
+            refetchWhenOffline={false}
+          >
+            {children}
+          </SessionProvider>
+        </SessionErrorProvider>
       </body>
     </html>
   );

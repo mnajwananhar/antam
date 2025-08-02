@@ -4,12 +4,6 @@ import { prisma, dbUtils } from "@/lib/prisma";
 import { AppLayout } from "@/components/layout/app-layout";
 import { DepartmentInputTabs } from "@/components/department/department-input-tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
@@ -18,9 +12,9 @@ import { DEPARTMENT_FEATURES } from "@/lib/constants";
 import { departmentUtils } from "@/lib/utils";
 
 interface DepartmentInputPageProps {
-  params: {
+  params: Promise<{
     department: string;
-  };
+  }>;
 }
 
 export default async function DepartmentInputPage({
@@ -33,11 +27,10 @@ export default async function DepartmentInputPage({
   }
 
   // Convert URL slug back to department name
-  const resolvedParams = await params;
-  const departmentSlug = resolvedParams.department;
+  const { department: departmentSlug } = await params;
   const departmentName = departmentUtils.slugToName(departmentSlug);
 
-  // Find the department
+  // Find department in database
   const department = await prisma.department.findFirst({
     where: {
       name: {
