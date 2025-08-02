@@ -2,14 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EquipmentStatus, Prisma } from "@prisma/client";
+import { criticalIssueSchema } from "@/lib/validations";
 import { z } from "zod";
-
-const createCriticalIssueSchema = z.object({
-  issueName: z.string().min(1, "Nama issue wajib diisi"),
-  departmentId: z.number().int().positive("Department ID tidak valid"),
-  status: z.enum(["WORKING", "STANDBY", "BREAKDOWN"]),
-  description: z.string().min(10, "Deskripsi minimal 10 karakter"),
-});
 
 // GET - Ambil daftar critical issues
 export async function GET(request: NextRequest) {
@@ -103,17 +97,49 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = createCriticalIssueSchema.parse(body);
+    const validatedData = criticalIssueSchema.parse(body);
 
-    // Check department access
-    if (session.user.role === "PLANNER" && session.user.departmentId) {
-      if (validatedData.departmentId !== session.user.departmentId) {
+    // Check department access based on user role
+    if (session.user.role === "PLANNER") {
+      // PLANNER users can only access their own department
+      if (
+        session.user.departmentId &&
+        validatedData.departmentId !== session.user.departmentId
+      ) {
         return NextResponse.json(
-          { error: "Access denied to this department" },
+          {
+            error:
+              "Access denied. PLANNER users can only create issues for their own department.",
+          },
           { status: 403 }
         );
       }
+    } else if (session.user.role === "INPUTTER") {
+      // INPUTTER can access multiple departments but need to verify access through API
+      const departmentsResponse = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/departments`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.id}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (departmentsResponse.ok) {
+        const departmentsResult = await departmentsResponse.json();
+        const accessibleDeptIds =
+          departmentsResult.data?.map((dept: { id: number }) => dept.id) || [];
+
+        if (!accessibleDeptIds.includes(validatedData.departmentId)) {
+          return NextResponse.json(
+            { error: "Access denied to this department" },
+            { status: 403 }
+          );
+        }
+      }
     }
+    // ADMIN users have unrestricted access
 
     // Verify department exists
     const department = await prisma.department.findUnique({
@@ -159,18 +185,27 @@ export async function POST(request: NextRequest) {
       data: criticalIssue,
       message: "Critical issue berhasil dibuat",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error creating critical issue:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        {
+          error: "Validation error",
+          details: error.errors.map((err) => ({
+            field: err.path.join("."),
+            message: err.message,
+          })),
+        },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

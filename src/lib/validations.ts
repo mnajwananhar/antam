@@ -219,10 +219,13 @@ export const maintenanceRoutineSchema = z.object({
 
 // Critical issue schema
 export const criticalIssueSchema = z.object({
-  issueName: z.string().min(1, "Issue name is required"),
+  issueName: z.string().min(1, "Nama masalah wajib diisi"),
   departmentId: z.number(),
   status: z.nativeEnum(EquipmentStatus),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z
+    .string()
+    .min(5, "Deskripsi minimal 5 karakter")
+    .max(500, "Deskripsi maksimal 500 karakter"),
 });
 
 // Safety incident schema (MTC&ENG Bureau only)

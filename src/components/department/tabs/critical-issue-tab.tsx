@@ -32,6 +32,12 @@ interface CriticalIssueTabProps {
   editId?: number;
 }
 
+interface AccessibleDepartment {
+  id: number;
+  name: string;
+  code: string;
+}
+
 interface CriticalIssue {
   id: number;
   issueName: string;
@@ -55,7 +61,14 @@ export function CriticalIssueTab({
   session,
 }: CriticalIssueTabProps) {
   const [issues, setIssues] = useState<CriticalIssue[]>([]);
+  const [accessibleDepartments, setAccessibleDepartments] = useState<
+    AccessibleDepartment[]
+  >([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number>(
+    department.id
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -68,11 +81,58 @@ export function CriticalIssueTab({
     description: "",
   });
 
+  const loadAccessibleDepartments = useCallback(async () => {
+    // Only load departments for users who can access multiple departments
+    if (session.user.role === "PLANNER" && session.user.departmentId) {
+      // PLANNER users are restricted to their own department
+      setAccessibleDepartments([
+        {
+          id: department.id,
+          name: department.name,
+          code: department.code,
+        },
+      ]);
+      setIsLoadingDepartments(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/departments");
+      if (response.ok) {
+        const result = await response.json();
+        const departments = result.data || [];
+        setAccessibleDepartments(departments);
+      } else {
+        console.error("Failed to load departments");
+        // Fallback to current department only
+        setAccessibleDepartments([
+          {
+            id: department.id,
+            name: department.name,
+            code: department.code,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error loading departments:", error);
+      // Fallback to current department only
+      setAccessibleDepartments([
+        {
+          id: department.id,
+          name: department.name,
+          code: department.code,
+        },
+      ]);
+    } finally {
+      setIsLoadingDepartments(false);
+    }
+  }, [session.user.role, session.user.departmentId, department]);
+
   const loadCriticalIssues = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/critical-issue?departmentId=${department.id}`
+        `/api/critical-issue?departmentId=${selectedDepartmentId}`
       );
 
       if (response.ok) {
@@ -94,9 +154,13 @@ export function CriticalIssueTab({
     } finally {
       setIsLoading(false);
     }
-  }, [department.id]);
+  }, [selectedDepartmentId]);
 
-  // Load critical issues on component mount
+  // Load departments and critical issues on component mount
+  useEffect(() => {
+    loadAccessibleDepartments();
+  }, [loadAccessibleDepartments]);
+
   useEffect(() => {
     loadCriticalIssues();
   }, [loadCriticalIssues]);
@@ -123,7 +187,7 @@ export function CriticalIssueTab({
         },
         body: JSON.stringify({
           ...newIssue,
-          departmentId: department.id,
+          departmentId: selectedDepartmentId,
         }),
       });
 
@@ -194,6 +258,19 @@ export function CriticalIssueTab({
     }
   };
 
+  const getSelectedDepartmentName = () => {
+    const selectedDept = accessibleDepartments.find(
+      (dept) => dept.id === selectedDepartmentId
+    );
+    return selectedDept?.name || department.name;
+  };
+
+  const canSelectDepartment = () => {
+    // Only ADMIN and INPUTTER can select different departments
+    // PLANNER is restricted to their own department
+    return session.user.role === "ADMIN" || session.user.role === "INPUTTER";
+  };
+
   const getStatusBadge = (status: EquipmentStatus) => {
     const variants = {
       [EquipmentStatus.WORKING]: "default",
@@ -237,11 +314,36 @@ export function CriticalIssueTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Laporan Critical Issue - {department.name}
+            Laporan Critical Issue - {getSelectedDepartmentName()}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Department Selection - Only show if user can select departments */}
+            {canSelectDepartment() && !isLoadingDepartments && (
+              <div>
+                <label className="text-sm font-medium">Department</label>
+                <Select
+                  value={selectedDepartmentId.toString()}
+                  onValueChange={(value) =>
+                    setSelectedDepartmentId(parseInt(value))
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accessibleDepartments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        {dept.name} ({dept.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Nama Issue</label>
@@ -325,7 +427,9 @@ export function CriticalIssueTab({
       {/* Issues List */}
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Critical Issues</CardTitle>
+          <CardTitle>
+            Daftar Critical Issues - {getSelectedDepartmentName()}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -347,6 +451,7 @@ export function CriticalIssueTab({
                         {issue.description}
                       </p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Department: {issue.department.name}</span>
                         <span>
                           Dibuat:{" "}
                           {new Date(issue.createdAt).toLocaleString("id-ID")}
@@ -382,7 +487,8 @@ export function CriticalIssueTab({
                 Belum Ada Critical Issues
               </h3>
               <p className="text-muted-foreground">
-                Belum ada critical issue yang dilaporkan untuk {department.name}
+                Belum ada critical issue yang dilaporkan untuk{" "}
+                {getSelectedDepartmentName()}
               </p>
             </div>
           )}
