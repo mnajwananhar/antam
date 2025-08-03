@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Session } from "next-auth";
 import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification, useApiNotification } from "@/lib/hooks";
 import { Plus, Shield, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 
 interface SafetyIncidentTabProps {
@@ -40,10 +42,10 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
   const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG CLEAN
+  const { notification, showError, clearNotification } = useNotification();
+  const { executeCreate } = useApiNotification();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -59,14 +61,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     fatality: 0,
   });
 
-  // Load safety incidents on component mount
-  useEffect(() => {
-    if (department.code === "MTCENG") {
-      loadSafetyIncidents();
-    }
-  }, [department.code]);
-
-  const loadSafetyIncidents = async () => {
+  const loadSafetyIncidents = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/safety-incident");
@@ -77,77 +72,66 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
       } else {
         const error = await response.json();
         console.error("Failed to load safety incidents:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data safety incidents",
-        });
+        showError(error.error || "Gagal memuat data safety incidents");
       }
     } catch (error) {
       console.error("Error loading safety incidents:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
+      showError("Error saat memuat data");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
+
+  // Load safety incidents on component mount
+  useEffect(() => {
+    if (department.code === "MTCENG") {
+      loadSafetyIncidents();
+    }
+  }, [department.code, loadSafetyIncidents]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setMessage(null);
+    clearNotification();
 
-    try {
-      const response = await fetch("/api/safety-incident", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newIncident),
+    // ✅ MENGGUNAKAN API HELPER YANG CLEAN
+    const result = await executeCreate(
+      () =>
+        fetch("/api/safety-incident", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newIncident),
+        }),
+      "safety incident"
+    );
+
+    if (result.success) {
+      // Reset form to current month/year
+      setNewIncident({
+        month: currentMonth,
+        year: currentYear,
+        nearmiss: 0,
+        kecAlat: 0,
+        kecKecil: 0,
+        kecRingan: 0,
+        kecBerat: 0,
+        fatality: 0,
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || "Data safety incident berhasil disimpan",
-        });
-
-        // Reset form to current month/year
-        setNewIncident({
-          month: currentMonth,
-          year: currentYear,
-          nearmiss: 0,
-          kecAlat: 0,
-          kecKecil: 0,
-          kecRingan: 0,
-          kecBerat: 0,
-          fatality: 0,
-        });
-
-        // Reload data
-        loadSafetyIncidents();
-      } else {
-        throw new Error(result.error || "Failed to save safety incident");
-      }
-    } catch (error) {
-      console.error("Error submitting safety incident:", error);
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Gagal menyimpan data",
-      });
-    } finally {
-      setIsSubmitting(false);
+      // Reload data
+      loadSafetyIncidents();
     }
+
+    setIsSubmitting(false);
   };
 
   const handleNumberChange = (
     field: keyof typeof newIncident,
     value: string
   ) => {
-    const numValue = parseInt(value) || 0;
+    // Remove leading zeros and convert to number
+    const cleanValue = value.replace(/^0+/, "") || "0";
+    const numValue = parseInt(cleanValue) || 0;
     setNewIncident((prev) => ({ ...prev, [field]: Math.max(0, numValue) }));
   };
 
@@ -177,14 +161,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     );
   };
 
-  // Clear message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
     return (
@@ -199,13 +175,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
+      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>
@@ -250,12 +220,16 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                 <Input
                   type="number"
                   value={newIncident.year}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const cleanValue =
+                      e.target.value.replace(/^0+/, "") ||
+                      currentYear.toString();
+                    const numValue = parseInt(cleanValue) || currentYear;
                     setNewIncident((prev) => ({
                       ...prev,
-                      year: parseInt(e.target.value) || currentYear,
-                    }))
-                  }
+                      year: Math.max(2020, Math.min(currentYear + 1, numValue)),
+                    }));
+                  }}
                   min={2020}
                   max={currentYear + 1}
                   disabled={isSubmitting}

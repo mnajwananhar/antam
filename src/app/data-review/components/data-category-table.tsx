@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification, useApiNotification } from "@/lib/hooks";
 import {
   Edit,
   Trash2,
@@ -131,6 +133,10 @@ export function DataCategoryTable({
   const [totalRecords, setTotalRecords] = useState(0);
   const [localSearch, setLocalSearch] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // ✅ NOTIFICATION SYSTEM YANG CLEAN DAN REUSABLE
+  const { notification, showError } = useNotification();
+  const { executeDelete } = useApiNotification();
 
   const pageSize = 10;
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -298,13 +304,13 @@ export function DataCategoryTable({
       console.log(`Feature: ${mapping.feature} (not custom tab name)`);
       router.push(url);
     } else {
-      alert(
+      showError(
         `Edit untuk ${category.name} belum tersedia. Route mapping: ${category.id}`
       );
     }
   };
 
-  // Handle Delete with confirmation
+  // ✅ Handle Delete dengan notification modern
   const handleDelete = async (record: BaseRecord) => {
     if (
       !confirm(
@@ -316,34 +322,20 @@ export function DataCategoryTable({
 
     setDeletingId(record.id as number);
 
-    try {
-      console.log(`Deleting ${category.id} record ${record.id}`);
-
-      const response = await fetch(
-        `/api/data-review/${category.id}/${record.id}`,
-        {
+    // ✅ MENGGUNAKAN API HELPER YANG CLEAN
+    const result = await executeDelete(
+      () =>
+        fetch(`/api/data-review/${category.id}/${record.id}`, {
           method: "DELETE",
-        }
-      );
+        }),
+      `data ${category.name}`
+    );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      // Success - refresh data
+    if (result.success) {
       await loadData();
-      alert(`Data ${category.name} berhasil dihapus!`);
-    } catch (error) {
-      console.error("Delete error:", error);
-      alert(
-        `Gagal menghapus data: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    } finally {
-      setDeletingId(null);
     }
+
+    setDeletingId(null);
   };
 
   const renderTableContent = () => {
@@ -784,6 +776,7 @@ export function DataCategoryTable({
 
   return (
     <div className="space-y-4">
+      <NotificationContainer notification={notification} />
       {/* Local Search and Info */}
       <div className="flex items-center justify-between">
         <div className="flex-1 max-w-sm">

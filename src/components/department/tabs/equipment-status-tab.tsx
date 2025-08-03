@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification, useApiNotification } from "@/lib/hooks";
 import {
   Select,
   SelectContent,
@@ -53,10 +54,11 @@ export function EquipmentStatusTab({
   const [statusUpdates, setStatusUpdates] = useState<
     Record<number, { status: EquipmentStatus }>
   >({});
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG REUSABLE
+  const { notification, showError, clearNotification } = useNotification();
+  const { executeUpdate } = useApiNotification();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | EquipmentStatus>(
     "all"
@@ -110,8 +112,13 @@ export function EquipmentStatusTab({
   };
 
   const handleSaveChanges = async () => {
+    if (Object.keys(statusUpdates).length === 0) {
+      showError("Tidak ada perubahan untuk disimpan");
+      return;
+    }
+
     setIsLoading(true);
-    setMessage(null);
+    clearNotification();
 
     try {
       const updates = Object.entries(statusUpdates).map(
@@ -121,43 +128,28 @@ export function EquipmentStatusTab({
         })
       );
 
-      if (updates.length === 0) {
-        setMessage({
-          type: "error",
-          text: "Tidak ada perubahan untuk disimpan",
-        });
-        return;
+      // ✅ IMMEDIATE NOTIFICATION - Langsung muncul setelah API call
+      const result = await executeUpdate(
+        () =>
+          fetch("/api/equipment/bulk-update", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ updates }),
+          }),
+        "status equipment"
+      );
+
+      // ✅ SUCCESS ACTIONS - Reset state jika berhasil
+      if (result.success) {
+        setStatusUpdates({});
+        // Tambahan sukses feedback manual jika diperlukan
+        setTimeout(() => {
+          router.refresh();
+        }, 1000); // Delay refresh agar user sempat lihat notifikasi
       }
-
-      const response = await fetch("/api/equipment/status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ updates }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Gagal memperbarui status peralatan");
-      }
-
-      setMessage({
-        type: "success",
-        text: `Berhasil memperbarui status ${updates.length} peralatan`,
-      });
-      setStatusUpdates({}); // Clear updates after successful save
-
-      // Refresh the page to get updated data
-      router.refresh();
     } catch (error) {
-      console.error("Error updating equipment status:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Terjadi kesalahan sistem",
-      });
+      console.error("Error saving equipment status:", error);
+      showError("Terjadi kesalahan sistem yang tidak terduga");
     } finally {
       setIsLoading(false);
     }
@@ -180,6 +172,12 @@ export function EquipmentStatusTab({
 
   return (
     <div className="space-y-6">
+      {/* ✅ NOTIFICATION CONTAINER - Positioned for optimal visibility */}
+      <NotificationContainer
+        notification={notification}
+        onClose={clearNotification}
+      />
+
       {/* Equipment Stats - Hanya untuk Status Alat */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -254,13 +252,6 @@ export function EquipmentStatusTab({
           </div>
         </CardContent>
       </Card>
-
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Filter Section */}
       <Card>

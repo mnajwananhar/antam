@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Session } from "next-auth";
 import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks";
 import {
   Plus,
   Battery,
@@ -58,10 +60,10 @@ export function EnergyConsumptionTab({
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // ✅ CLEAN NOTIFICATION SYSTEM
+  const { notification, showSuccess, showError, clearNotification } =
+    useNotification();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -75,14 +77,7 @@ export function EnergyConsumptionTab({
     supportingConsumption: "",
   });
 
-  // Load energy consumption data on component mount
-  useEffect(() => {
-    if (department.code === "MTCENG") {
-      loadEnergyConsumption();
-    }
-  }, [department.code]);
-
-  const loadEnergyConsumption = async () => {
+  const loadEnergyConsumption = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/energy-consumption");
@@ -93,26 +88,27 @@ export function EnergyConsumptionTab({
       } else {
         const error = await response.json();
         console.error("Failed to load energy consumption:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data energy consumption",
-        });
+        showError(error.error || "Gagal memuat data energy consumption");
       }
     } catch (error) {
       console.error("Error loading energy consumption:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
+      showError("Error saat memuat data");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
+
+  // Load energy consumption data on component mount
+  useEffect(() => {
+    if (department.code === "MTCENG") {
+      loadEnergyConsumption();
+    }
+  }, [department.code, loadEnergyConsumption]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setMessage(null);
+    clearNotification();
 
     // Convert string inputs to numbers
     const submitData = {
@@ -137,10 +133,9 @@ export function EnergyConsumptionTab({
       const result = await response.json();
 
       if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || "Data energy consumption berhasil disimpan",
-        });
+        showSuccess(
+          result.message || "Data energy consumption berhasil disimpan"
+        );
 
         // Reset form
         setNewConsumption({
@@ -159,10 +154,9 @@ export function EnergyConsumptionTab({
       }
     } catch (error) {
       console.error("Error submitting energy consumption:", error);
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Gagal menyimpan data",
-      });
+      showError(
+        error instanceof Error ? error.message : "Gagal menyimpan data"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -200,14 +194,6 @@ export function EnergyConsumptionTab({
     );
   };
 
-  // Clear message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
     return (
@@ -222,13 +208,7 @@ export function EnergyConsumptionTab({
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
+      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>

@@ -6,6 +6,8 @@ import { ExcelUpload } from "@/components/kta-tta";
 import { getAllowedPIC, hasDataTypeAccess } from "@/lib/utils/kta-tta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification, useApiNotification } from "@/lib/hooks";
 import { AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +23,10 @@ interface ExcelRow {
 
 export function KtaTtaTab({ session }: KtaTtaTabProps) {
   const [isUploading, setIsUploading] = useState(false);
+
+  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG CLEAN
+  const { notification, showError, clearNotification } = useNotification();
+  const { executeWithNotification } = useApiNotification();
 
   const user = {
     id: session.user.id,
@@ -44,31 +50,31 @@ export function KtaTtaTab({ session }: KtaTtaTabProps) {
   const handleBulkUpload = async (excelData: ExcelRow[]) => {
     setIsUploading(true);
     try {
-      const response = await fetch("/api/kta-tta/bulk-upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          data: excelData,
-          dataType: "KTA_TTA",
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to upload data");
-      }
-
-      const result = await response.json();
-      alert(
-        `Berhasil mengupload ${
-          result.results?.success || excelData.length
-        } data KTA & TTA`
+      // ✅ MENGGUNAKAN API HELPER YANG CLEAN
+      const result = await executeWithNotification(
+        () =>
+          fetch("/api/kta-tta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              data: excelData,
+              userId: user.id,
+              pic: allowedPIC,
+              dataType: "KTA_TTA",
+            }),
+          }),
+        "Data KTA & TTA berhasil diupload",
+        "Gagal mengupload data KTA & TTA"
       );
+
+      if (result.success) {
+        // Success message sudah ditampilkan oleh executeWithNotification
+      }
     } catch (error) {
       console.error("Error uploading data:", error);
-      alert(error instanceof Error ? error.message : "Gagal mengupload data");
+      showError(
+        error instanceof Error ? error.message : "Gagal mengupload data"
+      );
     } finally {
       setIsUploading(false);
     }
@@ -91,6 +97,12 @@ export function KtaTtaTab({ session }: KtaTtaTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* ✅ NOTIFICATION CONTAINER UNTUK UX YANG LEBIH BAIK */}
+      <NotificationContainer
+        notification={notification}
+        onClose={clearNotification}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">

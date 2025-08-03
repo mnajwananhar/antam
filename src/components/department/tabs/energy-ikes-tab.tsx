@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Session } from "next-auth";
 import { Department } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks";
 import { Plus, Zap, TrendingUp, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -60,10 +62,10 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
   }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // ✅ CLEAN NOTIFICATION SYSTEM
+  const { notification, showSuccess, showError, clearNotification } =
+    useNotification();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -72,20 +74,13 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
   const [newData, setNewData] = useState({
     month: currentMonth,
     year: currentYear,
-    ikesTarget: "",
-    emissionTarget: "",
-    ikesRealization: "",
-    emissionRealization: "",
+    ikesTarget: 0,
+    emissionTarget: 0,
+    ikesRealization: 0,
+    emissionRealization: 0,
   });
 
-  // Load energy data on component mount
-  useEffect(() => {
-    if (department.code === "MTCENG") {
-      loadEnergyData();
-    }
-  }, [department.code]);
-
-  const loadEnergyData = async () => {
+  const loadEnergyData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/energy-ikes");
@@ -96,26 +91,27 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
       } else {
         const error = await response.json();
         console.error("Failed to load energy data:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data energy",
-        });
+        showError(error.error || "Gagal memuat data energy");
       }
     } catch (error) {
       console.error("Error loading energy data:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
+      showError("Error saat memuat data");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
+
+  // Load energy data on component mount
+  useEffect(() => {
+    if (department.code === "MTCENG") {
+      loadEnergyData();
+    }
+  }, [department.code, loadEnergyData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setMessage(null);
+    clearNotification();
 
     // Prepare data based on dataType
     const submitData: Record<string, string | number | undefined> = {
@@ -125,19 +121,17 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     };
 
     if (dataType === "target") {
-      submitData.ikesTarget = newData.ikesTarget
-        ? parseFloat(newData.ikesTarget)
-        : undefined;
-      submitData.emissionTarget = newData.emissionTarget
-        ? parseFloat(newData.emissionTarget)
-        : undefined;
+      submitData.ikesTarget =
+        newData.ikesTarget > 0 ? newData.ikesTarget : undefined;
+      submitData.emissionTarget =
+        newData.emissionTarget > 0 ? newData.emissionTarget : undefined;
     } else {
-      submitData.ikesRealization = newData.ikesRealization
-        ? parseFloat(newData.ikesRealization)
-        : undefined;
-      submitData.emissionRealization = newData.emissionRealization
-        ? parseFloat(newData.emissionRealization)
-        : undefined;
+      submitData.ikesRealization =
+        newData.ikesRealization > 0 ? newData.ikesRealization : undefined;
+      submitData.emissionRealization =
+        newData.emissionRealization > 0
+          ? newData.emissionRealization
+          : undefined;
     }
 
     try {
@@ -152,19 +146,16 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || `Data ${dataType} berhasil disimpan`,
-        });
+        showSuccess(result.message || `Data ${dataType} berhasil disimpan`);
 
         // Reset form
         setNewData({
           month: currentMonth,
           year: currentYear,
-          ikesTarget: "",
-          emissionTarget: "",
-          ikesRealization: "",
-          emissionRealization: "",
+          ikesTarget: 0,
+          emissionTarget: 0,
+          ikesRealization: 0,
+          emissionRealization: 0,
         });
 
         // Reload data
@@ -174,17 +165,12 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
       }
     } catch (error) {
       console.error("Error submitting energy data:", error);
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Gagal menyimpan data",
-      });
+      showError(
+        error instanceof Error ? error.message : "Gagal menyimpan data"
+      );
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleNumberChange = (field: keyof typeof newData, value: string) => {
-    setNewData((prev) => ({ ...prev, [field]: value }));
   };
 
   const monthNames = [
@@ -215,14 +201,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     return ((realization - target) / target) * 100;
   };
 
-  // Clear message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
     return (
@@ -237,13 +215,7 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
+      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>
@@ -304,12 +276,16 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                 <Input
                   type="number"
                   value={newData.year}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const cleanValue =
+                      e.target.value.replace(/^0+/, "") ||
+                      currentYear.toString();
+                    const numValue = parseInt(cleanValue) || currentYear;
                     setNewData((prev) => ({
                       ...prev,
-                      year: parseInt(e.target.value) || currentYear,
-                    }))
-                  }
+                      year: Math.max(2020, Math.min(currentYear + 5, numValue)),
+                    }));
+                  }}
                   min={2020}
                   max={currentYear + 5}
                   disabled={isSubmitting}
@@ -319,54 +295,62 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">
+                <label className="text-sm font-medium text-gray-700">
                   IKES {dataType === "target" ? "Target" : "Realisasi"}{" "}
                   (kWh/wmt)
                 </label>
                 <Input
                   type="number"
                   step="0.01"
+                  min="0"
+                  max="999999"
                   value={
                     dataType === "target"
                       ? newData.ikesTarget
                       : newData.ikesRealization
                   }
-                  onChange={(e) =>
-                    handleNumberChange(
-                      dataType === "target" ? "ikesTarget" : "ikesRealization",
-                      e.target.value
-                    )
-                  }
-                  min={0}
-                  placeholder="Masukkan nilai IKES"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/^0+/, "") || "0";
+                    setNewData((prev) => ({
+                      ...prev,
+                      [dataType === "target"
+                        ? "ikesTarget"
+                        : "ikesRealization"]: parseFloat(value) || 0,
+                    }));
+                  }}
+                  placeholder="0.00"
                   disabled={isSubmitting}
+                  className="w-full mt-1"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium">
+                <label className="text-sm font-medium text-gray-700">
                   Emission {dataType === "target" ? "Target" : "Realisasi"}{" "}
                   (tCO2e)
                 </label>
                 <Input
                   type="number"
                   step="0.01"
+                  min="0"
+                  max="999999"
                   value={
                     dataType === "target"
                       ? newData.emissionTarget
                       : newData.emissionRealization
                   }
-                  onChange={(e) =>
-                    handleNumberChange(
-                      dataType === "target"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/^0+/, "") || "0";
+                    setNewData((prev) => ({
+                      ...prev,
+                      [dataType === "target"
                         ? "emissionTarget"
-                        : "emissionRealization",
-                      e.target.value
-                    )
-                  }
-                  min={0}
-                  placeholder="Masukkan nilai emission"
+                        : "emissionRealization"]: parseFloat(value) || 0,
+                    }));
+                  }}
+                  placeholder="0.00"
                   disabled={isSubmitting}
+                  className="w-full mt-1"
                 />
               </div>
             </div>

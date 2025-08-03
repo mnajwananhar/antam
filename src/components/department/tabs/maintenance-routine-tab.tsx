@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks";
 import {
   Plus,
   Wrench,
@@ -69,10 +71,10 @@ export function MaintenanceRoutineTab({
   const [routines, setRoutines] = useState<MaintenanceRoutine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG REUSABLE
+  const { notification, showSuccess, showError, clearNotification } =
+    useNotification();
 
   const [newRoutine, setNewRoutine] = useState({
     jobName: "",
@@ -105,17 +107,15 @@ export function MaintenanceRoutineTab({
       setRoutines(result.data || []);
     } catch (error) {
       console.error("Error loading maintenance routines:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Terjadi kesalahan saat memuat data",
-      });
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat memuat data"
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [department.id]);
+  }, [department.id, showError]);
 
   // Load maintenance routines on component mount
   useEffect(() => {
@@ -128,10 +128,7 @@ export function MaintenanceRoutineTab({
     e.preventDefault();
 
     if (!newRoutine.jobName.trim() || !newRoutine.startDate) {
-      setMessage({
-        type: "error",
-        text: "Nama pekerjaan dan tanggal mulai wajib diisi",
-      });
+      showError("Nama pekerjaan dan tanggal mulai wajib diisi");
       return;
     }
 
@@ -141,7 +138,7 @@ export function MaintenanceRoutineTab({
     );
 
     setIsSubmitting(true);
-    setMessage(null);
+    clearNotification();
 
     try {
       const response = await fetch("/api/maintenance-routine", {
@@ -159,10 +156,7 @@ export function MaintenanceRoutineTab({
       const result = await response.json();
 
       if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || "Maintenance routine berhasil dibuat",
-        });
+        showSuccess(result.message || "Maintenance routine berhasil dibuat");
 
         // Reset form
         setNewRoutine({
@@ -181,13 +175,11 @@ export function MaintenanceRoutineTab({
       }
     } catch (error) {
       console.error("Error submitting maintenance routine:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Gagal menyimpan maintenance routine",
-      });
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Gagal menyimpan maintenance routine"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -226,14 +218,6 @@ export function MaintenanceRoutineTab({
     );
   };
 
-  // Clear message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
   if (!canAccess) {
     return (
       <Alert>
@@ -247,13 +231,7 @@ export function MaintenanceRoutineTab({
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
+      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>

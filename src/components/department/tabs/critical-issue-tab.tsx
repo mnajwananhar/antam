@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks";
 import {
   Plus,
   AlertTriangle,
@@ -70,10 +71,10 @@ export function CriticalIssueTab({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+
+  // Menggunakan notification hook yang reusable
+  const { notification, showSuccess, showError, clearNotification } =
+    useNotification();
 
   const [newIssue, setNewIssue] = useState({
     issueName: "",
@@ -140,21 +141,15 @@ export function CriticalIssueTab({
         setIssues(result.data || []);
       } else {
         console.error("Failed to load critical issues");
-        setMessage({
-          type: "error",
-          text: "Gagal memuat data critical issues",
-        });
+        showError("Gagal memuat data critical issues");
       }
     } catch (error) {
       console.error("Error loading critical issues:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
+      showError("Terjadi kesalahan saat memuat data");
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDepartmentId]);
+  }, [selectedDepartmentId, showError]);
 
   // Load departments and critical issues on component mount
   useEffect(() => {
@@ -169,15 +164,12 @@ export function CriticalIssueTab({
     e.preventDefault();
 
     if (!newIssue.issueName.trim() || !newIssue.description.trim()) {
-      setMessage({
-        type: "error",
-        text: "Nama issue dan deskripsi wajib diisi",
-      });
+      showError("Nama issue dan deskripsi wajib diisi");
       return;
     }
 
     setIsSubmitting(true);
-    setMessage(null);
+    clearNotification();
 
     try {
       const response = await fetch("/api/critical-issue", {
@@ -194,10 +186,7 @@ export function CriticalIssueTab({
       const result = await response.json();
 
       if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || "Critical issue berhasil dibuat",
-        });
+        showSuccess(result.message || "Critical issue berhasil dibuat");
 
         // Reset form
         setNewIssue({
@@ -213,13 +202,11 @@ export function CriticalIssueTab({
       }
     } catch (error) {
       console.error("Error submitting critical issue:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Gagal menyimpan critical issue",
-      });
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Gagal menyimpan critical issue"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -238,23 +225,18 @@ export function CriticalIssueTab({
       const result = await response.json();
 
       if (response.ok) {
-        setMessage({
-          type: "success",
-          text: result.message || "Critical issue berhasil dihapus",
-        });
+        showSuccess(result.message || "Critical issue berhasil dihapus");
         loadCriticalIssues();
       } else {
         throw new Error(result.error || "Failed to delete critical issue");
       }
     } catch (error) {
       console.error("Error deleting critical issue:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Gagal menghapus critical issue",
-      });
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Gagal menghapus critical issue"
+      );
     }
   };
 
@@ -292,22 +274,9 @@ export function CriticalIssueTab({
     );
   };
 
-  // Clear message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
+      <NotificationContainer notification={notification} />
 
       {/* Form Input */}
       <Card>
