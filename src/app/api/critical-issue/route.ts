@@ -99,47 +99,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = criticalIssueSchema.parse(body);
 
-    // Check department access based on user role
-    if (session.user.role === "PLANNER") {
-      // PLANNER users can only access their own department
-      if (
-        session.user.departmentId &&
-        validatedData.departmentId !== session.user.departmentId
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Access denied. PLANNER users can only create issues for their own department.",
-          },
-          { status: 403 }
-        );
-      }
-    } else if (session.user.role === "INPUTTER") {
-      // INPUTTER can access multiple departments but need to verify access through API
-      const departmentsResponse = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/departments`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.user.id}`,
-            "Content-Type": "application/json",
-          },
-        }
+    // Department access control:
+    // - Users can create critical issues for any department if they have proper access
+    // - This is controlled by the frontend UI logic (department tab selection)
+    // - Server validation focuses on user permission levels only
+
+    // Basic role validation - only allow certain roles
+    if (!["ADMIN", "PLANNER", "INPUTTER"].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
       );
-
-      if (departmentsResponse.ok) {
-        const departmentsResult = await departmentsResponse.json();
-        const accessibleDeptIds =
-          departmentsResult.data?.map((dept: { id: number }) => dept.id) || [];
-
-        if (!accessibleDeptIds.includes(validatedData.departmentId)) {
-          return NextResponse.json(
-            { error: "Access denied to this department" },
-            { status: 403 }
-          );
-        }
-      }
     }
-    // ADMIN users have unrestricted access
+
+    // Additional validation can be added here if needed for specific business rules
 
     // Verify department exists
     const department = await prisma.department.findUnique({

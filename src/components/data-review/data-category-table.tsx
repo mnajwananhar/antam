@@ -27,6 +27,23 @@ import {
   Plus,
 } from "lucide-react";
 
+// Custom hook for debounced search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 interface Department {
   id: number;
   name: string;
@@ -104,6 +121,22 @@ interface SafetyIncident extends BaseRecord {
   fatality: number;
 }
 
+interface EnergyTarget extends BaseRecord {
+  year: number;
+  month: number;
+  ikesTarget?: number;
+  emissionTarget?: number;
+}
+
+interface EnergyConsumption extends BaseRecord {
+  year: number;
+  month: number;
+  plnConsumption: number;
+  tambangConsumption: number;
+  pabrikConsumption: number;
+  supportingConsumption: number;
+}
+
 interface DataCategoryTableProps {
   category: DataCategory;
   globalSearch: string;
@@ -132,11 +165,15 @@ export function DataCategoryTable({
   const [localSearch, setLocalSearch] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  // Debounce search to prevent excessive filtering
+  const debouncedLocalSearch = useDebounce(localSearch, 300);
+  const debouncedGlobalSearch = useDebounce(globalSearch || "", 300);
+
   const pageSize = 10;
   const totalPages = Math.ceil(totalRecords / pageSize);
 
   // Load data for this category
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (): Promise<void> => {
     if (!category.id) return;
 
     setIsLoading(true);
@@ -153,7 +190,9 @@ export function DataCategoryTable({
         queryParams.append("filter", category.filter);
       }
 
-      console.log(`Loading data for category: ${category.id}`);
+      console.log(
+        `Loading data for category: ${category.id}, page: ${currentPage}, pageSize: ${pageSize}`
+      );
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -199,27 +238,25 @@ export function DataCategoryTable({
     }
   }, [category.id, category.filter, currentPage]);
 
-  // Auto-load data when category changes or component mounts
+  // Reset to page 1 when category changes
+  useEffect(() => {
+    if (category.id) {
+      setCurrentPage(1);
+    }
+  }, [category.id]);
+
+  // Load data when dependencies change
   useEffect(() => {
     if (category.id) {
       loadData();
-
-      // Auto-refresh data every 120 seconds
-      const interval = setInterval(() => {
-        if (!isLoading) {
-          loadData();
-        }
-      }, 120000);
-
-      return () => clearInterval(interval);
     }
-  }, [category.id, loadData, isLoading]);
+  }, [category.id, currentPage, loadData]);
 
-  // Apply search filters
+  // Apply search filters with debounced search
   useEffect(() => {
     let filtered = data;
 
-    const searchTerm = globalSearch || localSearch;
+    const searchTerm = debouncedGlobalSearch || debouncedLocalSearch;
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = data.filter((item) =>
@@ -231,7 +268,7 @@ export function DataCategoryTable({
     }
 
     setFilteredData(filtered);
-  }, [data, globalSearch, localSearch]);
+  }, [data, debouncedGlobalSearch, debouncedLocalSearch]);
 
   const formatDate = (dateString: string | Date) => {
     if (!dateString) return "-";
@@ -349,16 +386,24 @@ export function DataCategoryTable({
   const renderTableContent = () => {
     if (isLoading) {
       return (
-        <TableRow>
-          <TableCell colSpan={6} className="text-center py-12">
-            <div className="flex items-center justify-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-muted-foreground">
-                Memuat data {category.name}...
-              </span>
-            </div>
-          </TableCell>
-        </TableRow>
+        <>
+          {/* Loading skeleton rows */}
+          {Array.from({ length: 5 }).map((_, index) => (
+            <TableRow key={`skeleton-${index}`}>
+              <TableCell colSpan={6} className="py-4">
+                <div className="flex items-center space-x-4">
+                  <div className="animate-pulse flex space-x-4 w-full">
+                    <div className="rounded-full bg-gray-200 h-8 w-8"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </>
       );
     }
 
@@ -696,6 +741,128 @@ export function DataCategoryTable({
         );
       }
 
+      case "energy-targets": {
+        const energyRecord = record as EnergyTarget;
+        const monthNames = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "Mei",
+          "Jun",
+          "Jul",
+          "Ags",
+          "Sep",
+          "Okt",
+          "Nov",
+          "Des",
+        ];
+        return (
+          <>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                <span className="font-medium">
+                  {monthNames[energyRecord.month - 1]} {energyRecord.year}
+                </span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">
+                <div className="font-medium text-blue-600">IKES Target</div>
+                <div className="text-lg font-semibold">
+                  {energyRecord.ikesTarget
+                    ? energyRecord.ikesTarget.toLocaleString("id-ID", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : "-"}
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">
+                <div className="font-medium text-green-600">
+                  Emission Target
+                </div>
+                <div className="text-lg font-semibold">
+                  {energyRecord.emissionTarget
+                    ? energyRecord.emissionTarget.toLocaleString("id-ID", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : "-"}
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-700 border-blue-200"
+              >
+                MTC&ENG Bureau
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <div className="text-xs text-muted-foreground">
+                {formatDateTime(energyRecord.createdAt)}
+              </div>
+            </TableCell>
+          </>
+        );
+      }
+
+      case "energy-consumption": {
+        const consumptionRecord = record as EnergyConsumption;
+        return (
+          <>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                {String(consumptionRecord.month).padStart(2, "0")}/
+                {consumptionRecord.year}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">
+                <div>
+                  PLN: {consumptionRecord.plnConsumption.toFixed(2)} MWh
+                </div>
+                <div>
+                  Tambang: {consumptionRecord.tambangConsumption.toFixed(2)} MWh
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">
+                <div>
+                  Pabrik: {consumptionRecord.pabrikConsumption.toFixed(2)} MWh
+                </div>
+                <div>
+                  Supporting:{" "}
+                  {consumptionRecord.supportingConsumption.toFixed(2)} MWh
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm font-medium">
+                Total:{" "}
+                {(
+                  consumptionRecord.plnConsumption +
+                  consumptionRecord.tambangConsumption +
+                  consumptionRecord.pabrikConsumption +
+                  consumptionRecord.supportingConsumption
+                ).toFixed(2)}{" "}
+                MWh
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline">MTC&ENG Bureau</Badge>
+            </TableCell>
+          </>
+        );
+      }
+
       default:
         return (
           <>
@@ -769,6 +936,28 @@ export function DataCategoryTable({
           </>
         );
 
+      case "energy-targets":
+        return (
+          <>
+            <TableHead>Periode</TableHead>
+            <TableHead>IKES Target</TableHead>
+            <TableHead>Emission Target</TableHead>
+            <TableHead>Departemen</TableHead>
+            <TableHead>Created</TableHead>
+          </>
+        );
+
+      case "energy-consumption":
+        return (
+          <>
+            <TableHead>Periode</TableHead>
+            <TableHead>PLN & Tambang</TableHead>
+            <TableHead>Pabrik & Supporting</TableHead>
+            <TableHead>Total Konsumsi</TableHead>
+            <TableHead>Departemen</TableHead>
+          </>
+        );
+
       default:
         return (
           <>
@@ -784,7 +973,7 @@ export function DataCategoryTable({
 
   return (
     <div className="space-y-4">
-      {/* Local Search and Info */}
+      {/* Local Search and Actions */}
       <div className="flex items-center justify-between">
         <div className="flex-1 max-w-sm">
           <div className="relative">
@@ -798,23 +987,40 @@ export function DataCategoryTable({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {isLoading ? (
-            <>
-              <div className="animate-spin rounded-full h-2 w-2 border-b border-primary"></div>
-              <span>Loading...</span>
-            </>
-          ) : error ? (
-            <>
-              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-              <span>Error</span>
-            </>
-          ) : (
-            <>
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span>Data loaded</span>
-            </>
-          )}
+        <div className="flex items-center gap-3">
+          {/* Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+
+          {/* Status Indicator */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-2 w-2 border-b border-primary"></div>
+                <span>Loading...</span>
+              </>
+            ) : error ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span>Error</span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>Ready</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

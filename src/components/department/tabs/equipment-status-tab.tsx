@@ -12,8 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification, useApiNotification } from "@/lib/hooks";
+import {
+  useApiToast,
+  useToastContext,
+} from "@/components/providers/toast-provider";
 import {
   Select,
   SelectContent,
@@ -55,9 +57,9 @@ export function EquipmentStatusTab({
     Record<number, { status: EquipmentStatus }>
   >({});
 
-  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG REUSABLE
-  const { notification, showError, clearNotification } = useNotification();
-  const { executeUpdate } = useApiNotification();
+  // ✅ MENGGUNAKAN TOAST SYSTEM YANG BARU DAN ROBUST
+  const { executeUpdate } = useApiToast();
+  const { showError } = useToastContext();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | EquipmentStatus>(
@@ -118,7 +120,6 @@ export function EquipmentStatusTab({
     }
 
     setIsLoading(true);
-    clearNotification();
 
     try {
       const updates = Object.entries(statusUpdates).map(
@@ -128,7 +129,7 @@ export function EquipmentStatusTab({
         })
       );
 
-      // ✅ IMMEDIATE NOTIFICATION - Langsung muncul setelah API call
+      // ✅ MENGGUNAKAN TOAST SYSTEM - AUTOMATIC SUCCESS/ERROR NOTIFICATION
       const result = await executeUpdate(
         () =>
           fetch("/api/equipment/status", {
@@ -142,10 +143,10 @@ export function EquipmentStatusTab({
       // ✅ SUCCESS ACTIONS - Reset state jika berhasil
       if (result.success) {
         setStatusUpdates({});
-        // Tambahan sukses feedback manual jika diperlukan
+        // Delay refresh agar user sempat lihat notifikasi
         setTimeout(() => {
           router.refresh();
-        }, 1000); // Delay refresh agar user sempat lihat notifikasi
+        }, 1000);
       }
     } catch (error) {
       console.error("Error saving equipment status:", error);
@@ -172,12 +173,6 @@ export function EquipmentStatusTab({
 
   return (
     <div className="space-y-6">
-      {/* ✅ NOTIFICATION CONTAINER - Positioned for optimal visibility */}
-      <NotificationContainer
-        notification={notification}
-        onClose={clearNotification}
-      />
-
       {/* Equipment Stats - Hanya untuk Status Alat */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

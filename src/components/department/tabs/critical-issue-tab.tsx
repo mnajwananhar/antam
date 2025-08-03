@@ -15,8 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import {
   Plus,
   AlertTriangle,
@@ -25,6 +27,7 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
+import { departmentUtils } from "@/lib/utils";
 import { EquipmentStatus } from "@prisma/client";
 
 interface CriticalIssueTabProps {
@@ -71,10 +74,11 @@ export function CriticalIssueTab({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Menggunakan notification hook yang reusable
-  const { notification, showSuccess, showError, clearNotification } =
-    useNotification();
+  // Menggunakan toast system yang robust
+  const { showError } = useToastContext();
+  const { executeWithToast } = useApiToast();
 
   const [newIssue, setNewIssue] = useState({
     issueName: "",
@@ -82,10 +86,13 @@ export function CriticalIssueTab({
     description: "",
   });
 
-  const loadAccessibleDepartments = useCallback(async () => {
-    // Only load departments for users who can access multiple departments
-    if (session.user.role === "PLANNER" && session.user.departmentId) {
-      // PLANNER users are restricted to their own department
+  const loadAccessibleDepartments = useCallback(async (): Promise<void> => {
+    // Check if current selected department tab is MTC&ENG - they have special privileges to select any department
+    const isMtcEng =
+      department.name && departmentUtils.isMtcEngBureau(department.name);
+
+    if (!isMtcEng) {
+      // All departments except MTC&ENG tab are restricted to their own department only
       setAccessibleDepartments([
         {
           id: department.id,
@@ -97,6 +104,7 @@ export function CriticalIssueTab({
       return;
     }
 
+    // Only MTC&ENG tab can load and select all departments
     try {
       const response = await fetch("/api/departments");
       if (response.ok) {
@@ -127,7 +135,7 @@ export function CriticalIssueTab({
     } finally {
       setIsLoadingDepartments(false);
     }
-  }, [session.user.role, session.user.departmentId, department]);
+  }, [department]);
 
   const loadCriticalIssues = useCallback(async () => {
     setIsLoading(true);
@@ -160,84 +168,110 @@ export function CriticalIssueTab({
     loadCriticalIssues();
   }, [loadCriticalIssues]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Client-side validation function
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!newIssue.issueName.trim()) {
+      errors.issueName = "Nama issue wajib diisi";
+    } else if (newIssue.issueName.trim().length < 3) {
+      errors.issueName = "Nama issue minimal 3 karakter";
+    }
+
+    if (!newIssue.description.trim()) {
+      errors.description = "Deskripsi wajib diisi";
+    } else if (newIssue.description.trim().length < 5) {
+      errors.description = "Deskripsi minimal 5 karakter";
+    } else if (newIssue.description.trim().length > 500) {
+      errors.description = "Deskripsi maksimal 500 karakter";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    if (!newIssue.issueName.trim() || !newIssue.description.trim()) {
-      showError("Nama issue dan deskripsi wajib diisi");
+    // Clear previous errors
+    setFormErrors({});
+
+    // Validate form
+    if (!validateForm()) {
+      showError("Mohon periksa kembali form input");
       return;
     }
 
     setIsSubmitting(true);
-    clearNotification();
 
-    try {
-      const response = await fetch("/api/critical-issue", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...newIssue,
-          departmentId: selectedDepartmentId,
+    await executeWithToast(
+      () =>
+        fetch("/api/critical-issue", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...newIssue,
+            departmentId: selectedDepartmentId,
+          }),
         }),
-      });
+      undefined, // Let the API response determine success message
+      undefined, // Let the API response determine error message
+      {
+        showLoading: true,
+        onSuccess: () => {
+          // Reset form and errors on success
+          setNewIssue({
+            issueName: "",
+            status: EquipmentStatus.BREAKDOWN as EquipmentStatus,
+            description: "",
+          });
+          setFormErrors({});
 
-      const result = await response.json();
-
-      if (response.ok) {
-        showSuccess(result.message || "Critical issue berhasil dibuat");
-
-        // Reset form
-        setNewIssue({
-          issueName: "",
-          status: EquipmentStatus.BREAKDOWN as EquipmentStatus,
-          description: "",
-        });
-
-        // Reload data
-        loadCriticalIssues();
-      } else {
-        throw new Error(result.error || "Failed to create critical issue");
+          // Reload data
+          loadCriticalIssues();
+        },
+        onError: (error) => {
+          // Handle validation errors
+          if (error && typeof error === "object" && "details" in error) {
+            const errorData = error as {
+              details: Array<{ field: string; message: string }>;
+            };
+            if (Array.isArray(errorData.details)) {
+              const serverErrors: Record<string, string> = {};
+              errorData.details.forEach((validationError) => {
+                serverErrors[validationError.field] = validationError.message;
+              });
+              setFormErrors(serverErrors);
+            }
+          }
+        },
       }
-    } catch (error) {
-      console.error("Error submitting critical issue:", error);
-      showError(
-        error instanceof Error
-          ? error.message
-          : "Gagal menyimpan critical issue"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    );
+
+    setIsSubmitting(false);
   };
 
-  const handleDelete = async (issueId: number) => {
+  const handleDelete = async (issueId: number): Promise<void> => {
     if (!confirm("Apakah Anda yakin ingin menghapus critical issue ini?")) {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/critical-issue/${issueId}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        showSuccess(result.message || "Critical issue berhasil dihapus");
-        loadCriticalIssues();
-      } else {
-        throw new Error(result.error || "Failed to delete critical issue");
+    await executeWithToast(
+      () =>
+        fetch(`/api/critical-issue/${issueId}`, {
+          method: "DELETE",
+        }),
+      undefined, // Let API response determine success message
+      undefined, // Let API response determine error message
+      {
+        showLoading: true,
+        onSuccess: () => {
+          loadCriticalIssues();
+        },
       }
-    } catch (error) {
-      console.error("Error deleting critical issue:", error);
-      showError(
-        error instanceof Error
-          ? error.message
-          : "Gagal menghapus critical issue"
-      );
-    }
+    );
   };
 
   const getSelectedDepartmentName = () => {
@@ -247,10 +281,24 @@ export function CriticalIssueTab({
     return selectedDept?.name || department.name;
   };
 
-  const canSelectDepartment = () => {
-    // Only ADMIN and INPUTTER can select different departments
-    // PLANNER is restricted to their own department
-    return session.user.role === "ADMIN" || session.user.role === "INPUTTER";
+  const canSelectDepartment = (): boolean => {
+    // Debug log
+    console.log("Debug canSelectDepartment:", {
+      departmentTabName: department.name,
+      isMtcEng:
+        department.name && departmentUtils.isMtcEngBureau(department.name),
+      result:
+        department.name && departmentUtils.isMtcEngBureau(department.name),
+    });
+
+    // Only when user is on MTC&ENG tab, they can select different departments
+    // When on other department tabs (ECDC, MMTC, PMTC, HETU), they can only input to that department
+    if (department.name && departmentUtils.isMtcEngBureau(department.name)) {
+      return true;
+    }
+
+    // All other department tabs cannot select different departments
+    return false;
   };
 
   const getStatusBadge = (status: EquipmentStatus) => {
@@ -276,8 +324,6 @@ export function CriticalIssueTab({
 
   return (
     <div className="space-y-6">
-      <NotificationContainer notification={notification} />
-
       {/* Form Input */}
       <Card>
         <CardHeader>
@@ -318,16 +364,26 @@ export function CriticalIssueTab({
                 <label className="text-sm font-medium">Nama Issue</label>
                 <Input
                   value={newIssue.issueName}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setNewIssue((prev) => ({
                       ...prev,
                       issueName: e.target.value,
-                    }))
-                  }
+                    }));
+                    // Clear error when user starts typing
+                    if (formErrors.issueName) {
+                      setFormErrors((prev) => ({ ...prev, issueName: "" }));
+                    }
+                  }}
                   placeholder="Masukkan nama critical issue"
                   required
                   disabled={isSubmitting}
+                  className={formErrors.issueName ? "border-red-500" : ""}
                 />
+                {formErrors.issueName && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {formErrors.issueName}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -361,17 +417,30 @@ export function CriticalIssueTab({
               <label className="text-sm font-medium">Deskripsi</label>
               <Textarea
                 value={newIssue.description}
-                onChange={(e) =>
+                onChange={(e) => {
                   setNewIssue((prev) => ({
                     ...prev,
                     description: e.target.value,
-                  }))
-                }
-                placeholder="Jelaskan detail critical issue..."
+                  }));
+                  // Clear error when user starts typing
+                  if (formErrors.description) {
+                    setFormErrors((prev) => ({ ...prev, description: "" }));
+                  }
+                }}
+                placeholder="Jelaskan detail critical issue... (minimal 5 karakter)"
                 rows={4}
                 required
                 disabled={isSubmitting}
+                className={formErrors.description ? "border-red-500" : ""}
               />
+              {formErrors.description && (
+                <p className="text-sm text-red-500 mt-1">
+                  {formErrors.description}
+                </p>
+              )}
+              <div className="text-xs text-muted-foreground mt-1">
+                {newIssue.description.length}/500 karakter
+              </div>
             </div>
 
             <div className="flex justify-end">

@@ -5,12 +5,7 @@ import { Session } from "next-auth";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,6 +21,7 @@ import {
   Battery,
   Plus,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { DataCategoryTable } from "@/components/data-review";
 
@@ -65,10 +61,10 @@ const getIconComponent = (iconName: string) => {
   return icons[iconName as keyof typeof icons] || Activity;
 };
 
-export function DataReviewClient({ 
-  departments, 
-  dataCategories, 
-  session 
+export function DataReviewClient({
+  departments,
+  dataCategories,
+  session,
 }: DataReviewClientProps) {
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState("operational-reports");
@@ -83,24 +79,22 @@ export function DataReviewClient({
     setIsClient(true);
   }, []);
 
-  // Auto-load stats when component mounts with timeout
+  // Auto-load stats when component mounts (remove auto-refresh)
   useEffect(() => {
     if (isClient) {
       loadGlobalStats();
-      
-      // Auto-reload stats every 60 seconds
-      const interval = setInterval(loadGlobalStats, 60000);
-      return () => clearInterval(interval);
     }
   }, [isClient]);
 
   // Filter categories based on user access
-  const visibleCategories = dataCategories.filter(category => {
+  const visibleCategories = dataCategories.filter((category) => {
     // If department specific, check user access
     if (category.departmentSpecific) {
-      return session.user.role === "ADMIN" || 
-             session.user.role === "INPUTTER" ||
-             session.user.departmentName === category.departmentSpecific;
+      return (
+        session.user.role === "ADMIN" ||
+        session.user.role === "INPUTTER" ||
+        session.user.departmentName === category.departmentSpecific
+      );
     }
     return true;
   });
@@ -108,17 +102,17 @@ export function DataReviewClient({
   const loadGlobalStats = async () => {
     try {
       setStatsError(null);
-      
+
       // Add timeout to prevent infinite loading
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+
       const response = await fetch("/api/data-review/stats", {
-        signal: controller.signal
+        signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats || {});
@@ -134,11 +128,13 @@ export function DataReviewClient({
           "energy-targets": 0,
           "energy-consumption": 0,
         });
-        setStatsError(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
+        setStatsError(
+          `HTTP ${response.status}: ${errorData.error || response.statusText}`
+        );
       }
     } catch (error) {
       console.error("Failed to load stats:", error);
-      
+
       // Always set some stats even if loading fails
       setStats({
         "operational-reports": 0,
@@ -150,11 +146,13 @@ export function DataReviewClient({
         "energy-targets": 0,
         "energy-consumption": 0,
       });
-      
-      if (error instanceof Error && error.name === 'AbortError') {
+
+      if (error instanceof Error && error.name === "AbortError") {
         setStatsError("Request timeout - stats loading took too long");
       } else {
-        setStatsError(error instanceof Error ? error.message : "Failed to load statistics");
+        setStatsError(
+          error instanceof Error ? error.message : "Failed to load statistics"
+        );
       }
     } finally {
       setIsLoadingStats(false);
@@ -181,14 +179,21 @@ export function DataReviewClient({
   };
 
   const handleDelete = async (categoryId: string, recordId: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.")) {
+    if (
+      !confirm(
+        "Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan."
+      )
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/data-review/${categoryId}/${recordId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/data-review/${categoryId}/${recordId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
         // Refresh stats and current tab data
@@ -197,7 +202,7 @@ export function DataReviewClient({
         router.refresh();
       } else {
         const errorData = await response.json();
-        alert(`Gagal menghapus data: ${errorData.error || 'Unknown error'}`);
+        alert(`Gagal menghapus data: ${errorData.error || "Unknown error"}`);
       }
     } catch (error) {
       console.error("Delete error:", error);
@@ -209,7 +214,7 @@ export function DataReviewClient({
     if (session.user.role === "VIEWER") return false;
     if (session.user.role === "ADMIN") return true;
     if (session.user.role === "INPUTTER") return true;
-    
+
     // Planner can edit their department data
     if (session.user.role === "PLANNER") {
       if (category.departmentSpecific) {
@@ -217,7 +222,7 @@ export function DataReviewClient({
       }
       return true;
     }
-    
+
     return false;
   };
 
@@ -249,8 +254,23 @@ export function DataReviewClient({
             />
           </div>
         </div>
-        
+
         <div className="flex gap-2">
+          {/* Manual Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadGlobalStats}
+            disabled={isLoadingStats}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`}
+            />
+            Refresh Stats
+          </Button>
+
+          {/* Stats Status */}
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             {isLoadingStats ? (
               <>
@@ -265,16 +285,16 @@ export function DataReviewClient({
             ) : (
               <>
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                Stats loaded
+                Stats ready
               </>
             )}
           </div>
-          
+
           {session.user.role !== "VIEWER" && (
             <Button
               variant="default"
               size="sm"
-              onClick={() => window.location.href = "/input"}
+              onClick={() => (window.location.href = "/input")}
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -290,9 +310,9 @@ export function DataReviewClient({
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <strong>Stats loading error:</strong> {statsError}
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={loadGlobalStats}
               className="ml-2 h-auto p-1 text-xs"
             >
@@ -308,18 +328,21 @@ export function DataReviewClient({
           {visibleCategories.map((category) => {
             const IconComponent = getIconComponent(category.icon);
             const count = stats[category.id] || 0;
-            
+
             return (
-              <TabsTrigger 
-                key={category.id} 
+              <TabsTrigger
+                key={category.id}
                 value={category.id}
                 className="flex items-center gap-2 text-xs relative"
               >
                 <IconComponent className="h-4 w-4" />
                 <span className="hidden sm:inline">{category.name}</span>
                 {count > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs h-4 min-w-4 px-1">
-                    {count > 99 ? '99+' : count}
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 text-xs h-4 min-w-4 px-1"
+                  >
+                    {count > 99 ? "99+" : count}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -328,20 +351,29 @@ export function DataReviewClient({
         </TabsList>
 
         {visibleCategories.map((category) => (
-          <TabsContent key={category.id} value={category.id} className="space-y-4">
+          <TabsContent
+            key={category.id}
+            value={category.id}
+            className="space-y-4"
+          >
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {React.createElement(getIconComponent(category.icon), { className: "h-5 w-5" })}
+                    {React.createElement(getIconComponent(category.icon), {
+                      className: "h-5 w-5",
+                    })}
                     <div>
                       <CardTitle className="text-lg">{category.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{category.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {category.description}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {(stats[category.id] || 0).toLocaleString('id-ID')} records
+                      {(stats[category.id] || 0).toLocaleString("id-ID")}{" "}
+                      records
                     </Badge>
                     {category.departmentSpecific && (
                       <Badge variant="secondary">
@@ -358,7 +390,11 @@ export function DataReviewClient({
                   globalSearch={globalSearch}
                   session={session}
                   onEdit={(recordId) => handleEdit(category.id, recordId)}
-                  onDelete={canDelete() ? (recordId) => handleDelete(category.id, recordId) : undefined}
+                  onDelete={
+                    canDelete()
+                      ? (recordId) => handleDelete(category.id, recordId)
+                      : undefined
+                  }
                   canEdit={canEdit(category)}
                   departments={departments}
                 />

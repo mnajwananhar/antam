@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification, useApiNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import {
   Edit,
   Trash2,
@@ -135,8 +137,8 @@ export function DataCategoryTable({
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // ✅ NOTIFICATION SYSTEM YANG CLEAN DAN REUSABLE
-  const { notification, showError } = useNotification();
-  const { executeDelete } = useApiNotification();
+  const { showError } = useToastContext();
+  const { executeDelete } = useApiToast();
 
   const pageSize = 10;
   const totalPages = Math.ceil(totalRecords / pageSize);
@@ -776,7 +778,6 @@ export function DataCategoryTable({
 
   return (
     <div className="space-y-4">
-      <NotificationContainer notification={notification} />
       {/* Local Search and Info */}
       <div className="flex items-center justify-between">
         <div className="flex-1 max-w-sm">

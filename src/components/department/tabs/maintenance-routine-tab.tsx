@@ -16,8 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import {
   Plus,
   Wrench,
@@ -72,9 +74,9 @@ export function MaintenanceRoutineTab({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG REUSABLE
-  const { notification, showSuccess, showError, clearNotification } =
-    useNotification();
+  // Menggunakan toast system yang robust
+  const { showError } = useToastContext();
+  const { executeWithToast } = useApiToast();
 
   const [newRoutine, setNewRoutine] = useState({
     jobName: "",
@@ -124,7 +126,7 @@ export function MaintenanceRoutineTab({
     }
   }, [canAccess, loadMaintenanceRoutines]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!newRoutine.jobName.trim() || !newRoutine.startDate) {
@@ -138,60 +140,51 @@ export function MaintenanceRoutineTab({
     );
 
     setIsSubmitting(true);
-    clearNotification();
 
-    try {
-      const response = await fetch("/api/maintenance-routine", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...newRoutine,
-          departmentId: department.id,
-          activities: validActivities,
+    await executeWithToast(
+      () =>
+        fetch("/api/maintenance-routine", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...newRoutine,
+            departmentId: department.id,
+            activities: validActivities,
+          }),
         }),
-      });
+      undefined, // Let API response determine success message
+      undefined, // Let API response determine error message
+      {
+        showLoading: true,
+        onSuccess: () => {
+          // Reset form
+          setNewRoutine({
+            jobName: "",
+            startDate: "",
+            endDate: "",
+            description: "",
+            type: MaintenanceType.PREM as MaintenanceType,
+          });
+          setActivities([{ activity: "", object: "" }]);
 
-      const result = await response.json();
-
-      if (response.ok) {
-        showSuccess(result.message || "Maintenance routine berhasil dibuat");
-
-        // Reset form
-        setNewRoutine({
-          jobName: "",
-          startDate: "",
-          endDate: "",
-          description: "",
-          type: MaintenanceType.PREM as MaintenanceType,
-        });
-        setActivities([{ activity: "", object: "" }]);
-
-        // Reload data
-        loadMaintenanceRoutines();
-      } else {
-        throw new Error(result.error || "Failed to create maintenance routine");
+          // Reload data
+          loadMaintenanceRoutines();
+        },
       }
-    } catch (error) {
-      console.error("Error submitting maintenance routine:", error);
-      showError(
-        error instanceof Error
-          ? error.message
-          : "Gagal menyimpan maintenance routine"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    );
+
+    setIsSubmitting(false);
   };
 
-  const addActivity = () => {
+  const addActivity = (): void => {
     setActivities([...activities, { activity: "", object: "" }]);
   };
 
-  const removeActivity = (index: number) => {
+  const removeActivity = (index: number): void => {
     if (activities.length > 1) {
-      setActivities(activities.filter((_, i) => i !== index));
+      setActivities(activities.filter((_: unknown, i: number) => i !== index));
     }
   };
 
@@ -199,7 +192,7 @@ export function MaintenanceRoutineTab({
     index: number,
     field: "activity" | "object",
     value: string
-  ) => {
+  ): void => {
     const updated = [...activities];
     updated[index][field] = value;
     setActivities(updated);
@@ -231,7 +224,6 @@ export function MaintenanceRoutineTab({
 
   return (
     <div className="space-y-6">
-      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>

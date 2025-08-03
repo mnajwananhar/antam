@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Add caching to prevent unnecessary database hits
+const cache = new Map();
+const CACHE_TTL = 30000; // 30 seconds
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -22,8 +26,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Create cache key based on user and request params
+    const cacheKey = `${category}-${page}-${pageSize}-${session.user.id}-${session.user.role}-${session.user.departmentId}`;
+
+    // Check cache first
+    const cachedData = cache.get(cacheKey);
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      console.log(`Returning cached data for: ${category}, page: ${page}`);
+      return NextResponse.json(cachedData.result);
+    }
+
     console.log(
-      `Loading data for category: ${category}, page: ${page}, pageSize: ${pageSize}`
+      `Loading fresh data for category: ${category}, page: ${page}, pageSize: ${pageSize}`
     );
 
     let data = [];
@@ -372,14 +386,32 @@ export async function GET(request: NextRequest) {
 
     console.log(`Successfully loaded ${data.length} records for ${category}`);
 
-    return NextResponse.json({
+    const result = {
       data,
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
       category,
+    };
+
+    // Cache the result
+    cache.set(cacheKey, {
+      result,
+      timestamp: Date.now(),
     });
+
+    // Clean old cache entries
+    if (cache.size > 100) {
+      const now = Date.now();
+      for (const [key, value] of cache.entries()) {
+        if (now - value.timestamp > CACHE_TTL * 2) {
+          cache.delete(key);
+        }
+      }
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Category API error:", error);
     const errorMessage =

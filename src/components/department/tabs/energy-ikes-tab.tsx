@@ -14,8 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import { Plus, Zap, TrendingUp, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -64,8 +66,8 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ CLEAN NOTIFICATION SYSTEM
-  const { notification, showSuccess, showError, clearNotification } =
-    useNotification();
+  const { showError } = useToastContext();
+  const { executeCreate } = useApiToast();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -108,10 +110,9 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     }
   }, [department.code, loadEnergyData]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setIsSubmitting(true);
-    clearNotification();
 
     // Prepare data based on dataType
     const submitData: Record<string, string | number | undefined> = {
@@ -134,43 +135,31 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
           : undefined;
     }
 
-    try {
-      const response = await fetch("/api/energy-ikes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submitData),
-      });
+    await executeCreate(
+      () =>
+        fetch("/api/energy-ikes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(submitData),
+        }),
+      `Data ${dataType}`
+    );
 
-      const result = await response.json();
+    // Reset form
+    setNewData({
+      month: currentMonth,
+      year: currentYear,
+      ikesTarget: 0,
+      emissionTarget: 0,
+      ikesRealization: 0,
+      emissionRealization: 0,
+    });
 
-      if (response.ok) {
-        showSuccess(result.message || `Data ${dataType} berhasil disimpan`);
-
-        // Reset form
-        setNewData({
-          month: currentMonth,
-          year: currentYear,
-          ikesTarget: 0,
-          emissionTarget: 0,
-          ikesRealization: 0,
-          emissionRealization: 0,
-        });
-
-        // Reload data
-        loadEnergyData();
-      } else {
-        throw new Error(result.error || "Failed to save energy data");
-      }
-    } catch (error) {
-      console.error("Error submitting energy data:", error);
-      showError(
-        error instanceof Error ? error.message : "Gagal menyimpan data"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Reload data
+    loadEnergyData();
+    setIsSubmitting(false);
   };
 
   const monthNames = [
@@ -215,7 +204,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
 
   return (
     <div className="space-y-6">
-      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>

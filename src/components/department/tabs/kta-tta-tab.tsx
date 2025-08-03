@@ -6,8 +6,7 @@ import { ExcelUpload } from "@/components/kta-tta";
 import { getAllowedPIC, hasDataTypeAccess } from "@/lib/utils/kta-tta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification, useApiNotification } from "@/lib/hooks";
+import { useApiToast } from "@/components/providers/toast-provider";
 import { AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
 
@@ -24,9 +23,8 @@ interface ExcelRow {
 export function KtaTtaTab({ session }: KtaTtaTabProps) {
   const [isUploading, setIsUploading] = useState(false);
 
-  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG CLEAN
-  const { notification, showError, clearNotification } = useNotification();
-  const { executeWithNotification } = useApiNotification();
+  // ✅ MENGGUNAKAN TOAST SYSTEM YANG ROBUST
+  const { executeWithToast } = useApiToast();
 
   const user = {
     id: session.user.id,
@@ -50,8 +48,8 @@ export function KtaTtaTab({ session }: KtaTtaTabProps) {
   const handleBulkUpload = async (excelData: ExcelRow[]) => {
     setIsUploading(true);
     try {
-      // ✅ MENGGUNAKAN API HELPER YANG CLEAN
-      const result = await executeWithNotification(
+      // ✅ MENGGUNAKAN TOAST SYSTEM - AUTOMATIC SUCCESS/ERROR NOTIFICATION
+      const result = await executeWithToast(
         () =>
           fetch("/api/kta-tta", {
             method: "POST",
@@ -68,13 +66,11 @@ export function KtaTtaTab({ session }: KtaTtaTabProps) {
       );
 
       if (result.success) {
-        // Success message sudah ditampilkan oleh executeWithNotification
+        // Success message sudah ditampilkan oleh executeWithToast
       }
     } catch (error) {
       console.error("Error uploading data:", error);
-      showError(
-        error instanceof Error ? error.message : "Gagal mengupload data"
-      );
+      // Toast system akan menampilkan error secara otomatis
     } finally {
       setIsUploading(false);
     }
@@ -97,12 +93,6 @@ export function KtaTtaTab({ session }: KtaTtaTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* ✅ NOTIFICATION CONTAINER UNTUK UX YANG LEBIH BAIK */}
-      <NotificationContainer
-        notification={notification}
-        onClose={clearNotification}
-      />
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">

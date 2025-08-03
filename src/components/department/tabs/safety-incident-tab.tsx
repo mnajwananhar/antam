@@ -14,8 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification, useApiNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import { Plus, Shield, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 
 interface SafetyIncidentTabProps {
@@ -43,9 +45,9 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ MENGGUNAKAN NOTIFICATION SYSTEM YANG CLEAN
-  const { notification, showError, clearNotification } = useNotification();
-  const { executeCreate } = useApiNotification();
+  // Menggunakan toast system yang robust
+  const { showError } = useToastContext();
+  const { executeCreate } = useApiToast();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -89,12 +91,10 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     }
   }, [department.code, loadSafetyIncidents]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setIsSubmitting(true);
-    clearNotification();
 
-    // ✅ MENGGUNAKAN API HELPER YANG CLEAN
     const result = await executeCreate(
       () =>
         fetch("/api/safety-incident", {
@@ -175,7 +175,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
 
   return (
     <div className="space-y-6">
-      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>

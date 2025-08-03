@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Add caching for stats to prevent frequent database hits
+const statsCache = new Map();
+const STATS_CACHE_TTL = 60000; // 1 minute
+
 export async function GET() {
   try {
     const session = await auth();
@@ -10,8 +14,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Create cache key based on user
+    const cacheKey = `stats-${session.user.id}-${session.user.role}-${session.user.departmentId}`;
+
+    // Check cache first
+    const cachedStats = statsCache.get(cacheKey);
+    if (cachedStats && Date.now() - cachedStats.timestamp < STATS_CACHE_TTL) {
+      console.log(`Returning cached stats for user: ${session.user.username}`);
+      return NextResponse.json(cachedStats.result);
+    }
+
     console.log(
-      "Loading stats for user:",
+      "Loading fresh stats for user:",
       session.user.username,
       session.user.role
     );
@@ -126,14 +140,32 @@ export async function GET() {
 
     console.log("Final stats:", stats);
 
-    return NextResponse.json({
+    const result = {
       stats,
       timestamp: new Date().toISOString(),
       user: {
         role: session.user.role,
         department: session.user.departmentName || null,
       },
+    };
+
+    // Cache the result
+    statsCache.set(cacheKey, {
+      result,
+      timestamp: Date.now(),
     });
+
+    // Clean old cache entries
+    if (statsCache.size > 50) {
+      const now = Date.now();
+      for (const [key, value] of statsCache.entries()) {
+        if (now - value.timestamp > STATS_CACHE_TTL * 2) {
+          statsCache.delete(key);
+        }
+      }
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Stats API error:", error);
     return NextResponse.json(

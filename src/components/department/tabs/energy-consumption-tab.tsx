@@ -14,8 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NotificationContainer } from "@/components/ui/notification";
-import { useNotification } from "@/lib/hooks";
+import {
+  useToastContext,
+  useApiToast,
+} from "@/components/providers/toast-provider";
 import {
   Plus,
   Battery,
@@ -62,8 +64,8 @@ export function EnergyConsumptionTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ CLEAN NOTIFICATION SYSTEM
-  const { notification, showSuccess, showError, clearNotification } =
-    useNotification();
+  const { showError } = useToastContext();
+  const { executeCreate } = useApiToast();
 
   const [currentYear] = useState(new Date().getFullYear());
   const [currentMonth] = useState(new Date().getMonth() + 1);
@@ -105,10 +107,9 @@ export function EnergyConsumptionTab({
     }
   }, [department.code, loadEnergyConsumption]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setIsSubmitting(true);
-    clearNotification();
 
     // Convert string inputs to numbers
     const submitData = {
@@ -121,45 +122,31 @@ export function EnergyConsumptionTab({
         parseFloat(newConsumption.supportingConsumption) || 0,
     };
 
-    try {
-      const response = await fetch("/api/energy-consumption", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submitData),
-      });
+    await executeCreate(
+      () =>
+        fetch("/api/energy-consumption", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(submitData),
+        }),
+      "Data energy consumption"
+    );
 
-      const result = await response.json();
+    // Reset form
+    setNewConsumption({
+      month: currentMonth,
+      year: currentYear,
+      plnConsumption: "",
+      tambangConsumption: "",
+      pabrikConsumption: "",
+      supportingConsumption: "",
+    });
 
-      if (response.ok) {
-        showSuccess(
-          result.message || "Data energy consumption berhasil disimpan"
-        );
-
-        // Reset form
-        setNewConsumption({
-          month: currentMonth,
-          year: currentYear,
-          plnConsumption: "",
-          tambangConsumption: "",
-          pabrikConsumption: "",
-          supportingConsumption: "",
-        });
-
-        // Reload data
-        loadEnergyConsumption();
-      } else {
-        throw new Error(result.error || "Failed to save energy consumption");
-      }
-    } catch (error) {
-      console.error("Error submitting energy consumption:", error);
-      showError(
-        error instanceof Error ? error.message : "Gagal menyimpan data"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Reload data
+    loadEnergyConsumption();
+    setIsSubmitting(false);
   };
 
   const handleNumberChange = (
@@ -208,7 +195,6 @@ export function EnergyConsumptionTab({
 
   return (
     <div className="space-y-6">
-      <NotificationContainer notification={notification} />
       {/* Form Input */}
       <Card>
         <CardHeader>
