@@ -131,8 +131,8 @@ export function EquipmentStatusTab({
       // ✅ IMMEDIATE NOTIFICATION - Langsung muncul setelah API call
       const result = await executeUpdate(
         () =>
-          fetch("/api/equipment/bulk-update", {
-            method: "PUT",
+          fetch("/api/equipment/status", {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ updates }),
           }),
