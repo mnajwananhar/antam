@@ -249,11 +249,10 @@ model KtaKpiData {
   @@map("kta_kpi_data")
 }
 
-// Lookup table for KTA/TTA criteria and their due date days
+// Lookup table for KTA/TTA criteria
 model KriteriaKtaTta {
   id       Int     @id @default(autoincrement())
   kriteria String  @unique @db.VarChar(200)
-  days     Int     // Number of days to add for due date calculation
   isActive Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

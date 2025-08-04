@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { UserPlus, AlertTriangle } from "lucide-react";
+import { useToastContext } from "@/components/providers/toast-provider";
+import { UserPlus } from "lucide-react";
 import { createUserSchema, type CreateUserInput } from "@/lib/validations";
 import { USER_ROLE_OPTIONS } from "@/lib/constants";
 import { UserRole } from "@prisma/client";
@@ -40,8 +40,10 @@ export function CreateUserDialog({
 }: CreateUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // ✅ MENGGUNAKAN TOAST SYSTEM
+  const { showError, showSuccess } = useToastContext();
 
   const {
     register,
@@ -61,9 +63,13 @@ export function CreateUserDialog({
 
   const onSubmit = async (data: CreateUserInput) => {
     setIsLoading(true);
-    setError(null);
 
     try {
+      console.log("Creating user with data:", {
+        ...data,
+        password: "[HIDDEN]",
+      });
+
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: {
@@ -73,18 +79,22 @@ export function CreateUserDialog({
       });
 
       const result = await response.json();
+      console.log("Create user response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Gagal membuat pengguna baru");
       }
 
-      // Success - close dialog and refresh page
+      // Success - show success toast, close dialog and refresh page
+      showSuccess(`Pengguna "${data.username}" berhasil dibuat`);
       setOpen(false);
       reset();
       router.refresh();
     } catch (err) {
       console.error("Error creating user:", err);
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan sistem");
+      showError(
+        err instanceof Error ? err.message : "Terjadi kesalahan sistem"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +102,6 @@ export function CreateUserDialog({
 
   const handleDialogClose = () => {
     setOpen(false);
-    setError(null);
     reset();
   };
 
@@ -112,14 +121,6 @@ export function CreateUserDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Error Message */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           {/* Username */}
           <div className="space-y-2">
             <Input

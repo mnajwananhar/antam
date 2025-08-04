@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -314,48 +314,91 @@ export default function OrderListPage() {
     }
   };
 
-  const toggleActivityCompletion = async (
-    orderId: number,
-    activityIndex: number
-  ) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
+  const toggleActivityCompletion = useCallback(
+    async (orderId: number, activityIndex: number) => {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order) return;
 
-    const updatedActivities = order.activities.map((act, index) =>
-      index === activityIndex ? { ...act, isCompleted: !act.isCompleted } : act
-    );
+      const updatedActivities = order.activities.map((act, index) =>
+        index === activityIndex
+          ? { ...act, isCompleted: !act.isCompleted }
+          : act
+      );
 
-    try {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          activities: updatedActivities.map((act) => ({
-            id: act.id,
-            activity: act.activity,
-            object: act.object,
-            isCompleted: act.isCompleted,
-          })),
-        }),
-      });
+      // Update state immediately for instant UI feedback
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                activities: updatedActivities,
+                progress: Math.round(
+                  (updatedActivities.filter((act) => act.isCompleted).length /
+                    updatedActivities.length) *
+                    100
+                ),
+                completedActivities: updatedActivities.filter(
+                  (act) => act.isCompleted
+                ).length,
+              }
+            : o
+        )
+      );
 
-      if (response.ok) {
-        loadOrders(); // Refresh data
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update activity");
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            activities: updatedActivities.map((act) => ({
+              id: act.id,
+              activity: act.activity,
+              object: act.object,
+              isCompleted: act.isCompleted,
+            })),
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+
+          // Revert state if API call fails
+          setOrders((prevOrders) =>
+            prevOrders.map((o) =>
+              o.id === orderId
+                ? {
+                    ...order,
+                    progress: Math.round(
+                      (order.activities.filter((act) => act.isCompleted)
+                        .length /
+                        order.activities.length) *
+                        100
+                    ),
+                    completedActivities: order.activities.filter(
+                      (act) => act.isCompleted
+                    ).length,
+                  }
+                : o
+            )
+          );
+
+          throw new Error(error.error || "Failed to update activity");
+        }
+      } catch (error) {
+        console.error("Error updating activity:", error);
+        setMessage({
+          type: "error",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Gagal mengupdate aktivitas",
+        });
       }
-    } catch (error) {
-      console.error("Error updating activity:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Gagal mengupdate aktivitas",
-      });
-    }
-  };
+    },
+    [orders]
+  );
 
   const resetForm = () => {
     setEditingOrder(null);
@@ -837,22 +880,22 @@ export default function OrderListPage() {
                               key={activity.id}
                               className={`flex items-center gap-3 p-3 rounded-lg border ${
                                 activity.isCompleted
-                                  ? "bg-green-50 border-green-200"
-                                  : "bg-gray-50"
+                                  ? "bg-muted/30 border-muted-foreground/20"
+                                  : "bg-card border-border"
                               }`}
                             >
                               <button
                                 onClick={() =>
                                   toggleActivityCompletion(order.id, index)
                                 }
-                                className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
                                   activity.isCompleted
-                                    ? "bg-green-500 border-green-500 text-white"
-                                    : "border-gray-300 hover:border-gray-400"
+                                    ? "bg-muted border-muted-foreground text-foreground hover:bg-muted/80"
+                                    : "border-border hover:border-muted-foreground hover:bg-muted/50"
                                 }`}
                               >
                                 {activity.isCompleted && (
-                                  <CheckCircle className="h-3 w-3" />
+                                  <CheckCircle className="h-4 w-4" />
                                 )}
                               </button>
                               <div className="flex-1">

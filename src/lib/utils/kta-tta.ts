@@ -37,22 +37,29 @@ export async function generateNoRegister(): Promise<string> {
 
 /**
  * Calculate due date based on criteria KTA/TTA
- * Mengikuti rumus Excel: =IFERROR(F603+INDEX(Kategori!$S$2:$S$17, MATCH(N603,Kategori!$R$2:$R$17,0)),"")
+ * Fixed mapping berdasarkan kriteria
  */
 export async function calculateDueDate(tanggal: Date, kriteriaKtaTta: string): Promise<Date | null> {
   try {
-    // Lookup days from kriteria table
-    const kriteria = await prisma.kriteriaKtaTta.findFirst({
-      where: {
-        kriteria: kriteriaKtaTta,
-        isActive: true
-      }
-    });
+    // Fixed mapping days berdasarkan kriteria (tidak pakai database)
+    const kriteriaDaysMapping: Record<string, number> = {
+      'Peralatan Bergerak': 14,
+      'Pengelolaan Jalan dan Lalu lintas': 30,
+      'Isolasi Energi': 7,
+      'Pengelolaan Ban': 21,
+      'Bekerja di dekat/atas air': 14,
+      'Bejana bertekanan': 21,
+      'Pelindung mesin / Mesin berat': 14,
+      'Bahan kimia berbahaya dan beracun': 7,
+      'House Keeping & Tata Lingkungan': 7,
+      'Lain-lain': 21
+    };
     
-    if (!kriteria) return null;
+    const days = kriteriaDaysMapping[kriteriaKtaTta];
+    if (!days) return null;
     
     const dueDate = new Date(tanggal);
-    dueDate.setDate(dueDate.getDate() + kriteria.days);
+    dueDate.setDate(dueDate.getDate() + days);
     
     return dueDate;
   } catch (error) {
@@ -162,23 +169,23 @@ export const KRITERIA_KTA_TTA_OPTIONS = [
 ];
 
 /**
- * Initialize default criteria with days if table is empty
+ * Initialize default criteria (tanpa days)
  */
 export async function initializeDefaultKriteria(): Promise<void> {
   const count = await prisma.kriteriaKtaTta.count();
   
   if (count === 0) {
     const defaultKriteria = [
-      { kriteria: 'Peralatan Bergerak', days: 14 },
-      { kriteria: 'Pengelolaan Jalan dan Lalu lintas', days: 30 },
-      { kriteria: 'Isolasi Energi', days: 7 },
-      { kriteria: 'Pengelolaan Ban', days: 21 },
-      { kriteria: 'Bekerja di dekat/atas air', days: 14 },
-      { kriteria: 'Bejana bertekanan', days: 21 },
-      { kriteria: 'Pelindung mesin / Mesin berat', days: 14 },
-      { kriteria: 'Bahan kimia berbahaya dan beracun', days: 7 },
-      { kriteria: 'House Keeping & Tata Lingkungan', days: 7 },
-      { kriteria: 'Lain-lain', days: 21 }
+      { kriteria: 'Peralatan Bergerak' },
+      { kriteria: 'Pengelolaan Jalan dan Lalu lintas' },
+      { kriteria: 'Isolasi Energi' },
+      { kriteria: 'Pengelolaan Ban' },
+      { kriteria: 'Bekerja di dekat/atas air' },
+      { kriteria: 'Bejana bertekanan' },
+      { kriteria: 'Pelindung mesin / Mesin berat' },
+      { kriteria: 'Bahan kimia berbahaya dan beracun' },
+      { kriteria: 'House Keeping & Tata Lingkungan' },
+      { kriteria: 'Lain-lain' }
     ];
     
     await prisma.kriteriaKtaTta.createMany({
@@ -204,6 +211,40 @@ export function hasDataTypeAccess(
     // KTA&TTA for all departments except MTC&ENG Bureau
     return userDepartment !== 'MTC&ENG Bureau';
   }
+}
+
+/**
+ * Smart mapping untuk kriteria dengan nomor urut
+ * "01. Peralatan Bergerak" → "Peralatan Bergerak"
+ */
+export function cleanKriteriaKtaTta(kriteria: string): string {
+  if (!kriteria) return kriteria;
+  
+  // Remove nomor urut di depan (format: "01. ", "02. ", dll)
+  const cleaned = kriteria.replace(/^\d+\.\s*/, '').trim();
+  
+  // Mapping alternatif nama
+  const kriteriaMapping: Record<string, string> = {
+    'peralatan bergerak': 'Peralatan Bergerak',
+    'pengelolaan jalan dan lalu lintas': 'Pengelolaan Jalan dan Lalu lintas',
+    'pengelolaan jalan dan lalulintas': 'Pengelolaan Jalan dan Lalu lintas',
+    'isolasi energi': 'Isolasi Energi',
+    'pengelolaan ban': 'Pengelolaan Ban',
+    'bekerja di dekat/atas air': 'Bekerja di dekat/atas air',
+    'bekerja di dekat atas air': 'Bekerja di dekat/atas air',
+    'bejana bertekanan': 'Bejana bertekanan',
+    'pelindung mesin / mesin berat': 'Pelindung mesin / Mesin berat',
+    'pelindung mesin mesin berat': 'Pelindung mesin / Mesin berat',
+    'bahan kimia berbahaya dan beracun': 'Bahan kimia berbahaya dan beracun',
+    'house keeping & tata lingkungan': 'House Keeping & Tata Lingkungan',
+    'house keeping tata lingkungan': 'House Keeping & Tata Lingkungan',
+    'housekeeping & tata lingkungan': 'House Keeping & Tata Lingkungan',
+    'lain-lain': 'Lain-lain',
+    'lain lain': 'Lain-lain'
+  };
+  
+  const normalizedKey = cleaned.toLowerCase().trim();
+  return kriteriaMapping[normalizedKey] || cleaned;
 }
 
 /**

@@ -186,32 +186,6 @@ export default async function AdminUsersPage() {
             />
           </CardContent>
         </Card>
-
-        {/* System Info */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Shield className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-blue-900 mb-1">
-                  Informasi Keamanan
-                </h3>
-                <div className="text-sm text-blue-700 space-y-1">
-                  <p>• Admin dan Inputter menggunakan sistem single session</p>
-                  <p>
-                    • Planner dan Viewer dapat login dari beberapa perangkat
-                  </p>
-                  <p>• Perubahan role memerlukan logout dan login ulang</p>
-                  <p>
-                    • Password default untuk akun baru: &quot;password123&quot;
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

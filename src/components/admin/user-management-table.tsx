@@ -28,15 +28,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  MoreHorizontal,
-  Edit,
-  RotateCcw,
-  Search,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { useToastContext } from "@/components/providers/toast-provider";
+import { EditUserDialog } from "@/components/admin/edit-user-dialog";
+import { MoreHorizontal, Edit, Search, UserCheck, UserX } from "lucide-react";
 import { roleUtils, dateUtils } from "@/lib/utils";
 import { USER_ROLE_OPTIONS } from "@/lib/constants";
 import type { User, Department } from "@prisma/client";
@@ -57,17 +51,19 @@ interface UserManagementTableProps {
 
 export function UserManagementTable({
   users,
+  departments,
   currentUser,
 }: UserManagementTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [editUser, setEditUser] = useState<UserWithDepartment | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const router = useRouter();
+
+  // ✅ MENGGUNAKAN TOAST SYSTEM
+  const { showError, showSuccess } = useToastContext();
 
   // Filter users based on search and filters
   const filteredUsers = users.filter((user) => {
@@ -83,47 +79,9 @@ export function UserManagementTable({
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleResetPassword = async (userId: number, username: string) => {
-    if (
-      !confirm(
-        `Apakah Anda yakin ingin mereset password untuk pengguna "${username}"?`
-      )
-    ) {
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage(null);
-
-    try {
-      const response = await fetch("/api/admin/users/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Gagal mereset password");
-      }
-
-      setMessage({
-        type: "success",
-        text: `Password berhasil direset untuk pengguna "${username}"`,
-      });
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Terjadi kesalahan sistem",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleEditUser = (user: UserWithDepartment): void => {
+    setEditUser(user);
+    setEditDialogOpen(true);
   };
 
   const handleToggleStatus = async (
@@ -137,9 +95,14 @@ export function UserManagementTable({
     }
 
     setIsLoading(true);
-    setMessage(null);
 
     try {
+      console.log("Toggling user status:", {
+        userId,
+        username,
+        newStatus: !currentStatus,
+      });
+
       const response = await fetch("/api/admin/users/toggle-status", {
         method: "POST",
         headers: {
@@ -149,25 +112,21 @@ export function UserManagementTable({
       });
 
       const result = await response.json();
+      console.log("Toggle status response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Gagal mengubah status pengguna");
       }
 
-      setMessage({
-        type: "success",
-        text: `Status pengguna "${username}" berhasil diubah`,
-      });
+      showSuccess(`Status pengguna "${username}" berhasil diubah`);
 
       // Refresh the page to get updated data
       router.refresh();
     } catch (error) {
       console.error("Error toggling user status:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Terjadi kesalahan sistem",
-      });
+      showError(
+        error instanceof Error ? error.message : "Terjadi kesalahan sistem"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -193,13 +152,6 @@ export function UserManagementTable({
 
   return (
     <div className="space-y-4">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
@@ -354,21 +306,10 @@ export function UserManagementTable({
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                           <DropdownMenuItem
-                            onClick={() => {
-                              /* TODO: Implement edit user */
-                            }}
+                            onClick={() => handleEditUser(user)}
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleResetPassword(user.id, user.username)
-                            }
-                            disabled={isLoading}
-                          >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Reset Password
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -418,6 +359,14 @@ export function UserManagementTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit User Dialog */}
+      <EditUserDialog
+        user={editUser}
+        departments={departments}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
     </div>
   );
 }

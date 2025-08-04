@@ -5,6 +5,8 @@ import {
   calculateDueDate,
   getAllowedPIC,
   hasDataTypeAccess,
+  cleanKriteriaKtaTta,
+  calculateUpdateStatus,
 } from "@/lib/utils/kta-tta";
 
 interface ExcelRowData {
@@ -91,11 +93,7 @@ export async function POST(request: NextRequest) {
       const row = filteredData[i];
 
       try {
-        // Use registration number from Excel
-        const noRegister = row.noRegister;
-        console.log("Using noRegister from Excel:", noRegister); // Debug log
-
-        // Parse date
+        // Parse date first
         let parsedDate = null;
         if (row.tanggal) {
           parsedDate = new Date(row.tanggal);
@@ -104,21 +102,61 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Calculate due date
-        let dueDate = null;
-        if (parsedDate && row.kriteriaKtaTta) {
-          dueDate = await calculateDueDate(parsedDate, row.kriteriaKtaTta);
+        // Generate registration number if not provided
+        let noRegister = row.noRegister;
+        if (!noRegister || noRegister.trim() === "") {
+          // Generate format: DEPT-YYYYMMDD-XXX
+          const date = parsedDate || new Date();
+          const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+          const dept = row.picDepartemen || "UNK";
+          
+          // Get count of records for this department and date to generate sequence
+          const existingCount = await prisma.ktaKpiData.count({
+            where: {
+              picDepartemen: dept,
+              tanggal: {
+                gte: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+                lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+              },
+              dataType: dataType as "KTA_TTA" | "KPI_UTAMA"
+            }
+          });
+          
+          const sequence = (existingCount + 1).toString().padStart(3, "0");
+          noRegister = `${dept}-${dateStr}-${sequence}`;
+          console.log("Generated noRegister:", noRegister);
+        } else {
+          console.log("Using noRegister from Excel:", noRegister);
         }
 
-        // Validate required fields
+        // Clean kriteria KTA/TTA jika ada nomor urut
+        let cleanedKriteriaKtaTta = row.kriteriaKtaTta;
+        if (cleanedKriteriaKtaTta) {
+          cleanedKriteriaKtaTta = cleanKriteriaKtaTta(cleanedKriteriaKtaTta);
+        }
+        
+        // Calculate due date
+        let dueDate = null;
+        if (parsedDate && cleanedKriteriaKtaTta) {
+          dueDate = await calculateDueDate(parsedDate, cleanedKriteriaKtaTta);
+        }
+        
+        // Calculate update status
+        let updateStatus = "Proses";
+        if (row.statusTindakLanjut && dueDate) {
+          updateStatus = calculateUpdateStatus(dueDate, row.statusTindakLanjut);
+        } else if (row.statusTindakLanjut === "CLOSE") {
+          updateStatus = "Close";
+        }
+
+        // Validate required fields (noRegister will be auto-generated if not provided)
         if (
-          !row.noRegister ||
           !row.nppPelapor ||
           !row.namaPelapor ||
           !row.picDepartemen
         ) {
           throw new Error(
-            "Missing required fields: noRegister, nppPelapor, namaPelapor or picDepartemen"
+            "Missing required fields: nppPelapor, namaPelapor or picDepartemen"
           );
         }
 
@@ -146,12 +184,13 @@ export async function POST(request: NextRequest) {
             kategori: row.kategori,
             sumberTemuan: row.sumberTemuan || "Inspeksi", // Default value
             picDepartemen: row.picDepartemen,
-            kriteriaKtaTta: row.kriteriaKtaTta,
+            kriteriaKtaTta: cleanedKriteriaKtaTta, // Use cleaned kriteria
             perusahaanPengelola: row.perusahaanPengelola,
             tindakLanjutLangsung: row.tindakLanjutLangsung,
             statusTindakLanjut: statusTindakLanjut as "OPEN" | "CLOSE" | null,
             biro: row.biro,
             dueDate,
+            updateStatus, // Use calculated update status
             dataType: dataType as "KTA_TTA" | "KPI_UTAMA",
             createdById: parseInt(session.user.id),
           },
@@ -237,19 +276,19 @@ export async function PUT(request: NextRequest) {
       let isValid = true;
       const rowErrors: string[] = [];
 
-      // Check required fields
-      if (!row.nppPelapor) {
-        rowErrors.push("Missing nppPelapor");
+      // Check required fields (noRegister will be auto-generated)
+      if (!row.nppPelapor || row.nppPelapor.toString().trim() === "") {
+        rowErrors.push("nppPelapor wajib diisi");
         isValid = false;
       }
 
-      if (!row.namaPelapor) {
-        rowErrors.push("Missing namaPelapor");
+      if (!row.namaPelapor || row.namaPelapor.toString().trim() === "") {
+        rowErrors.push("namaPelapor wajib diisi");
         isValid = false;
       }
 
-      if (!row.picDepartemen) {
-        rowErrors.push("Missing picDepartemen");
+      if (!row.picDepartemen || row.picDepartemen.toString().trim() === "") {
+        rowErrors.push("picDepartemen wajib diisi");
         isValid = false;
       }
 

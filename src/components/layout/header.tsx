@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, User, Settings } from "lucide-react";
+import { Menu, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -67,7 +67,9 @@ export function Header({ session, onToggleSidebar }: HeaderProps) {
               A
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold text-foreground">{APP_CONFIG.NAME}</h1>
+              <h1 className="text-lg font-semibold text-foreground">
+                {APP_CONFIG.NAME}
+              </h1>
               <p className="text-xs text-muted-foreground">
                 {APP_CONFIG.DESCRIPTION}
               </p>
@@ -144,18 +146,6 @@ export function Header({ session, onToggleSidebar }: HeaderProps) {
                     </div>
                   </div>
                 </DropdownMenuLabel>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem className="cursor-pointer hover:bg-accent">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem className="cursor-pointer hover:bg-accent">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 

@@ -12,7 +12,6 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
-  Settings,
   BarChart3,
   FileText,
   Wrench,
@@ -67,7 +66,7 @@ const navigationItems: NavItem[] = [
     title: "Notifikasi",
     href: "/notifikasi",
     icon: Bell,
-    badge: "New",
+    // badge: "New",
   },
   {
     title: "Order List",
@@ -100,11 +99,6 @@ const navigationItems: NavItem[] = [
     href: "/admin/users",
     icon: Users,
     roles: ["ADMIN"],
-  },
-  {
-    title: "Pengaturan",
-    href: "/settings",
-    icon: Settings,
   },
 ];
 
@@ -163,7 +157,10 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
             onClick={() => toggleExpanded(item.title)}
           >
             <item.icon
-              className={cn("h-4 w-4 flex-shrink-0", level === 0 ? "mr-3" : "mr-2")}
+              className={cn(
+                "h-4 w-4 flex-shrink-0",
+                level === 0 ? "mr-3" : "mr-2"
+              )}
             />
             <span className="flex-1 truncate">{item.title}</span>
             {item.badge && (
@@ -189,11 +186,7 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
 
     // Fixed: Removed asChild and wrapped Button with Link instead
     return (
-      <Link 
-        key={item.title}
-        href={item.href || "#"}
-        onClick={handleItemClick}
-      >
+      <Link key={item.title} href={item.href || "#"} onClick={handleItemClick}>
         <Button
           variant="ghost"
           className={cn(
@@ -203,7 +196,12 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
             isActive && "bg-accent text-accent-foreground"
           )}
         >
-          <item.icon className={cn("h-4 w-4 flex-shrink-0", level === 0 ? "mr-3" : "mr-2")} />
+          <item.icon
+            className={cn(
+              "h-4 w-4 flex-shrink-0",
+              level === 0 ? "mr-3" : "mr-2"
+            )}
+          />
           <span className="flex-1 truncate">{item.title}</span>
           {item.badge && (
             <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0">
@@ -216,7 +214,12 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
   };
 
   return (
-    <div className={cn("sidebar-container flex h-full flex-col bg-background overflow-hidden", className)}>
+    <div
+      className={cn(
+        "sidebar-container flex h-full flex-col bg-background overflow-hidden",
+        className
+      )}
+    >
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4">
         <div className="space-y-0 px-2">
           {navigationItems.map((item) => renderNavItem(item))}

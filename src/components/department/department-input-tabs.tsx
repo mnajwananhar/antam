@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Session } from "next-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,11 +45,12 @@ export function DepartmentInputTabs({
   session,
 }: DepartmentInputTabsProps) {
   const searchParams = useSearchParams();
-  
+  const router = useRouter();
+
   // Get URL parameters
   const urlTab = searchParams.get("tab");
   const editId = searchParams.get("edit");
-  
+
   // Set initial active tab based on URL parameter or first available feature
   const [activeTab, setActiveTab] = useState(() => {
     if (urlTab && availableFeatures.includes(urlTab)) {
@@ -58,6 +59,22 @@ export function DepartmentInputTabs({
     return availableFeatures[0] || "";
   });
 
+  // Handle tab change with URL update
+  const handleTabChange = (newTab: string): void => {
+    setActiveTab(newTab);
+
+    // Update URL without page refresh
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", newTab);
+
+    // Keep editId if it exists
+    if (editId) {
+      params.set("edit", editId);
+    }
+
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+
   // Update active tab when URL changes
   useEffect(() => {
     if (urlTab && availableFeatures.includes(urlTab)) {
@@ -65,10 +82,21 @@ export function DepartmentInputTabs({
     }
   }, [urlTab, availableFeatures]);
 
+  // Set initial tab in URL if not present
+  useEffect(() => {
+    if (!urlTab && availableFeatures.length > 0 && activeTab) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", activeTab);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+  }, [urlTab, availableFeatures, activeTab, router, searchParams]);
+
   // Log for debugging
   useEffect(() => {
     if (editId) {
-      console.log(`Edit mode activated for tab: ${activeTab}, record ID: ${editId}`);
+      console.log(
+        `Edit mode activated for tab: ${activeTab}, record ID: ${editId}`
+      );
     }
   }, [activeTab, editId]);
 
@@ -118,16 +146,13 @@ export function DepartmentInputTabs({
     const commonProps = {
       department,
       session,
-      editId: editId ? parseInt(editId) : undefined
+      editId: editId ? parseInt(editId) : undefined,
     };
 
     switch (feature) {
       case "EQUIPMENT_STATUS":
         return (
-          <EquipmentStatusTab
-            equipment={equipment}
-            department={department}
-          />
+          <EquipmentStatusTab equipment={equipment} department={department} />
         );
 
       case "DAILY_ACTIVITY":
@@ -168,11 +193,10 @@ export function DepartmentInputTabs({
               <div className="text-center py-8">
                 <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
-                  {FEATURE_LABELS[feature as keyof typeof FEATURE_LABELS] || feature}
+                  {FEATURE_LABELS[feature as keyof typeof FEATURE_LABELS] ||
+                    feature}
                 </h3>
-                <p className="text-muted-foreground">
-                  Tab ini belum tersedia.
-                </p>
+                <p className="text-muted-foreground">Tab ini belum tersedia.</p>
               </div>
             </CardContent>
           </Card>
@@ -210,14 +234,19 @@ export function DepartmentInputTabs({
             <div>
               <h3 className="font-semibold text-blue-900">Mode Edit</h3>
               <p className="text-sm text-blue-700">
-                Anda sedang mengedit data dengan ID: {editId} pada tab {FEATURE_LABELS[activeTab as keyof typeof FEATURE_LABELS]}
+                Anda sedang mengedit data dengan ID: {editId} pada tab{" "}
+                {FEATURE_LABELS[activeTab as keyof typeof FEATURE_LABELS]}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <div className="overflow-x-auto">
           <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-1 h-auto p-1">
             {availableFeatures.map((feature) => {
@@ -230,7 +259,7 @@ export function DepartmentInputTabs({
                   key={feature}
                   value={feature}
                   className={`flex flex-col gap-1 h-16 text-xs relative ${
-                    isActive && editId ? 'bg-blue-100 border-blue-300' : ''
+                    isActive && editId ? "bg-blue-100 border-blue-300" : ""
                   }`}
                   disabled={!isAccessible}
                 >

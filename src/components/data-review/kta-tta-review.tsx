@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { KtaTtaTableView } from "@/components/kta-tta";
 import { getAllowedPIC, hasDataTypeAccess } from "@/lib/utils/kta-tta";
 import {
   FileSpreadsheet,
@@ -21,6 +20,7 @@ import {
   RefreshCw,
   Search,
   X,
+  Trash2,
 } from "lucide-react";
 
 interface User {
@@ -33,6 +33,7 @@ interface User {
 interface KtaTtaRecord {
   id: number;
   noRegister: string;
+  nppPelapor?: string;
   namaPelapor?: string;
   perusahaanBiro?: string;
   tanggal?: string;
@@ -266,19 +267,87 @@ export function KtaTtaReview({ user, dataType }: KtaTtaReviewProps) {
           </div>
 
           {/* Data Table */}
-          <KtaTtaTableView
-            data={data}
-            onEdit={() =>
-              alert(
-                "Edit melalui upload Excel baru dengan data yang sudah diperbaiki"
-              )
-            }
-            onDelete={handleDelete}
-            allowedPIC={allowedPIC}
-            userRole={user.role}
-            isLoading={isLoading}
-            dataType={dataType}
-          />
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    No Register
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    NPP Pelapor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nama Pelapor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    PIC
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-center">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
+                      Tidak ada data
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((record: KtaTtaRecord) => (
+                    <tr key={record.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {record.noRegister}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {record.nppPelapor || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {record.namaPelapor}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {record.picDepartemen}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge
+                          variant={
+                            record.statusTindakLanjut === "OPEN"
+                              ? "destructive"
+                              : "default"
+                          }
+                        >
+                          {record.statusTindakLanjut}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(record.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

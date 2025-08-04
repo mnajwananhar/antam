@@ -61,15 +61,12 @@ export class NotificationService {
     pagination: PaginationOptions
   ) {
     const whereClause = this.buildWhereClause(filters);
-    
+
     const [notifications, totalCount] = await Promise.all([
       prisma.notification.findMany({
         where: whereClause,
         include: this.NOTIFICATION_INCLUDE,
-        orderBy: [
-          { urgency: "desc" },
-          { createdAt: "desc" },
-        ],
+        orderBy: [{ urgency: "desc" }, { createdAt: "desc" }],
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
       }),
@@ -125,11 +122,15 @@ export class NotificationService {
     const department = await this.validateDepartmentExists(input.departmentId);
     const uniqueNumber = await this.generateUniqueNumber(department.code);
 
+    // Convert time string to proper Time format for PostgreSQL
+    const timeString = input.reportTime; // "10:45"
+    const timeDate = new Date(`1970-01-01T${timeString}:00.000Z`);
+
     return prisma.notification.create({
       data: {
         uniqueNumber,
         departmentId: input.departmentId,
-        reportTime: input.reportTime,
+        reportTime: timeDate,
         urgency: input.urgency,
         problemDetail: input.problemDetail,
         status: "PROCESS",
@@ -156,10 +157,31 @@ export class NotificationService {
       throw new Error("Notification not found");
     }
 
+    // Convert time string to proper Time format if reportTime is provided
+    const updateFields: Partial<{
+      departmentId?: number;
+      reportTime?: Date;
+      urgency?: "NORMAL" | "URGENT" | "EMERGENCY";
+      problemDetail?: string;
+      status?: "PROCESS" | "COMPLETE";
+    }> = {};
+
+    if (input.departmentId !== undefined)
+      updateFields.departmentId = input.departmentId;
+    if (input.urgency !== undefined) updateFields.urgency = input.urgency;
+    if (input.problemDetail !== undefined)
+      updateFields.problemDetail = input.problemDetail;
+    if (input.status !== undefined) updateFields.status = input.status;
+
+    if (input.reportTime) {
+      const timeString = input.reportTime; // "10:45"
+      updateFields.reportTime = new Date(`1970-01-01T${timeString}:00.000Z`);
+    }
+
     return prisma.notification.update({
       where: { id },
       data: {
-        ...input,
+        ...updateFields,
         updatedAt: new Date(),
       },
       include: {
@@ -196,7 +218,9 @@ export class NotificationService {
     });
   }
 
-  private static buildWhereClause(filters: NotificationFilters): Prisma.NotificationWhereInput {
+  private static buildWhereClause(
+    filters: NotificationFilters
+  ): Prisma.NotificationWhereInput {
     const whereClause: Prisma.NotificationWhereInput = {};
 
     if (filters.departmentId) {
@@ -212,14 +236,21 @@ export class NotificationService {
     }
 
     // Filter by user's department for PLANNER role
-    if (this.shouldCheckDepartmentAccess(filters.userRole, filters.userDepartmentId)) {
+    if (
+      this.shouldCheckDepartmentAccess(
+        filters.userRole,
+        filters.userDepartmentId
+      )
+    ) {
       whereClause.departmentId = filters.userDepartmentId;
     }
 
     return whereClause;
   }
 
-  private static async calculateNotificationStats(whereClause: Prisma.NotificationWhereInput) {
+  private static async calculateNotificationStats(
+    whereClause: Prisma.NotificationWhereInput
+  ) {
     const [total, inProcess, completed, emergency] = await Promise.all([
       prisma.notification.count({ where: whereClause }),
       prisma.notification.count({
@@ -248,7 +279,9 @@ export class NotificationService {
     return department;
   }
 
-  private static async generateUniqueNumber(departmentCode: string): Promise<string> {
+  private static async generateUniqueNumber(
+    departmentCode: string
+  ): Promise<string> {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, "0");

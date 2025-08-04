@@ -124,7 +124,10 @@ export default async function InputDataPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{department.code}</Badge>
                         {isMtcEng && (
-                          <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                          <Badge
+                            variant="default"
+                            className="text-xs bg-primary text-primary-foreground"
+                          >
                             Special Dept
                           </Badge>
                         )}
@@ -174,9 +177,55 @@ export default async function InputDataPage() {
                     )}
                   </div>
 
+                  {/* Quick Access Buttons */}
+                  {(features.some((f) => f === "KTA_TTA") ||
+                    features.some((f) => f === "KPI_UTAMA")) && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Akses Cepat:
+                      </p>
+                      <div className="flex gap-2">
+                        {features.some((f) => f === "KTA_TTA") && (
+                          <Link
+                            href={`/input/${departmentUtils.nameToSlug(
+                              department.name
+                            )}?tab=KTA_TTA`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              KTA & TTA
+                            </Button>
+                          </Link>
+                        )}
+                        {features.some((f) => f === "KPI_UTAMA") && (
+                          <Link
+                            href={`/input/${departmentUtils.nameToSlug(
+                              department.name
+                            )}?tab=KPI_UTAMA`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              KPI Utama
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Button */}
                   <Link
-                    href={`/input/${departmentUtils.nameToSlug(department.name)}`}
+                    href={`/input/${departmentUtils.nameToSlug(
+                      department.name
+                    )}`}
                   >
                     <Button
                       className="w-full"

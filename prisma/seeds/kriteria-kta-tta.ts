@@ -3,33 +3,32 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function seedKriteriaKtaTta() {
-  console.log('🌱 Seeding Kriteria KTA/TTA...');
+  console.log('🌱 Seeding Kriteria KTA/TTA (UPDATED - NO DAYS COLUMN)...');
 
-  const existingCount = await prisma.kriteriaKtaTta.count();
-  
-  if (existingCount > 0) {
-    console.log('✅ Kriteria KTA/TTA already exists, skipping seed');
-    return;
-  }
+  // Delete existing data first
+  await prisma.kriteriaKtaTta.deleteMany({});
+  console.log('🗑️ Cleared existing kriteria data');
 
   const kriteria = [
-    { kriteria: 'Peralatan Bergerak', days: 14 },
-    { kriteria: 'Pengelolaan Jalan dan Lalu lintas', days: 30 },
-    { kriteria: 'Isolasi Energi', days: 7 },
-    { kriteria: 'Pengelolaan Ban', days: 21 },
-    { kriteria: 'Bekerja di dekat/atas air', days: 14 },
-    { kriteria: 'Bejana bertekanan', days: 21 },
-    { kriteria: 'Pelindung mesin / Mesin berat', days: 14 },
-    { kriteria: 'Bahan kimia berbahaya dan beracun', days: 7 },
-    { kriteria: 'House Keeping & Tata Lingkungan', days: 7 },
-    { kriteria: 'Lain-lain', days: 21 }
+    { kriteria: 'Peralatan Bergerak' },
+    { kriteria: 'Pengelolaan Jalan dan Lalu lintas' },
+    { kriteria: 'Isolasi Energi' },
+    { kriteria: 'Pengelolaan Ban' },
+    { kriteria: 'Bekerja di dekat/atas air' },
+    { kriteria: 'Bejana bertekanan' },
+    { kriteria: 'Pelindung mesin / Mesin berat' },
+    { kriteria: 'Bahan kimia berbahaya dan beracun' },
+    { kriteria: 'House Keeping & Tata Lingkungan' },
+    { kriteria: 'Lain-lain' }
   ];
 
   await prisma.kriteriaKtaTta.createMany({
-    data: kriteria
+    data: kriteria,
+    skipDuplicates: true
   });
 
-  console.log(`✅ Created ${kriteria.length} kriteria KTA/TTA records`);
+  console.log(`✅ Created ${kriteria.length} kriteria KTA/TTA records (WITHOUT days column)`);
+  console.log('🎯 Days mapping now HARDCODED in utils/kta-tta.ts file');
 }
 
 if (require.main === module) {

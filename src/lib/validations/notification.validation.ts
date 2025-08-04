@@ -2,27 +2,62 @@ import { z } from "zod";
 
 export const createNotificationSchema = z.object({
   departmentId: z.number().int().positive("Department ID tidak valid"),
-  reportTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Format waktu tidak valid (HH:MM)"),
+  reportTime: z
+    .string()
+    .regex(
+      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+      "Format waktu tidak valid (HH:MM)"
+    ),
   urgency: z.enum(["NORMAL", "URGENT", "EMERGENCY"], {
-    errorMap: () => ({ message: "Tingkat urgensi harus NORMAL, URGENT, atau EMERGENCY" }),
+    errorMap: () => ({
+      message: "Tingkat urgensi harus NORMAL, URGENT, atau EMERGENCY",
+    }),
   }),
-  problemDetail: z.string().min(10, "Detail masalah minimal 10 karakter").max(1000, "Detail masalah maksimal 1000 karakter"),
+  problemDetail: z
+    .string()
+    .min(5, "Detail masalah minimal 5 karakter")
+    .max(1000, "Detail masalah maksimal 1000 karakter")
+    .trim(),
 });
 
 export const updateNotificationSchema = z.object({
-  departmentId: z.number().int().positive("Department ID tidak valid").optional(),
-  reportTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Format waktu tidak valid (HH:MM)").optional(),
-  urgency: z.enum(["NORMAL", "URGENT", "EMERGENCY"], {
-    errorMap: () => ({ message: "Tingkat urgensi harus NORMAL, URGENT, atau EMERGENCY" }),
-  }).optional(),
-  problemDetail: z.string().min(10, "Detail masalah minimal 10 karakter").max(1000, "Detail masalah maksimal 1000 karakter").optional(),
-  status: z.enum(["PROCESS", "COMPLETE"], {
-    errorMap: () => ({ message: "Status harus PROCESS atau COMPLETE" }),
-  }).optional(),
+  departmentId: z
+    .number()
+    .int()
+    .positive("Department ID tidak valid")
+    .optional(),
+  reportTime: z
+    .string()
+    .regex(
+      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+      "Format waktu tidak valid (HH:MM)"
+    )
+    .optional(),
+  urgency: z
+    .enum(["NORMAL", "URGENT", "EMERGENCY"], {
+      errorMap: () => ({
+        message: "Tingkat urgensi harus NORMAL, URGENT, atau EMERGENCY",
+      }),
+    })
+    .optional(),
+  problemDetail: z
+    .string()
+    .min(5, "Detail masalah minimal 5 karakter")
+    .max(1000, "Detail masalah maksimal 1000 karakter")
+    .trim()
+    .optional(),
+  status: z
+    .enum(["PROCESS", "COMPLETE"], {
+      errorMap: () => ({ message: "Status harus PROCESS atau COMPLETE" }),
+    })
+    .optional(),
 });
 
 export const notificationQuerySchema = z.object({
-  departmentId: z.string().regex(/^\d+$/, "Department ID harus berupa angka").optional(),
+  departmentId: z
+    .string()
+    .regex(/^\d+$/, "Department ID harus berupa angka")
+    .optional(),
   status: z.enum(["PROCESS", "COMPLETE"]).optional(),
   urgency: z.enum(["NORMAL", "URGENT", "EMERGENCY"]).optional(),
   page: z.string().regex(/^\d+$/, "Page harus berupa angka").optional(),

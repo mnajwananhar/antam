@@ -47,7 +47,7 @@ export const createUserSchema = z
       return true;
     },
     {
-      message: "Department is required for Planner role",
+      message: "Departemen wajib dipilih untuk role Planner",
       path: ["departmentId"],
     }
   );
@@ -74,7 +74,7 @@ export const updateUserSchema = z
       return true;
     },
     {
-      message: "Department is required for Planner role",
+      message: "Departemen harus diisi untuk role Planner",
       path: ["departmentId"],
     }
   );
@@ -169,16 +169,34 @@ export const bulkKtaKpiDataSchema = z.object({
 // Notification schemas
 export const notificationSchema = z.object({
   departmentId: z.number(),
-  reportTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+  reportTime: z
+    .string()
+    .regex(
+      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+      "Format waktu tidak valid (HH:MM)"
+    ),
   urgency: z.nativeEnum(NotificationUrgency),
   problemDetail: z
     .string()
-    .min(10, "Problem detail must be at least 10 characters"),
+    .min(5, "Detail masalah minimal 5 karakter")
+    .max(1000, "Detail masalah maksimal 1000 karakter")
+    .trim(),
 });
 
-export const updateNotificationSchema = notificationSchema.extend({
-  status: z.enum(["PROCESS", "COMPLETE"]),
-});
+export const updateNotificationSchema = notificationSchema
+  .extend({
+    status: z.enum(["PROCESS", "COMPLETE"]),
+  })
+  .partial()
+  .extend({
+    // Make some fields optional for updates
+    problemDetail: z
+      .string()
+      .min(5, "Detail masalah minimal 5 karakter")
+      .max(1000, "Detail masalah maksimal 1000 karakter")
+      .trim()
+      .optional(),
+  });
 
 // Order schemas
 export const orderActivitySchema = z.object({

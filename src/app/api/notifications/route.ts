@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { NotificationService } from "@/lib/services/notification.service";
 import { AuthorizationUtil } from "@/lib/utils/authorization.util";
-import { ApiResponseUtil, ApiErrorHandler } from "@/lib/utils/api-response.util";
+import {
+  ApiResponseUtil,
+  ApiErrorHandler,
+} from "@/lib/utils/api-response.util";
 import {
   createNotificationSchema,
   notificationQuerySchema,
@@ -11,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await AuthorizationUtil.requireAuth();
     const { searchParams } = new URL(request.url);
-    
+
     // Validate query parameters
     const queryData = notificationQuerySchema.parse({
       departmentId: searchParams.get("departmentId") ?? undefined,
@@ -23,9 +26,15 @@ export async function GET(request: NextRequest) {
 
     // Build filters
     const filters = {
-      departmentId: queryData.departmentId ? parseInt(queryData.departmentId) : undefined,
+      departmentId: queryData.departmentId
+        ? parseInt(queryData.departmentId)
+        : undefined,
       status: queryData.status as "PROCESS" | "COMPLETE" | undefined,
-      urgency: queryData.urgency as "NORMAL" | "URGENT" | "EMERGENCY" | undefined,
+      urgency: queryData.urgency as
+        | "NORMAL"
+        | "URGENT"
+        | "EMERGENCY"
+        | undefined,
       userRole: session.user.role,
       userDepartmentId: session.user.departmentId,
     };
@@ -36,7 +45,10 @@ export async function GET(request: NextRequest) {
       limit: queryData.limit ? parseInt(queryData.limit) : 10,
     };
 
-    const result = await NotificationService.findNotifications(filters, pagination);
+    const result = await NotificationService.findNotifications(
+      filters,
+      pagination
+    );
 
     return ApiResponseUtil.success(result.notifications, undefined, {
       stats: result.stats,
@@ -53,10 +65,17 @@ export async function POST(request: NextRequest) {
     AuthorizationUtil.requireInputterOrAbove(session);
 
     const body = await request.json();
+
+    // Additional logging for debugging
+    console.log("Request body:", body);
+
     const validatedData = createNotificationSchema.parse(body);
 
     // Check department access
-    AuthorizationUtil.requireCreatePermission(session, validatedData.departmentId);
+    AuthorizationUtil.requireCreatePermission(
+      session,
+      validatedData.departmentId
+    );
 
     const notification = await NotificationService.createNotification({
       ...validatedData,
@@ -65,6 +84,8 @@ export async function POST(request: NextRequest) {
 
     return ApiResponseUtil.created(notification, "Notifikasi berhasil dibuat");
   } catch (error) {
+    // Enhanced error logging
+    console.error("Notification creation error:", error);
     return ApiErrorHandler.handle(error);
   }
 }
