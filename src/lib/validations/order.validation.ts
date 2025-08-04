@@ -49,6 +49,10 @@ export const updateOrderSchema = z.object({
 
 export const orderQuerySchema = z.object({
   notificationId: z.string().regex(/^\d+$/, "Notification ID harus berupa angka").optional(),
+  search: z.string().min(1).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "startDate", "endDate", "jobName", "progress", "departmentName"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+  status: z.enum(["pending", "inProgress", "completed"]).optional(),
   page: z.string().regex(/^\d+$/, "Page harus berupa angka").optional(),
   limit: z.string().regex(/^\d+$/, "Limit harus berupa angka").optional(),
 });

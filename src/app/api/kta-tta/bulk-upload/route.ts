@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
 
     const results = {
       success: 0,
+      created: 0,
+      updated: 0,
       failed: 0,
       errors: [] as string[],
     };
@@ -169,9 +171,32 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Create record
-        await prisma.ktaKpiData.create({
-          data: {
+        // Create record - use upsert to handle duplicates
+        const result = await prisma.ktaKpiData.upsert({
+          where: { noRegister },
+          update: {
+            // Update existing record with new data
+            nppPelapor: row.nppPelapor,
+            namaPelapor: row.namaPelapor,
+            perusahaanBiro: row.perusahaanBiro,
+            tanggal: parsedDate,
+            lokasi: row.lokasi,
+            areaTemuan: row.areaTemuan,
+            keterangan: row.keterangan,
+            fotoUrl: row.fotoUrl,
+            kategori: row.kategori,
+            sumberTemuan: row.sumberTemuan || "Inspeksi",
+            picDepartemen: row.picDepartemen,
+            kriteriaKtaTta: cleanedKriteriaKtaTta,
+            perusahaanPengelola: row.perusahaanPengelola,
+            tindakLanjutLangsung: row.tindakLanjutLangsung,
+            statusTindakLanjut: statusTindakLanjut as "OPEN" | "CLOSE" | null,
+            biro: row.biro,
+            dueDate,
+            updateStatus,
+            updatedAt: new Date(),
+          },
+          create: {
             noRegister,
             nppPelapor: row.nppPelapor,
             namaPelapor: row.namaPelapor,
@@ -196,6 +221,13 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // Check if it was created or updated by comparing timestamps
+        const wasCreated = result.createdAt.getTime() === result.updatedAt.getTime();
+        if (wasCreated) {
+          results.created++;
+        } else {
+          results.updated++;
+        }
         results.success++;
       } catch (error) {
         results.failed++;
@@ -209,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Upload completed. ${results.success} records created, ${results.failed} failed.`,
+      message: `Upload completed. ${results.created} created, ${results.updated} updated, ${results.failed} failed.`,
       results,
     });
   } catch (error) {

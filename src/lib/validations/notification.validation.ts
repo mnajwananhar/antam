@@ -60,6 +60,9 @@ export const notificationQuerySchema = z.object({
     .optional(),
   status: z.enum(["PROCESS", "COMPLETE"]).optional(),
   urgency: z.enum(["NORMAL", "URGENT", "EMERGENCY"]).optional(),
+  search: z.string().min(1).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "reportTime", "urgency", "departmentName", "uniqueNumber"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
   page: z.string().regex(/^\d+$/, "Page harus berupa angka").optional(),
   limit: z.string().regex(/^\d+$/, "Limit harus berupa angka").optional(),
 });

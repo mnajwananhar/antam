@@ -31,6 +31,10 @@ export interface OrderActivityUpdateInput extends OrderActivityInput {
 
 export interface OrderFilters {
   notificationId?: number;
+  search?: string;
+  sortBy?: "createdAt" | "updatedAt" | "startDate" | "endDate" | "jobName" | "progress" | "departmentName";
+  sortOrder?: "asc" | "desc";
+  status?: "pending" | "inProgress" | "completed";
   userRole?: string;
   userDepartmentId?: number;
 }
@@ -104,31 +108,33 @@ export class OrderService {
     pagination: PaginationOptions
   ) {
     const whereClause = this.buildWhereClause(filters);
+    const orderBy = this.buildOrderBy(filters.sortBy, filters.sortOrder);
 
-    const [orders, totalCount] = await Promise.all([
-      prisma.order.findMany({
-        where: whereClause,
-        include: this.ORDER_INCLUDE,
-        orderBy: {
-          createdAt: "desc",
-        },
-        skip: (pagination.page - 1) * pagination.limit,
-        take: pagination.limit,
-      }),
-      prisma.order.count({ where: whereClause }),
-    ]);
+    // First get all orders to apply status filtering (since status is calculated)
+    const allOrders = await prisma.order.findMany({
+      where: whereClause,
+      include: this.ORDER_INCLUDE,
+      orderBy,
+    });
 
-    const ordersWithProgress = orders.map(this.calculateOrderProgress);
-    const stats = this.calculateOrderStats(ordersWithProgress);
+    const ordersWithProgress = allOrders.map(this.calculateOrderProgress);
+    const filteredOrders = this.filterOrdersByStatus(ordersWithProgress, filters.status);
+    
+    // Apply pagination after filtering
+    const startIndex = (pagination.page - 1) * pagination.limit;
+    const endIndex = startIndex + pagination.limit;
+    const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+    
+    const stats = this.calculateOrderStats(filteredOrders);
 
     return {
-      orders: ordersWithProgress,
-      totalCount,
+      orders: paginatedOrders,
+      totalCount: filteredOrders.length,
       stats,
       pagination: {
         ...pagination,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / pagination.limit),
+        total: filteredOrders.length,
+        totalPages: Math.ceil(filteredOrders.length / pagination.limit),
       },
     };
   }
@@ -268,6 +274,71 @@ export class OrderService {
       whereClause.notificationId = filters.notificationId;
     }
 
+    // Search functionality
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      whereClause.OR = [
+        {
+          jobName: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          description: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          notification: {
+            uniqueNumber: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          notification: {
+            department: {
+              name: {
+                contains: searchTerm,
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+        {
+          createdBy: {
+            username: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          activities: {
+            some: {
+              OR: [
+                {
+                  activity: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  object: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ];
+    }
+
     // Filter by user's department for PLANNER role
     if (
       this.shouldCheckDepartmentAccess(
@@ -281,6 +352,56 @@ export class OrderService {
     }
 
     return whereClause;
+  }
+
+  private static buildOrderBy(
+    sortBy?: "createdAt" | "updatedAt" | "startDate" | "endDate" | "jobName" | "progress" | "departmentName",
+    sortOrder?: "asc" | "desc"
+  ): Prisma.OrderOrderByWithRelationInput[] {
+    const order = sortOrder || "desc";
+    
+    switch (sortBy) {
+      case "departmentName":
+        return [{ notification: { department: { name: order } } }, { createdAt: "desc" }];
+      case "jobName":
+        return [{ jobName: order }, { createdAt: "desc" }];
+      case "startDate":
+        return [{ startDate: order }, { createdAt: "desc" }];
+      case "endDate":
+        return [{ endDate: order }, { createdAt: "desc" }];
+      case "updatedAt":
+        return [{ updatedAt: order }, { createdAt: "desc" }];
+      case "progress":
+        // Note: Progress is calculated field, so we'll need to sort after fetching
+        // For now, fallback to createdAt
+        return [{ createdAt: order }];
+      case "createdAt":
+      default:
+        return [{ createdAt: order }];
+    }
+  }
+
+  private static filterOrdersByStatus(
+    orders: OrderWithProgress[],
+    status?: "pending" | "inProgress" | "completed"
+  ): OrderWithProgress[] {
+    if (!status) return orders;
+
+    return orders.filter((order) => {
+      switch (status) {
+        case "pending":
+          return order.totalActivities === 0 || order.completedActivities === 0;
+        case "inProgress":
+          return order.totalActivities > 0 && 
+                 order.completedActivities > 0 && 
+                 order.completedActivities < order.totalActivities;
+        case "completed":
+          return order.totalActivities > 0 && 
+                 order.completedActivities === order.totalActivities;
+        default:
+          return true;
+      }
+    });
   }
 
   private static calculateOrderProgress(order: {

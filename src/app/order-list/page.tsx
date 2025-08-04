@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -39,6 +39,13 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+
+import { usePaginatedData } from "@/hooks/use-paginated-data";
+import { 
+  DataTableHeader, 
+  Pagination,
+  FilterOption 
+} from "@/components/data-table";
 
 interface OrderActivity {
   id: number;
@@ -98,9 +105,8 @@ interface OrderStats {
   averageProgress: number;
 }
 
-export default function OrderListPage() {
-  const { data: session } = useSession();
-  const [orders, setOrders] = useState<OrderItem[]>([]);
+export default function OrderListPage(): React.JSX.Element {
+  const { data: session, status } = useSession();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [stats, setStats] = useState<OrderStats>({
     total: 0,
@@ -108,7 +114,39 @@ export default function OrderListPage() {
     completed: 0,
     averageProgress: 0,
   });
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Use paginated data hook
+  const {
+    data: orders,
+    isLoading,
+    isRefreshing,
+    error: dataError,
+    pagination,
+    search,
+    sortBy,
+    sortOrder,
+    filters,
+    setPage,
+    setLimit,
+    setSearch,
+    setSortBy,
+    setSortOrder,
+    updateFilter,
+    removeFilter,
+    clearFilters,
+    refresh,
+    goToFirstPage,
+    goToLastPage,
+    goToNextPage,
+    goToPrevPage,
+  } = usePaginatedData<OrderItem>({
+    endpoint: "/api/orders",
+    defaultLimit: 10,
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    enableAutoRefresh: false,
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
@@ -130,52 +168,26 @@ export default function OrderListPage() {
   >([{ activity: "", object: "", isCompleted: false }]);
 
   useEffect(() => {
-    if (!session) {
+    if (status === "unauthenticated") {
       redirect("/auth/signin");
     }
-  }, [session]);
+  }, [status]);
 
   useEffect(() => {
-    loadOrders();
-    loadNotifications();
-  }, []);
-
-  const loadOrders = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/orders");
-
-      if (response.ok) {
-        const result = await response.json();
-        setOrders(result.data || []);
-        setStats(
-          result.stats || {
-            total: 0,
-            inProgress: 0,
-            completed: 0,
-            averageProgress: 0,
-          }
-        );
-      } else {
-        const error = await response.json();
-        console.error("Failed to load orders:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data orders",
-        });
-      }
-    } catch (error) {
-      console.error("Error loading orders:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
-    } finally {
-      setIsLoading(false);
+    if (status === "authenticated" && session) {
+      loadNotifications();
+      loadStats();
     }
-  };
+  }, [status, session]);
 
-  const loadNotifications = async () => {
+  // Update stats when orders change
+  useEffect(() => {
+    if (orders.length > 0) {
+      loadStats();
+    }
+  }, [orders]);
+
+  const loadNotifications = async (): Promise<void> => {
     try {
       const response = await fetch("/api/notifications?status=PROCESS");
 
@@ -190,7 +202,27 @@ export default function OrderListPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const loadStats = async (): Promise<void> => {
+    try {
+      const response = await fetch("/api/orders?limit=1&page=1");
+
+      if (response.ok) {
+        const result = await response.json();
+        setStats(
+          result.stats || {
+            total: 0,
+            inProgress: 0,
+            completed: 0,
+            averageProgress: 0,
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (
@@ -248,7 +280,7 @@ export default function OrderListPage() {
         setIsDialogOpen(false);
 
         // Reload data
-        loadOrders();
+        await refresh();
       } else {
         throw new Error(result.error || "Failed to save order");
       }
@@ -263,7 +295,7 @@ export default function OrderListPage() {
     }
   };
 
-  const handleEdit = (order: OrderItem) => {
+  const handleEdit = (order: OrderItem): void => {
     setEditingOrder(order);
     setNewOrder({
       notificationId: order.notification.id.toString(),
@@ -284,7 +316,7 @@ export default function OrderListPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (orderId: number) => {
+  const handleDelete = async (orderId: number): Promise<void> => {
     if (!confirm("Apakah Anda yakin ingin menghapus order ini?")) {
       return;
     }
@@ -301,7 +333,7 @@ export default function OrderListPage() {
           type: "success",
           text: result.message || "Order berhasil dihapus",
         });
-        loadOrders();
+        await refresh();
       } else {
         throw new Error(result.error || "Failed to delete order");
       }
@@ -315,7 +347,7 @@ export default function OrderListPage() {
   };
 
   const toggleActivityCompletion = useCallback(
-    async (orderId: number, activityIndex: number) => {
+    async (orderId: number, activityIndex: number): Promise<void> => {
       const order = orders.find((o) => o.id === orderId);
       if (!order) return;
 
@@ -326,24 +358,8 @@ export default function OrderListPage() {
       );
 
       // Update state immediately for instant UI feedback
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o.id === orderId
-            ? {
-                ...o,
-                activities: updatedActivities,
-                progress: Math.round(
-                  (updatedActivities.filter((act) => act.isCompleted).length /
-                    updatedActivities.length) *
-                    100
-                ),
-                completedActivities: updatedActivities.filter(
-                  (act) => act.isCompleted
-                ).length,
-              }
-            : o
-        )
-      );
+      // Note: Since we're using usePaginatedData, we can't directly update the orders state
+      // We'll just refresh the data after the API call
 
       try {
         const response = await fetch(`/api/orders/${orderId}`, {
@@ -363,29 +379,11 @@ export default function OrderListPage() {
 
         if (!response.ok) {
           const error = await response.json();
-
-          // Revert state if API call fails
-          setOrders((prevOrders) =>
-            prevOrders.map((o) =>
-              o.id === orderId
-                ? {
-                    ...order,
-                    progress: Math.round(
-                      (order.activities.filter((act) => act.isCompleted)
-                        .length /
-                        order.activities.length) *
-                        100
-                    ),
-                    completedActivities: order.activities.filter(
-                      (act) => act.isCompleted
-                    ).length,
-                  }
-                : o
-            )
-          );
-
           throw new Error(error.error || "Failed to update activity");
         }
+
+        // Refresh data to get updated state
+        await refresh();
       } catch (error) {
         console.error("Error updating activity:", error);
         setMessage({
@@ -395,12 +393,15 @@ export default function OrderListPage() {
               ? error.message
               : "Gagal mengupdate aktivitas",
         });
+
+        // Refresh to revert UI changes
+        await refresh();
       }
     },
-    [orders]
+    [orders, refresh]
   );
 
-  const resetForm = () => {
+  const resetForm = (): void => {
     setEditingOrder(null);
     setNewOrder({
       notificationId: "",
@@ -412,14 +413,14 @@ export default function OrderListPage() {
     setActivities([{ activity: "", object: "", isCompleted: false }]);
   };
 
-  const addActivity = () => {
+  const addActivity = (): void => {
     setActivities([
       ...activities,
       { activity: "", object: "", isCompleted: false },
     ]);
   };
 
-  const removeActivity = (index: number) => {
+  const removeActivity = (index: number): void => {
     if (activities.length > 1) {
       setActivities(activities.filter((_, i) => i !== index));
     }
@@ -429,13 +430,13 @@ export default function OrderListPage() {
     index: number,
     field: "activity" | "object",
     value: string
-  ) => {
+  ): void => {
     const updated = [...activities];
     updated[index][field] = value;
     setActivities(updated);
   };
 
-  const getStatusColor = (progress: number) => {
+  const getStatusColor = (progress: number): "default" | "secondary" | "outline" => {
     if (progress === 100) return "default"; // Completed
     if (progress > 0) return "secondary"; // In Progress
     return "outline"; // Pending
@@ -460,6 +461,53 @@ export default function OrderListPage() {
     }
   }, [message]);
 
+  // Define filter options
+  const filterOptions: FilterOption[] = [
+    {
+      key: "status",
+      label: "Status Progress",
+      type: "select",
+      options: [
+        { value: "pending", label: "Pending" },
+        { value: "inProgress", label: "Dalam Proses" },
+        { value: "completed", label: "Selesai" },
+      ],
+      placeholder: "Pilih Status",
+    },
+  ];
+
+  const sortOptions = [
+    { key: "createdAt", label: "Tanggal Dibuat" },
+    { key: "updatedAt", label: "Tanggal Update" },
+    { key: "startDate", label: "Tanggal Mulai" },
+    { key: "endDate", label: "Tanggal Selesai" },
+    { key: "jobName", label: "Nama Pekerjaan" },
+    { key: "departmentName", label: "Departemen" },
+    { key: "progress", label: "Progress" },
+  ];
+
+  // Show loading while session is being fetched
+  if (status === "loading") {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="mx-auto h-12 w-12 text-muted-foreground mb-4 animate-spin" />
+            <h3 className="text-lg font-semibold mb-2">Memuat Aplikasi</h3>
+            <p className="text-muted-foreground">
+              Sedang memverifikasi sesi...
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (status === "unauthenticated" || !session) {
+    return <div></div>;
+  }
+
   return (
     <AppLayout>
       <div className="space-y-8">
@@ -470,239 +518,261 @@ export default function OrderListPage() {
           </Alert>
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Order List</h1>
-            <p className="text-muted-foreground">
-              Daftar perintah kerja formal dari notifikasi yang telah diproses
-            </p>
-          </div>
+        {/* Error from paginated data */}
+        {dataError && (
+          <Alert variant="destructive">
+            <AlertDescription>{dataError}</AlertDescription>
+          </Alert>
+        )}
 
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Buat Order Baru
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingOrder ? "Edit Order" : "Buat Order Baru"}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingOrder
-                    ? "Edit perintah kerja yang sudah ada"
-                    : "Buat perintah kerja dari notifikasi"}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Notifikasi</label>
-                    <Select
-                      value={newOrder.notificationId}
-                      onValueChange={(value) =>
-                        setNewOrder((prev) => ({
-                          ...prev,
-                          notificationId: value,
-                        }))
-                      }
-                      disabled={isSubmitting || !!editingOrder}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih notifikasi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {notifications.map((notification) => (
-                          <SelectItem
-                            key={notification.id}
-                            value={notification.id.toString()}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {notification.uniqueNumber}
-                              </Badge>
-                              <Badge
-                                variant={getUrgencyColor(notification.urgency)}
-                                className="text-xs"
-                              >
-                                {notification.urgency}
-                              </Badge>
-                              <span className="text-sm">
-                                {notification.department.name}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">
-                      Nama Pekerjaan
-                    </label>
-                    <Input
-                      value={newOrder.jobName}
-                      onChange={(e) =>
-                        setNewOrder((prev) => ({
-                          ...prev,
-                          jobName: e.target.value,
-                        }))
-                      }
-                      placeholder="Masukkan nama pekerjaan"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+        {/* Header with Search, Filter, and Sort */}
+        <DataTableHeader
+          title="Order List"
+          description="Daftar perintah kerja formal dari notifikasi yang telah diproses"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Cari order, departemen, atau aktivitas..."
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={updateFilter}
+          onFilterRemove={removeFilter}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={(sortBy, sortOrder) => {
+            setSortBy(sortBy);
+            setSortOrder(sortOrder);
+          }}
+          sortOptions={sortOptions}
+          onRefresh={refresh}
+          isRefreshing={isRefreshing}
+          disabled={isLoading}
+          actions={
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Buat Order Baru
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingOrder ? "Edit Order" : "Buat Order Baru"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingOrder
+                      ? "Edit perintah kerja yang sudah ada"
+                      : "Buat perintah kerja dari notifikasi"}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="text-sm font-medium">
-                        Tanggal Mulai
-                      </label>
-                      <Input
-                        type="date"
-                        value={newOrder.startDate}
-                        onChange={(e) =>
+                      <label className="text-sm font-medium">Notifikasi</label>
+                      <Select
+                        value={newOrder.notificationId}
+                        onValueChange={(value) =>
                           setNewOrder((prev) => ({
                             ...prev,
-                            startDate: e.target.value,
+                            notificationId: value,
                           }))
                         }
-                        disabled={isSubmitting}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium">
-                        Tanggal Selesai (Opsional)
-                      </label>
-                      <Input
-                        type="date"
-                        value={newOrder.endDate}
-                        onChange={(e) =>
-                          setNewOrder((prev) => ({
-                            ...prev,
-                            endDate: e.target.value,
-                          }))
-                        }
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Deskripsi</label>
-                    <Textarea
-                      value={newOrder.description}
-                      onChange={(e) =>
-                        setNewOrder((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder="Deskripsi pekerjaan (opsional)"
-                      rows={3}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  {/* Activities Section */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium">
-                        Aktivitas & Object
-                      </label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addActivity}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !!editingOrder}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Tambah
-                      </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih notifikasi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {notifications.map((notification) => (
+                            <SelectItem
+                              key={notification.id}
+                              value={notification.id.toString()}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {notification.uniqueNumber}
+                                </Badge>
+                                <Badge
+                                  variant={getUrgencyColor(notification.urgency)}
+                                  className="text-xs"
+                                >
+                                  {notification.urgency}
+                                </Badge>
+                                <span className="text-sm">
+                                  {notification.department.name}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    <div className="space-y-3">
-                      {activities.map((activity, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <div className="flex-1">
-                            <Input
-                              placeholder="Aktivitas"
-                              value={activity.activity}
-                              onChange={(e) =>
-                                updateActivity(
-                                  index,
-                                  "activity",
-                                  e.target.value
-                                )
-                              }
-                              disabled={isSubmitting}
-                            />
+                    <div>
+                      <label className="text-sm font-medium">
+                        Nama Pekerjaan
+                      </label>
+                      <Input
+                        value={newOrder.jobName}
+                        onChange={(e) =>
+                          setNewOrder((prev) => ({
+                            ...prev,
+                            jobName: e.target.value,
+                          }))
+                        }
+                        placeholder="Masukkan nama pekerjaan"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">
+                          Tanggal Mulai
+                        </label>
+                        <Input
+                          type="date"
+                          value={newOrder.startDate}
+                          onChange={(e) =>
+                            setNewOrder((prev) => ({
+                              ...prev,
+                              startDate: e.target.value,
+                            }))
+                          }
+                          disabled={isSubmitting}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">
+                          Tanggal Selesai (Opsional)
+                        </label>
+                        <Input
+                          type="date"
+                          value={newOrder.endDate}
+                          onChange={(e) =>
+                            setNewOrder((prev) => ({
+                              ...prev,
+                              endDate: e.target.value,
+                            }))
+                          }
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Deskripsi</label>
+                      <Textarea
+                        value={newOrder.description}
+                        onChange={(e) =>
+                          setNewOrder((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="Deskripsi pekerjaan (opsional)"
+                        rows={3}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    {/* Activities Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium">
+                          Aktivitas & Object
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addActivity}
+                          disabled={isSubmitting}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Tambah
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {activities.map((activity, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <div className="flex-1">
+                              <Input
+                                placeholder="Aktivitas"
+                                value={activity.activity}
+                                onChange={(e) =>
+                                  updateActivity(
+                                    index,
+                                    "activity",
+                                    e.target.value
+                                  )
+                                }
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <Input
+                                placeholder="Object"
+                                value={activity.object}
+                                onChange={(e) =>
+                                  updateActivity(index, "object", e.target.value)
+                                }
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            {activities.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeActivity(index)}
+                                disabled={isSubmitting}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
-                          <div className="flex-1">
-                            <Input
-                              placeholder="Object"
-                              value={activity.object}
-                              onChange={(e) =>
-                                updateActivity(index, "object", e.target.value)
-                              }
-                              disabled={isSubmitting}
-                            />
-                          </div>
-                          {activities.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeActivity(index)}
-                              disabled={isSubmitting}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Batal
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Menyimpan...
-                      </>
-                    ) : editingOrder ? (
-                      "Update Order"
-                    ) : (
-                      "Buat Order"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                      disabled={isSubmitting}
+                    >
+                      Batal
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : editingOrder ? (
+                        "Update Order"
+                      ) : (
+                        "Buat Order"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -762,185 +832,214 @@ export default function OrderListPage() {
         </div>
 
         {/* Orders List */}
-        <div className="space-y-6">
-          {isLoading ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <Loader2 className="mx-auto h-12 w-12 text-muted-foreground mb-4 animate-spin" />
-                  <h3 className="text-lg font-semibold mb-2">Memuat Data</h3>
-                  <p className="text-muted-foreground">
-                    Sedang memuat daftar orders...
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : orders.length > 0 ? (
-            orders.map((order) => (
-              <Card key={order.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg">
-                          {order.jobName}
-                        </CardTitle>
-                        <Badge variant={getStatusColor(order.progress)}>
-                          {order.progress === 100
-                            ? "Selesai"
-                            : order.progress > 0
-                            ? "Dalam Proses"
-                            : "Pending"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {new Date(order.startDate).toLocaleDateString(
-                            "id-ID"
-                          )}
-                          {order.endDate &&
-                            ` - ${new Date(order.endDate).toLocaleDateString(
-                              "id-ID"
-                            )}`}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          {order.createdBy.username}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(order)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-
-                      {session?.user.role === "ADMIN" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(order.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Related Notification */}
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">
-                        Dari Notifikasi:
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {order.notification.uniqueNumber}
-                      </Badge>
-                      <Badge
-                        variant={getUrgencyColor(order.notification.urgency)}
-                        className="text-xs"
-                      >
-                        {order.notification.urgency}
-                      </Badge>
-                      <span>{order.notification.department.name}</span>
-                    </div>
-
-                    {order.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {order.description}
-                      </p>
-                    )}
-
-                    {/* Progress */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>
-                          Progress: {order.completedActivities}/
-                          {order.totalActivities} aktivitas
-                        </span>
-                        <span className="font-medium">{order.progress}%</span>
-                      </div>
-                      <Progress value={order.progress} className="h-2" />
-                    </div>
-
-                    {/* Activities */}
-                    {order.activities.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm">Aktivitas:</h4>
-                        <div className="space-y-2">
-                          {order.activities.map((activity, index) => (
-                            <div
-                              key={activity.id}
-                              className={`flex items-center gap-3 p-3 rounded-lg border ${
-                                activity.isCompleted
-                                  ? "bg-muted/30 border-muted-foreground/20"
-                                  : "bg-card border-border"
-                              }`}
-                            >
-                              <button
-                                onClick={() =>
-                                  toggleActivityCompletion(order.id, index)
-                                }
-                                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-                                  activity.isCompleted
-                                    ? "bg-muted border-muted-foreground text-foreground hover:bg-muted/80"
-                                    : "border-border hover:border-muted-foreground hover:bg-muted/50"
-                                }`}
-                              >
-                                {activity.isCompleted && (
-                                  <CheckCircle className="h-4 w-4" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Daftar Order</CardTitle>
+            <CardDescription>
+              Menampilkan {pagination.total} order
+              {search && ` dengan pencarian "${search}"`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {isLoading ? (
+              <div className="text-center py-12">
+                <Loader2 className="mx-auto h-12 w-12 text-muted-foreground mb-4 animate-spin" />
+                <h3 className="text-lg font-semibold mb-2">Memuat Data</h3>
+                <p className="text-muted-foreground">
+                  Sedang memuat daftar orders...
+                </p>
+              </div>
+            ) : orders.length > 0 ? (
+              <>
+                <div className="space-y-6">
+                  {orders.map((order) => (
+                    <Card key={order.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-lg">
+                                {order.jobName}
+                              </CardTitle>
+                              <Badge variant={getStatusColor(order.progress)}>
+                                {order.progress === 100
+                                  ? "Selesai"
+                                  : order.progress > 0
+                                  ? "Dalam Proses"
+                                  : "Pending"}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                {new Date(order.startDate).toLocaleDateString(
+                                  "id-ID"
                                 )}
-                              </button>
-                              <div className="flex-1">
-                                <div
-                                  className={`text-sm ${
-                                    activity.isCompleted
-                                      ? "line-through text-muted-foreground"
-                                      : ""
-                                  }`}
-                                >
-                                  <span className="font-medium">
-                                    {activity.activity}
-                                  </span>{" "}
-                                  - {activity.object}
-                                </div>
+                                {order.endDate &&
+                                  ` - ${new Date(order.endDate).toLocaleDateString(
+                                    "id-ID"
+                                  )}`}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User className="h-4 w-4" />
+                                {order.createdBy.username}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(order)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+
+                            {session?.user.role === "ADMIN" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(order.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {/* Related Notification */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">
+                              Dari Notifikasi:
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {order.notification.uniqueNumber}
+                            </Badge>
+                            <Badge
+                              variant={getUrgencyColor(order.notification.urgency)}
+                              className="text-xs"
+                            >
+                              {order.notification.urgency}
+                            </Badge>
+                            <span>{order.notification.department.name}</span>
+                          </div>
+
+                          {order.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {order.description}
+                            </p>
+                          )}
+
+                          {/* Progress */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>
+                                Progress: {order.completedActivities}/
+                                {order.totalActivities} aktivitas
+                              </span>
+                              <span className="font-medium">{order.progress}%</span>
+                            </div>
+                            <Progress value={order.progress} className="h-2" />
+                          </div>
+
+                          {/* Activities */}
+                          {order.activities.length > 0 && (
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Aktivitas:</h4>
+                              <div className="space-y-2">
+                                {order.activities.map((activity, index) => (
+                                  <div
+                                    key={activity.id}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                                      activity.isCompleted
+                                        ? "bg-muted/30 border-muted-foreground/20"
+                                        : "bg-card border-border"
+                                    }`}
+                                  >
+                                    <button
+                                      onClick={() =>
+                                        toggleActivityCompletion(order.id, index)
+                                      }
+                                      className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                                        activity.isCompleted
+                                          ? "bg-muted border-muted-foreground text-foreground hover:bg-muted/80"
+                                          : "border-border hover:border-muted-foreground hover:bg-muted/50"
+                                      }`}
+                                    >
+                                      {activity.isCompleted && (
+                                        <CheckCircle className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                    <div className="flex-1">
+                                      <div
+                                        className={`text-sm ${
+                                          activity.isCompleted
+                                            ? "line-through text-muted-foreground"
+                                            : ""
+                                        }`}
+                                      >
+                                        <span className="font-medium">
+                                          {activity.activity}
+                                        </span>{" "}
+                                        - {activity.object}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Belum Ada Order
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Belum ada perintah kerja yang dibuat dari notifikasi
-                  </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  pageSize={pagination.limit}
+                  totalItems={pagination.total}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                  onPageChange={setPage}
+                  onPageSizeChange={setLimit}
+                  onFirstPage={goToFirstPage}
+                  onLastPage={goToLastPage}
+                  onNextPage={goToNextPage}
+                  onPrevPage={goToPrevPage}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                  disabled={isLoading}
+                />
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {search || Object.keys(filters).length > 0
+                    ? "Tidak Ada Hasil"
+                    : "Belum Ada Order"}
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {search || Object.keys(filters).length > 0
+                    ? "Tidak ditemukan order yang sesuai dengan pencarian atau filter"
+                    : "Belum ada perintah kerja yang dibuat dari notifikasi"}
+                </p>
+                {!search && Object.keys(filters).length === 0 && (
                   <Button onClick={() => setIsDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Buat Order Pertama
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

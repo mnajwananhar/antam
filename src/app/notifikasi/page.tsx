@@ -45,6 +45,13 @@ import {
   Edit,
 } from "lucide-react";
 
+import { usePaginatedData } from "@/hooks/use-paginated-data";
+import { 
+  DataTableHeader, 
+  Pagination,
+  FilterOption 
+} from "@/components/data-table";
+
 interface NotificationItem {
   id: number;
   uniqueNumber: string;
@@ -85,15 +92,46 @@ interface NotificationStats {
   emergency: number;
 }
 
-export default function NotifikasiPage() {
+export default function NotifikasiPage(): React.JSX.Element {
   const { data: session, status } = useSession();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stats, setStats] = useState<NotificationStats>({
     total: 0,
     inProcess: 0,
     completed: 0,
     emergency: 0,
+  });
+
+  // Use paginated data hook
+  const {
+    data: notifications,
+    isLoading,
+    isRefreshing,
+    error: dataError,
+    pagination,
+    search,
+    sortBy,
+    sortOrder,
+    filters,
+    setPage,
+    setLimit,
+    setSearch,
+    setSortBy,
+    setSortOrder,
+    updateFilter,
+    removeFilter,
+    clearFilters,
+    refresh,
+    goToFirstPage,
+    goToLastPage,
+    goToNextPage,
+    goToPrevPage,
+  } = usePaginatedData<NotificationItem>({
+    endpoint: "/api/notifications",
+    defaultLimit: 10,
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    enableAutoRefresh: false,
   });
 
   // Helper function to format time from database
@@ -115,7 +153,7 @@ export default function NotifikasiPage() {
       return timeString;
     }
   };
-  const [isLoading, setIsLoading] = useState(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -163,42 +201,19 @@ export default function NotifikasiPage() {
 
   useEffect(() => {
     if (status === "authenticated" && session) {
-      loadNotifications();
       loadDepartments();
+      loadStats();
     }
   }, [status, session]);
 
-  const loadNotifications = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/notifications");
-
-      if (response.ok) {
-        const result = await response.json();
-        setNotifications(result.data || []);
-        setStats(
-          result.stats || { total: 0, inProcess: 0, completed: 0, emergency: 0 }
-        );
-      } else {
-        const error = await response.json();
-        console.error("Failed to load notifications:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data notifikasi",
-        });
-      }
-    } catch (error) {
-      console.error("Error loading notifications:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
-    } finally {
-      setIsLoading(false);
+  // Update stats when notifications change
+  useEffect(() => {
+    if (notifications.length > 0) {
+      loadStats();
     }
-  };
+  }, [notifications]);
 
-  const loadDepartments = async () => {
+  const loadDepartments = async (): Promise<void> => {
     try {
       const response = await fetch("/api/departments");
 
@@ -213,7 +228,22 @@ export default function NotifikasiPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const loadStats = async (): Promise<void> => {
+    try {
+      const response = await fetch("/api/notifications?limit=1&page=1");
+
+      if (response.ok) {
+        const result = await response.json();
+        setStats(
+          result.stats || { total: 0, inProcess: 0, completed: 0, emergency: 0 }
+        );
+      }
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     // Trim problemDetail to remove extra spaces
@@ -283,7 +313,7 @@ export default function NotifikasiPage() {
         setIsDialogOpen(false);
 
         // Reload data
-        loadNotifications();
+        await refresh();
       } else {
         // Handle validation errors more gracefully
         if (result.details && Array.isArray(result.details)) {
@@ -316,7 +346,7 @@ export default function NotifikasiPage() {
   const handleStatusChange = async (
     notificationId: number,
     newStatus: "PROCESS" | "COMPLETE"
-  ) => {
+  ): Promise<void> => {
     try {
       const response = await fetch(`/api/notifications/${notificationId}`, {
         method: "PUT",
@@ -333,7 +363,7 @@ export default function NotifikasiPage() {
           type: "success",
           text: result.message || "Status berhasil diupdate",
         });
-        loadNotifications();
+        await refresh();
       } else {
         throw new Error(result.error || "Failed to update status");
       }
@@ -347,7 +377,7 @@ export default function NotifikasiPage() {
     }
   };
 
-  const handleEdit = (notification: NotificationItem) => {
+  const handleEdit = (notification: NotificationItem): void => {
     setEditingNotification(notification);
     setEditNotification({
       departmentId: notification.department.id.toString(),
@@ -359,7 +389,7 @@ export default function NotifikasiPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!editingNotification) return;
@@ -436,7 +466,7 @@ export default function NotifikasiPage() {
         setIsEditDialogOpen(false);
 
         // Reload data
-        loadNotifications();
+        await refresh();
       } else {
         // Handle validation errors more gracefully
         if (result.details && Array.isArray(result.details)) {
@@ -468,7 +498,7 @@ export default function NotifikasiPage() {
     }
   };
 
-  const handleDelete = async (notificationId: number) => {
+  const handleDelete = async (notificationId: number): Promise<void> => {
     if (!confirm("Apakah Anda yakin ingin menghapus notifikasi ini?")) {
       return;
     }
@@ -485,7 +515,7 @@ export default function NotifikasiPage() {
           type: "success",
           text: result.message || "Notifikasi berhasil dihapus",
         });
-        loadNotifications();
+        await refresh();
       } else {
         throw new Error(result.error || "Failed to delete notification");
       }
@@ -499,7 +529,7 @@ export default function NotifikasiPage() {
     }
   };
 
-  const handleCreateOrder = (notification: NotificationItem) => {
+  const handleCreateOrder = (notification: NotificationItem): void => {
     setSelectedNotification(notification);
     setNewOrder({
       jobName: "",
@@ -511,7 +541,7 @@ export default function NotifikasiPage() {
     setIsOrderDialogOpen(true);
   };
 
-  const handleOrderSubmit = async (e: React.FormEvent) => {
+  const handleOrderSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (
@@ -563,7 +593,7 @@ export default function NotifikasiPage() {
         setSelectedNotification(null);
 
         // Reload notifications data to show updated orders
-        loadNotifications();
+        await refresh();
       } else {
         throw new Error(result.error || "Failed to create order");
       }
@@ -578,11 +608,11 @@ export default function NotifikasiPage() {
     }
   };
 
-  const addActivity = () => {
+  const addActivity = (): void => {
     setActivities([...activities, { activity: "", object: "" }]);
   };
 
-  const removeActivity = (index: number) => {
+  const removeActivity = (index: number): void => {
     if (activities.length > 1) {
       setActivities(activities.filter((_, i) => i !== index));
     }
@@ -592,7 +622,7 @@ export default function NotifikasiPage() {
     index: number,
     field: "activity" | "object",
     value: string
-  ) => {
+  ): void => {
     const updated = [...activities];
     updated[index][field] = value;
     setActivities(updated);
@@ -622,7 +652,7 @@ export default function NotifikasiPage() {
     return colors[urgency as keyof typeof colors] || "secondary";
   };
 
-  const getUrgencyIcon = (urgency: string) => {
+  const getUrgencyIcon = (urgency: string): React.JSX.Element => {
     const icons = {
       NORMAL: Bell,
       URGENT: AlertTriangle,
@@ -632,7 +662,7 @@ export default function NotifikasiPage() {
     return <Icon className="h-4 w-4" />;
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string): React.JSX.Element => {
     return status === "COMPLETE" ? (
       <CheckCircle className="h-4 w-4" />
     ) : (
@@ -656,6 +686,54 @@ export default function NotifikasiPage() {
     return true; // ADMIN and INPUTTER can see all departments
   });
 
+  // Define filter options
+  const filterOptions: FilterOption[] = [
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { value: "PROCESS", label: "Proses" },
+        { value: "COMPLETE", label: "Selesai" },
+      ],
+      placeholder: "Pilih Status",
+    },
+    {
+      key: "urgency",
+      label: "Urgensi",
+      type: "select",
+      options: [
+        { value: "NORMAL", label: "Normal" },
+        { value: "URGENT", label: "Urgent" },
+        { value: "EMERGENCY", label: "Emergency" },
+      ],
+      placeholder: "Pilih Urgensi",
+    },
+    ...(session?.user.role !== "PLANNER"
+      ? [
+          {
+            key: "departmentId",
+            label: "Departemen",
+            type: "select" as const,
+            options: departments.map((dept) => ({
+              value: dept.id.toString(),
+              label: `${dept.name} (${dept.code})`,
+            })),
+            placeholder: "Pilih Departemen",
+          },
+        ]
+      : []),
+  ];
+
+  const sortOptions = [
+    { key: "createdAt", label: "Tanggal Dibuat" },
+    { key: "updatedAt", label: "Tanggal Update" },
+    { key: "reportTime", label: "Waktu Laporan" },
+    { key: "urgency", label: "Urgensi" },
+    { key: "departmentName", label: "Departemen" },
+    { key: "uniqueNumber", label: "Nomor Unik" },
+  ];
+
   // Show loading while session is being fetched
   if (status === "loading") {
     return (
@@ -675,7 +753,7 @@ export default function NotifikasiPage() {
 
   // Don't render anything if not authenticated (will redirect)
   if (status === "unauthenticated" || !session) {
-    return null;
+    return <div></div>;
   }
 
   return (
@@ -688,296 +766,167 @@ export default function NotifikasiPage() {
           </Alert>
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Notifikasi</h1>
-            <p className="text-muted-foreground">
-              Kelola laporan masalah dan permintaan dari seluruh departemen
-            </p>
-          </div>
+        {/* Error from paginated data */}
+        {dataError && (
+          <Alert variant="destructive">
+            <AlertDescription>{dataError}</AlertDescription>
+          </Alert>
+        )}
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Buat Notifikasi
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Buat Notifikasi Baru</DialogTitle>
-                <DialogDescription>
-                  Buat laporan masalah atau permintaan untuk departemen
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Departemen</label>
-                    <Select
-                      value={newNotification.departmentId}
-                      onValueChange={(value) =>
-                        setNewNotification((prev) => ({
-                          ...prev,
-                          departmentId: value,
-                        }))
-                      }
+        {/* Header with Search, Filter, and Sort */}
+        <DataTableHeader
+          title="Notifikasi"
+          description="Kelola laporan masalah dan permintaan dari seluruh departemen"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Cari notifikasi, departemen, atau nomor unik..."
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={updateFilter}
+          onFilterRemove={removeFilter}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={(sortBy, sortOrder) => {
+            setSortBy(sortBy);
+            setSortOrder(sortOrder);
+          }}
+          sortOptions={sortOptions}
+          onRefresh={refresh}
+          isRefreshing={isRefreshing}
+          disabled={isLoading}
+          actions={
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Buat Notifikasi
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Buat Notifikasi Baru</DialogTitle>
+                  <DialogDescription>
+                    Buat laporan masalah atau permintaan untuk departemen
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Departemen</label>
+                      <Select
+                        value={newNotification.departmentId}
+                        onValueChange={(value) =>
+                          setNewNotification((prev) => ({
+                            ...prev,
+                            departmentId: value,
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih departemen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableDepartments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id.toString()}>
+                              {dept.name} ({dept.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Jam Laporan</label>
+                      <Input
+                        type="time"
+                        value={newNotification.reportTime}
+                        onChange={(e) =>
+                          setNewNotification((prev) => ({
+                            ...prev,
+                            reportTime: e.target.value,
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">
+                        Tingkat Urgensi
+                      </label>
+                      <Select
+                        value={newNotification.urgency}
+                        onValueChange={(
+                          value: "NORMAL" | "URGENT" | "EMERGENCY"
+                        ) =>
+                          setNewNotification((prev) => ({
+                            ...prev,
+                            urgency: value,
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NORMAL">Normal</SelectItem>
+                          <SelectItem value="URGENT">Urgent</SelectItem>
+                          <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">
+                        Detail Masalah
+                      </label>
+                      <Textarea
+                        value={newNotification.problemDetail}
+                        onChange={(e) =>
+                          setNewNotification((prev) => ({
+                            ...prev,
+                            problemDetail: e.target.value,
+                          }))
+                        }
+                        placeholder="Jelaskan detail masalah atau permintaan..."
+                        rows={4}
+                        disabled={isSubmitting}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Minimal 5 karakter. Saat ini:{" "}
+                        {newNotification.problemDetail.length} karakter
+                      </p>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
                       disabled={isSubmitting}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih departemen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDepartments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id.toString()}>
-                            {dept.name} ({dept.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Jam Laporan</label>
-                    <Input
-                      type="time"
-                      value={newNotification.reportTime}
-                      onChange={(e) =>
-                        setNewNotification((prev) => ({
-                          ...prev,
-                          reportTime: e.target.value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">
-                      Tingkat Urgensi
-                    </label>
-                    <Select
-                      value={newNotification.urgency}
-                      onValueChange={(
-                        value: "NORMAL" | "URGENT" | "EMERGENCY"
-                      ) =>
-                        setNewNotification((prev) => ({
-                          ...prev,
-                          urgency: value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NORMAL">Normal</SelectItem>
-                        <SelectItem value="URGENT">Urgent</SelectItem>
-                        <SelectItem value="EMERGENCY">Emergency</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">
-                      Detail Masalah
-                    </label>
-                    <Textarea
-                      value={newNotification.problemDetail}
-                      onChange={(e) =>
-                        setNewNotification((prev) => ({
-                          ...prev,
-                          problemDetail: e.target.value,
-                        }))
-                      }
-                      placeholder="Jelaskan detail masalah atau permintaan..."
-                      rows={4}
-                      disabled={isSubmitting}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Minimal 5 karakter. Saat ini:{" "}
-                      {newNotification.problemDetail.length} karakter
-                    </p>
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Batal
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Menyimpan...
-                      </>
-                    ) : (
-                      "Buat Notifikasi"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Notification Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Edit Notifikasi</DialogTitle>
-                <DialogDescription>
-                  Update informasi notifikasi yang sudah ada.
-                </DialogDescription>
-              </DialogHeader>
-
-              <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Department</label>
-                    <Select
-                      value={editNotification.departmentId}
-                      onValueChange={(value) =>
-                        setEditNotification((prev) => ({
-                          ...prev,
-                          departmentId: value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id.toString()}>
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Waktu Laporan</label>
-                    <Input
-                      type="time"
-                      value={editNotification.reportTime}
-                      onChange={(e) =>
-                        setEditNotification((prev) => ({
-                          ...prev,
-                          reportTime: e.target.value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">
-                      Tingkat Urgensi
-                    </label>
-                    <Select
-                      value={editNotification.urgency}
-                      onValueChange={(
-                        value: "NORMAL" | "URGENT" | "EMERGENCY"
-                      ) =>
-                        setEditNotification((prev) => ({
-                          ...prev,
-                          urgency: value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tingkat urgensi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NORMAL">Normal</SelectItem>
-                        <SelectItem value="URGENT">Urgent</SelectItem>
-                        <SelectItem value="EMERGENCY">Emergency</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Status</label>
-                    <Select
-                      value={editNotification.status}
-                      onValueChange={(value: "PROCESS" | "COMPLETE") =>
-                        setEditNotification((prev) => ({
-                          ...prev,
-                          status: value,
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PROCESS">Proses</SelectItem>
-                        <SelectItem value="COMPLETE">Selesai</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">
-                      Detail Masalah
-                    </label>
-                    <Textarea
-                      value={editNotification.problemDetail}
-                      onChange={(e) =>
-                        setEditNotification((prev) => ({
-                          ...prev,
-                          problemDetail: e.target.value,
-                        }))
-                      }
-                      placeholder="Jelaskan detail masalah atau permintaan..."
-                      rows={4}
-                      disabled={isSubmitting}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Minimal 5 karakter. Saat ini:{" "}
-                      {editNotification.problemDetail.length} karakter
-                    </p>
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsEditDialogOpen(false);
-                      setEditingNotification(null);
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Batal
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Mengupdate...
-                      </>
-                    ) : (
-                      "Update Notifikasi"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                      Batal
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Buat Notifikasi"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1043,10 +992,11 @@ export default function NotifikasiPage() {
           <CardHeader>
             <CardTitle>Daftar Notifikasi</CardTitle>
             <CardDescription>
-              Semua laporan masalah dan permintaan yang telah dibuat
+              Menampilkan {pagination.total} notifikasi
+              {search && ` dengan pencarian "${search}"`}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {isLoading ? (
               <div className="text-center py-12">
                 <Loader2 className="mx-auto h-12 w-12 text-muted-foreground mb-4 animate-spin" />
@@ -1056,152 +1006,327 @@ export default function NotifikasiPage() {
                 </p>
               </div>
             ) : notifications.length > 0 ? (
-              <div className="space-y-4">
-                {notifications.map((notification) => (
-                  <div key={notification.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {notification.uniqueNumber}
-                          </Badge>
-                          <Badge
-                            variant={getUrgencyColor(notification.urgency)}
-                            className="flex items-center gap-1"
-                          >
-                            {getUrgencyIcon(notification.urgency)}
-                            {notification.urgency}
-                          </Badge>
-                          <Badge
-                            variant={
-                              notification.status === "COMPLETE"
-                                ? "default"
-                                : "secondary"
-                            }
-                            className="flex items-center gap-1"
-                          >
-                            {getStatusIcon(notification.status)}
-                            {notification.status === "COMPLETE"
-                              ? "Selesai"
-                              : "Proses"}
-                          </Badge>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>
-                            Departemen: {notification.department.name}
-                          </span>
-                          <span>
-                            Waktu: {formatTime(notification.reportTime)}
-                          </span>
-                          <span>
-                            Dibuat:{" "}
-                            {new Date(
-                              notification.createdAt
-                            ).toLocaleDateString("id-ID")}
-                          </span>
-                        </div>
-
-                        <p className="text-sm">{notification.problemDetail}</p>
-
-                        {notification.orders.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs text-muted-foreground mb-1">
-                              Orders:
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {notification.orders.map((order) => (
-                                <Badge
-                                  key={order.id}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {order.jobName}
-                                </Badge>
-                              ))}
-                            </div>
+              <>
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <div key={notification.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {notification.uniqueNumber}
+                            </Badge>
+                            <Badge
+                              variant={getUrgencyColor(notification.urgency)}
+                              className="flex items-center gap-1"
+                            >
+                              {getUrgencyIcon(notification.urgency)}
+                              {notification.urgency}
+                            </Badge>
+                            <Badge
+                              variant={
+                                notification.status === "COMPLETE"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              {getStatusIcon(notification.status)}
+                              {notification.status === "COMPLETE"
+                                ? "Selesai"
+                                : "Proses"}
+                            </Badge>
                           </div>
-                        )}
 
-                        <div className="text-xs text-muted-foreground">
-                          Dibuat oleh: {notification.createdBy.username} (
-                          {notification.createdBy.role})
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>
+                              Departemen: {notification.department.name}
+                            </span>
+                            <span>
+                              Waktu: {formatTime(notification.reportTime)}
+                            </span>
+                            <span>
+                              Dibuat:{" "}
+                              {new Date(
+                                notification.createdAt
+                              ).toLocaleDateString("id-ID")}
+                            </span>
+                          </div>
+
+                          <p className="text-sm">{notification.problemDetail}</p>
+
+                          {notification.orders.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Orders:
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {notification.orders.map((order) => (
+                                  <Badge
+                                    key={order.id}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    {order.jobName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-muted-foreground">
+                            Dibuat oleh: {notification.createdBy.username} (
+                            {notification.createdBy.role})
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-2 ml-4">
-                        {notification.status === "PROCESS" && (
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 ml-4">
+                          {notification.status === "PROCESS" && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleCreateOrder(notification)}
+                              className="flex items-center gap-1"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Create Order
+                            </Button>
+                          )}
+
                           <Button
-                            variant="default"
+                            variant="outline"
                             size="sm"
-                            onClick={() => handleCreateOrder(notification)}
-                            className="flex items-center gap-1"
+                            onClick={() =>
+                              handleStatusChange(
+                                notification.id,
+                                notification.status === "PROCESS"
+                                  ? "COMPLETE"
+                                  : "PROCESS"
+                              )
+                            }
                           >
-                            <FileText className="h-4 w-4" />
-                            Create Order
+                            {notification.status === "PROCESS"
+                              ? "Selesaikan"
+                              : "Buka Kembali"}
                           </Button>
-                        )}
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleStatusChange(
-                              notification.id,
-                              notification.status === "PROCESS"
-                                ? "COMPLETE"
-                                : "PROCESS"
-                            )
-                          }
-                        >
-                          {notification.status === "PROCESS"
-                            ? "Selesaikan"
-                            : "Buka Kembali"}
-                        </Button>
-
-                        {session?.user.role === "ADMIN" && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(notification)}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(notification.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                          {session?.user.role === "ADMIN" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(notification)}
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(notification.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  pageSize={pagination.limit}
+                  totalItems={pagination.total}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                  onPageChange={setPage}
+                  onPageSizeChange={setLimit}
+                  onFirstPage={goToFirstPage}
+                  onLastPage={goToLastPage}
+                  onNextPage={goToNextPage}
+                  onPrevPage={goToPrevPage}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                  disabled={isLoading}
+                />
+              </>
             ) : (
               <div className="text-center py-12">
                 <Bell className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
-                  Belum Ada Notifikasi
+                  {search || Object.keys(filters).length > 0
+                    ? "Tidak Ada Hasil"
+                    : "Belum Ada Notifikasi"}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Belum ada laporan masalah atau permintaan yang dibuat
+                  {search || Object.keys(filters).length > 0
+                    ? "Tidak ditemukan notifikasi yang sesuai dengan pencarian atau filter"
+                    : "Belum ada laporan masalah atau permintaan yang dibuat"}
                 </p>
-                <Button onClick={() => setIsDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Buat Notifikasi Pertama
-                </Button>
+                {!search && Object.keys(filters).length === 0 && (
+                  <Button onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Buat Notifikasi Pertama
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Notification Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Notifikasi</DialogTitle>
+              <DialogDescription>
+                Update informasi notifikasi yang sudah ada.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Department</label>
+                  <Select
+                    value={editNotification.departmentId}
+                    onValueChange={(value) =>
+                      setEditNotification((prev) => ({
+                        ...prev,
+                        departmentId: value,
+                      }))
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id.toString()}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Waktu Laporan</label>
+                  <Input
+                    type="time"
+                    value={editNotification.reportTime}
+                    onChange={(e) =>
+                      setEditNotification((prev) => ({
+                        ...prev,
+                        reportTime: e.target.value,
+                      }))
+                    }
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">
+                    Tingkat Urgensi
+                  </label>
+                  <Select
+                    value={editNotification.urgency}
+                    onValueChange={(
+                      value: "NORMAL" | "URGENT" | "EMERGENCY"
+                    ) =>
+                      setEditNotification((prev) => ({
+                        ...prev,
+                        urgency: value,
+                      }))
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih tingkat urgensi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                      <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <Select
+                    value={editNotification.status}
+                    onValueChange={(value: "PROCESS" | "COMPLETE") =>
+                      setEditNotification((prev) => ({
+                        ...prev,
+                        status: value,
+                      }))
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PROCESS">Proses</SelectItem>
+                      <SelectItem value="COMPLETE">Selesai</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Detail Masalah</label>
+                  <Textarea
+                    value={editNotification.problemDetail}
+                    onChange={(e) =>
+                      setEditNotification((prev) => ({
+                        ...prev,
+                        problemDetail: e.target.value,
+                      }))
+                    }
+                    placeholder="Jelaskan detail masalah atau permintaan..."
+                    rows={4}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Minimal 5 karakter. Saat ini:{" "}
+                    {editNotification.problemDetail.length} karakter
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingNotification(null);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Mengupdate...
+                    </>
+                  ) : (
+                    "Update Notifikasi"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Order Dialog */}
         <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>

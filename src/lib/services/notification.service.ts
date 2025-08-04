@@ -21,6 +21,9 @@ export interface NotificationFilters {
   departmentId?: number;
   status?: "PROCESS" | "COMPLETE";
   urgency?: "NORMAL" | "URGENT" | "EMERGENCY";
+  search?: string;
+  sortBy?: "createdAt" | "updatedAt" | "reportTime" | "urgency" | "departmentName" | "uniqueNumber";
+  sortOrder?: "asc" | "desc";
   userRole?: string;
   userDepartmentId?: number;
 }
@@ -61,12 +64,13 @@ export class NotificationService {
     pagination: PaginationOptions
   ) {
     const whereClause = this.buildWhereClause(filters);
+    const orderBy = this.buildOrderBy(filters.sortBy, filters.sortOrder);
 
     const [notifications, totalCount] = await Promise.all([
       prisma.notification.findMany({
         where: whereClause,
         include: this.NOTIFICATION_INCLUDE,
-        orderBy: [{ urgency: "desc" }, { createdAt: "desc" }],
+        orderBy,
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
       }),
@@ -235,6 +239,49 @@ export class NotificationService {
       whereClause.urgency = filters.urgency;
     }
 
+    // Search functionality
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      whereClause.OR = [
+        {
+          uniqueNumber: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          problemDetail: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          department: {
+            name: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          department: {
+            code: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          createdBy: {
+            username: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+    }
+
     // Filter by user's department for PLANNER role
     if (
       this.shouldCheckDepartmentAccess(
@@ -246,6 +293,33 @@ export class NotificationService {
     }
 
     return whereClause;
+  }
+
+  private static buildOrderBy(
+    sortBy?: "createdAt" | "updatedAt" | "reportTime" | "urgency" | "departmentName" | "uniqueNumber",
+    sortOrder?: "asc" | "desc"
+  ): Prisma.NotificationOrderByWithRelationInput[] {
+    const order = sortOrder || "desc";
+    
+    switch (sortBy) {
+      case "departmentName":
+        return [{ department: { name: order } }, { createdAt: "desc" }];
+      case "urgency":
+        // Custom urgency ordering: EMERGENCY > URGENT > NORMAL
+        return [
+          { urgency: order === "asc" ? "asc" : "desc" },
+          { createdAt: "desc" },
+        ];
+      case "reportTime":
+        return [{ reportTime: order }, { createdAt: "desc" }];
+      case "uniqueNumber":
+        return [{ uniqueNumber: order }, { createdAt: "desc" }];
+      case "updatedAt":
+        return [{ updatedAt: order }, { createdAt: "desc" }];
+      case "createdAt":
+      default:
+        return [{ createdAt: order }];
+    }
   }
 
   private static async calculateNotificationStats(

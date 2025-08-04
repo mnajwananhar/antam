@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
       departmentId: searchParams.get("departmentId") ?? undefined,
       status: searchParams.get("status") ?? undefined,
       urgency: searchParams.get("urgency") ?? undefined,
+      search: searchParams.get("search") ?? undefined,
+      sortBy: searchParams.get("sortBy") ?? undefined,
+      sortOrder: searchParams.get("sortOrder") ?? undefined,
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
     });
@@ -35,6 +38,9 @@ export async function GET(request: NextRequest) {
         | "URGENT"
         | "EMERGENCY"
         | undefined,
+      search: queryData.search,
+      sortBy: queryData.sortBy as "createdAt" | "updatedAt" | "reportTime" | "urgency" | "departmentName" | "uniqueNumber" | undefined,
+      sortOrder: queryData.sortOrder as "asc" | "desc" | undefined,
       userRole: session.user.role,
       userDepartmentId: session.user.departmentId,
     };
@@ -50,9 +56,15 @@ export async function GET(request: NextRequest) {
       pagination
     );
 
-    return ApiResponseUtil.success(result.notifications, undefined, {
+    return ApiResponseUtil.success({
+      data: result.notifications,
+      total: result.totalCount,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.ceil(result.totalCount / pagination.limit),
+      hasNextPage: pagination.page < Math.ceil(result.totalCount / pagination.limit),
+      hasPrevPage: pagination.page > 1,
       stats: result.stats,
-      pagination: result.pagination,
     });
   } catch (error) {
     return ApiErrorHandler.handle(error);
