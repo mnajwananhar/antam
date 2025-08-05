@@ -4,7 +4,7 @@ import { departmentUtils } from "@/lib/utils";
 import { UserRole } from "@prisma/client";
 
 // Routes that require authentication
-const protectedRoutes = ["/dashboard", "/input", "/admin", "/api/protected"];
+const protectedRoutes = ["/dashboard", "/input", "/admin", "/api/protected", "/notifikasi", "/order-list", "/api/orders", "/api/notifications"];
 
 // Routes that are only accessible to admins
 const adminOnlyRoutes = ["/admin"];
@@ -24,6 +24,15 @@ export default auth((req) => {
 
   // Redirect to signin if accessing protected route without auth
   if (isProtectedRoute && !isLoggedIn) {
+    // For API routes, return JSON error instead of redirect
+    if (nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    
+    // For page routes, redirect to signin
     const signInUrl = new URL("/auth/signin", nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return NextResponse.redirect(signInUrl);

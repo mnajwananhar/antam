@@ -57,6 +57,17 @@ interface CreateNotificationForm {
   problemDetail: string;
 }
 
+interface CreateOrderForm {
+  jobName: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  activities: Array<{
+    activity: string;
+    object: string;
+  }>;
+}
+
 export default function NotifikasiPage() {
   const { data: session, status } = useSession();
   const { showSuccess, showError } = useToastContext();
@@ -91,7 +102,9 @@ function NotifikasiContent({
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
+  const [selectedNotificationForOrder, setSelectedNotificationForOrder] = useState<Notification | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PROCESS" | "COMPLETE">("ALL");
   
@@ -100,6 +113,14 @@ function NotifikasiContent({
     reportTime: dateUtils.getCurrentTime(),
     urgency: "NORMAL",
     problemDetail: "",
+  });
+
+  const [createOrderForm, setCreateOrderForm] = useState<CreateOrderForm>({
+    jobName: "",
+    startDate: dateUtils.getCurrentDate(),
+    endDate: "",
+    description: "",
+    activities: [{ activity: "", object: "" }],
   });
 
   // Load departments
@@ -264,10 +285,86 @@ function NotifikasiContent({
     }
   };
 
-  // Handle Create Order (placeholder - will implement later)
-  const handleCreateOrder = (_notificationId: number) => {
-    showSuccess("Fitur Create Order akan segera tersedia");
-    // TODO: Navigate to order creation page or open modal
+  // Handle Create Order - open modal in notification page
+  const handleCreateOrder = (notification: Notification) => {
+    setSelectedNotificationForOrder(notification);
+    setIsCreateOrderDialogOpen(true);
+  };
+
+  // Handle Submit Create Order
+  const handleSubmitCreateOrder = async () => {
+    if (!selectedNotificationForOrder) {
+      showError("Notifikasi tidak ditemukan");
+      return;
+    }
+
+    try {
+      if (!createOrderForm.jobName) {
+        showError("Mohon lengkapi nama pekerjaan");
+        return;
+      }
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notificationId: selectedNotificationForOrder.id,
+          jobName: createOrderForm.jobName,
+          startDate: createOrderForm.startDate,
+          endDate: createOrderForm.endDate || null,
+          description: createOrderForm.description,
+          activities: createOrderForm.activities.filter(a => a.activity && a.object).map(a => ({
+            activity: a.activity,
+            object: a.object,
+            isCompleted: false
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        showSuccess("Order berhasil dibuat");
+        setIsCreateOrderDialogOpen(false);
+        setSelectedNotificationForOrder(null);
+        setCreateOrderForm({
+          jobName: "",
+          startDate: dateUtils.getCurrentDate(),
+          endDate: "",
+          description: "",
+          activities: [{ activity: "", object: "" }],
+        });
+        loadNotifications(); // Refresh to show updated orders count
+      } else {
+        const error = await response.json();
+        showError(error.error || "Gagal membuat order");
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      showError("Terjadi kesalahan saat membuat order");
+    }
+  };
+
+  // Order form functions
+  const addOrderActivity = () => {
+    setCreateOrderForm({
+      ...createOrderForm,
+      activities: [...createOrderForm.activities, { activity: "", object: "" }]
+    });
+  };
+
+  const removeOrderActivity = (index: number) => {
+    setCreateOrderForm({
+      ...createOrderForm,
+      activities: createOrderForm.activities.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateOrderActivity = (index: number, field: keyof CreateOrderForm['activities'][0], value: string) => {
+    const newActivities = [...createOrderForm.activities];
+    newActivities[index][field] = value;
+    setCreateOrderForm({
+      ...createOrderForm,
+      activities: newActivities
+    });
   };
 
   const getUrgencyIcon = (urgency: string) => {
@@ -545,6 +642,117 @@ function NotifikasiContent({
         </Dialog>
       )}
 
+      {/* Create Order Dialog */}
+      {selectedNotificationForOrder && (
+        <Dialog open={isCreateOrderDialogOpen} onOpenChange={setIsCreateOrderDialogOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Buat Order dari Notifikasi: {selectedNotificationForOrder.uniqueNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Nama Pekerjaan *</label>
+                <Input
+                  placeholder="Masukkan nama pekerjaan"
+                  value={createOrderForm.jobName}
+                  onChange={(e) => setCreateOrderForm({...createOrderForm, jobName: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tanggal Mulai *</label>
+                  <Input
+                    type="date"
+                    value={createOrderForm.startDate}
+                    onChange={(e) => setCreateOrderForm({...createOrderForm, startDate: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tanggal Selesai</label>
+                  <Input
+                    type="date"
+                    value={createOrderForm.endDate}
+                    onChange={(e) => setCreateOrderForm({...createOrderForm, endDate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Keterangan</label>
+                <Textarea
+                  placeholder="Deskripsi detail pekerjaan..."
+                  value={createOrderForm.description}
+                  onChange={(e) => setCreateOrderForm({...createOrderForm, description: e.target.value})}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium">Aktivitas & Objek</label>
+                  <Button variant="outline" size="sm" onClick={addOrderActivity}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Tambah
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {createOrderForm.activities.map((activity, index) => (
+                    <div key={index} className="grid grid-cols-11 gap-2 items-center">
+                      <div className="col-span-5">
+                        <Input
+                          placeholder="Aktivitas"
+                          value={activity.activity}
+                          onChange={(e) => updateOrderActivity(index, 'activity', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <Input
+                          placeholder="Objek"
+                          value={activity.object}
+                          onChange={(e) => updateOrderActivity(index, 'object', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        {createOrderForm.activities.length > 1 && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => removeOrderActivity(index)}
+                            className="text-red-600"
+                          >
+                            Hapus
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  onClick={handleSubmitCreateOrder}
+                  className="flex-1"
+                >
+                  Buat Order
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsCreateOrderDialogOpen(false);
+                    setSelectedNotificationForOrder(null);
+                  }}
+                  className="flex-1"
+                >
+                  Batal
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -650,7 +858,7 @@ function NotifikasiContent({
                         variant="outline" 
                         size="sm"
                         className="text-blue-600 hover:text-blue-700"
-                        onClick={() => handleCreateOrder(notification.id)}
+                        onClick={() => handleCreateOrder(notification)}
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Create Order

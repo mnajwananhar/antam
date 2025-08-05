@@ -68,6 +68,12 @@ const navigationItems: NavItem[] = [
     roles: ["ADMIN", "PLANNER", "INPUTTER"],
   },
   {
+    title: "Order List",
+    href: "/order-list",
+    icon: Wrench,
+    roles: ["ADMIN", "PLANNER", "INPUTTER"],
+  },
+  {
     title: "Laporan",
     icon: FileText,
     children: [

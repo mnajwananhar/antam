@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: APP_CONFIG.DESCRIPTION,
   keywords: [
     "ANTAM",
-    "Sistem Monitoring",
+    "Sistem Informasi",
     "Operasional",
     "Pertambangan",
     "Maintenance",
@@ -28,10 +28,10 @@ export const metadata: Metadata = {
   ],
   authors: [
     {
-      name: "ANTAM Development Team",
+      name: "PONGKOR ENGINEERING",
     },
   ],
-  creator: "ANTAM Development Team",
+  creator: "PONGKOR ENGINEERING",
   openGraph: {
     type: "website",
     locale: "id_ID",

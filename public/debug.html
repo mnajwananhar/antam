@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Order List</title>
+    <script>
+        async function testOrdersAPI() {
+            console.log('🚨 Testing Orders API directly...');
+            
+            try {
+                const response = await fetch('/api/orders');
+                console.log('🚨 Response status:', response.status);
+                console.log('🚨 Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('🚨 Response data:', data);
+                    document.getElementById('result').innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p>Found ${data.orders?.length || 0} orders</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    console.log('🚨 Error text:', errorText);
+                    document.getElementById('result').innerHTML = `
+                        <h3>❌ Error!</h3>
+                        <p>Status: ${response.status}</p>
+                        <p>Response: ${errorText}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('🚨 Fetch error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ Fetch Error!</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testAuth() {
+            console.log('🚨 Testing session...');
+            
+            try {
+                const response = await fetch('/api/auth/session');
+                console.log('🚨 Session response:', response.status);
+                
+                if (response.ok) {
+                    const session = await response.json();
+                    console.log('🚨 Session data:', session);
+                    document.getElementById('session').innerHTML = `
+                        <h3>Session Info:</h3>
+                        <pre>${JSON.stringify(session, null, 2)}</pre>
+                    `;
+                } else {
+                    document.getElementById('session').innerHTML = `
+                        <h3>No Session</h3>
+                        <p>Status: ${response.status}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('🚨 Session error:', error);
+            }
+        }
+        
+        window.onload = function() {
+            testAuth();
+            testOrdersAPI();
+        };
+    </script>
+</head>
+<body>
+    <h1>Debug Order List API</h1>
+    <div id="session"></div>
+    <div id="result"></div>
+    <hr>
+    <p><a href="/auth/signin">Login</a> | <a href="/order-list">Order List Page</a></p>
+</body>
+</html>
