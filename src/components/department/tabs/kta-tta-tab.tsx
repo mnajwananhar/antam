@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Session } from "next-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,56 +21,83 @@ interface KtaTtaTabProps {
   editId?: number;
 }
 
-export function KtaTtaTab({ department, session }: KtaTtaTabProps): React.JSX.Element {
+export function KtaTtaTab({
+  department,
+}: Omit<KtaTtaTabProps, "session">): React.JSX.Element {
   const [activeTab, setActiveTab] = useState("upload");
   const [uploadedData, setUploadedData] = useState<ExcelRowData[]>([]);
   const [existingData, setExistingData] = useState<KtaKpiItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  
+
   const { showSuccess, showError } = useToastContext();
 
-  // Load existing data
+  const loadExistingData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      // Smart filtering applied automatically by API
+      const response = await fetch(`/api/kta-tta?dataType=KTA_TTA`);
+      if (response.ok) {
+        const result = await response.json();
+        console.log(
+          "Reloaded KTA-TTA data:",
+          result.data?.length || 0,
+          "records"
+        );
+        setExistingData(result.data || []);
+      } else {
+        showError("Gagal memuat data existing");
+      }
+    } catch {
+      showError("Terjadi kesalahan saat memuat data");
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [showError]);
+
+  // Load existing data with smart PIC filtering
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        const response = await fetch(`/api/kta-tta?dataType=KTA_TTA&pic=${department.code}`);
+        console.log(
+          "Loading KTA-TTA data with smart filtering for department:",
+          {
+            code: department.code,
+            name: department.name,
+          }
+        );
+
+        // Smart filtering: API will automatically filter based on department PIC mapping
+        const response = await fetch(`/api/kta-tta?dataType=KTA_TTA`);
+        console.log("API URL:", `/api/kta-tta?dataType=KTA_TTA`);
+
         if (response.ok) {
           const result = await response.json();
+          console.log(
+            "Loaded KTA-TTA data:",
+            result.data?.length || 0,
+            "records"
+          );
+          console.log(
+            "Smart filtering applied based on user department permissions"
+          );
           setExistingData(result.data || []);
         } else {
           showError("Gagal memuat data existing");
         }
-      } catch (error) {
+      } catch {
         showError("Terjadi kesalahan saat memuat data");
       } finally {
         setIsLoadingData(false);
       }
     };
-    
-    loadData();
-  }, [department.id, department.code]);
 
-  const loadExistingData = async () => {
-    setIsLoadingData(true);
-    try {
-      const response = await fetch(`/api/kta-tta?dataType=KTA_TTA&pic=${department.code}`);
-      if (response.ok) {
-        const result = await response.json();
-        setExistingData(result.data || []);
-      } else {
-        showError("Gagal memuat data existing");
-      }
-    } catch (error) {
-      showError("Terjadi kesalahan saat memuat data");
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
+    loadData();
+  }, [department.id, department.code, department.name, showError]);
 
   const handleDataChange = (data: ExcelRowData[]) => {
-    setUploadedData(data); 
+    setUploadedData(data);
   };
 
   const handleSaveUploadedData = async () => {
@@ -121,13 +148,18 @@ export function KtaTtaTab({ department, session }: KtaTtaTabProps): React.JSX.El
         throw new Error(result.error || "Failed to save data");
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Gagal menyimpan data");
+      showError(
+        error instanceof Error ? error.message : "Gagal menyimpan data"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleStatusChange = async (id: number, newStatus: "OPEN" | "CLOSE") => {
+  const handleStatusChange = async (
+    id: number,
+    newStatus: "OPEN" | "CLOSE"
+  ) => {
     try {
       const response = await fetch(`/api/kta-tta/${id}`, {
         method: "PATCH",
@@ -139,12 +171,31 @@ export function KtaTtaTab({ department, session }: KtaTtaTabProps): React.JSX.El
 
       if (response.ok) {
         showSuccess(`Status berhasil diubah menjadi ${newStatus}`);
-        await loadExistingData();
+
+        // Update status in local state without API call
+        setExistingData((prevData) =>
+          prevData.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  statusTindakLanjut: newStatus,
+                  updateStatus:
+                    newStatus === "CLOSE"
+                      ? "Close"
+                      : item.dueDate && new Date(item.dueDate) < new Date()
+                      ? "Due Date"
+                      : "Proses",
+                }
+              : item
+          )
+        );
       } else {
         throw new Error(result.error || "Failed to update status");
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Gagal mengubah status");
+      showError(
+        error instanceof Error ? error.message : "Gagal mengubah status"
+      );
       throw error; // Re-throw to handle in component
     }
   };
@@ -152,7 +203,6 @@ export function KtaTtaTab({ department, session }: KtaTtaTabProps): React.JSX.El
   const handleView = (item: KtaKpiItem) => {
     console.log("View item:", item);
   };
-
 
   return (
     <div className="space-y-6">
@@ -166,15 +216,19 @@ export function KtaTtaTab({ department, session }: KtaTtaTabProps): React.JSX.El
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Upload dan kelola data KTA (Kartu Tindak Aman) & TTA (Temuan Tindak Aman) untuk departemen {department.name}.
-            Data dapat diupload melalui Excel atau input manual.
+            Upload dan kelola data KTA (Kartu Tindak Aman) & TTA (Temuan Tindak
+            Aman) untuk departemen {department.name}. Data dapat diupload
+            melalui Excel atau input manual.
           </p>
         </CardContent>
       </Card>
 
-
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />

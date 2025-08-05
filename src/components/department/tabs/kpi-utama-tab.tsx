@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Session } from "next-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  TrendingUp,
-  Upload,
-  Table as TableIcon,
-  Building,
-} from "lucide-react";
+import { TrendingUp, Upload, Table as TableIcon, Building } from "lucide-react";
 import { Department } from "@prisma/client";
 import {
   ExcelUpload,
@@ -28,42 +23,53 @@ interface KpiUtamaTabProps {
   editId?: number;
 }
 
-
-export function KpiUtamaTab({ department, session }: KpiUtamaTabProps): React.JSX.Element {
+export function KpiUtamaTab({
+  department,
+}: Omit<KpiUtamaTabProps, "session">): React.JSX.Element {
   const [activeTab, setActiveTab] = useState("upload");
   const [uploadedData, setUploadedData] = useState<ExcelRowData[]>([]);
   const [existingData, setExistingData] = useState<KtaKpiItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  
+
   const { showSuccess, showError } = useToastContext();
 
   // Check if current department has access to KPI Utama
-  const hasAccess = department.code === "BUREAU" || department.name === "MTC&ENG Bureau";
+  const hasAccess =
+    department.code === "BUREAU" || department.name === "MTC&ENG Bureau";
+
+  const loadExistingData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      console.log(
+        "Loading KPI Utama data - MTC&ENG Bureau unrestricted access"
+      );
+      const response = await fetch(`/api/kta-tta?dataType=KPI_UTAMA`);
+      if (response.ok) {
+        const result = await response.json();
+        console.log(
+          "Loaded KPI Utama data:",
+          result.data?.length || 0,
+          "records"
+        );
+        console.log("Unrestricted access - showing data from all departments");
+        setExistingData(result.data || []);
+      } else {
+        showError("Gagal memuat data existing");
+      }
+    } catch {
+      showError("Terjadi kesalahan saat memuat data");
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [showError]);
 
   // Load existing data
   useEffect(() => {
     if (hasAccess) {
       loadExistingData();
     }
-  }, [department.id, hasAccess]);
-
-  const loadExistingData = async () => {
-    setIsLoadingData(true);
-    try {
-      const response = await fetch(`/api/kta-tta?dataType=KPI_UTAMA`);
-      if (response.ok) {
-        const result = await response.json();
-        setExistingData(result.data || []);
-      } else {
-        showError("Gagal memuat data existing");
-      }
-    } catch (error) {
-      showError("Terjadi kesalahan saat memuat data");
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
+  }, [department.id, hasAccess, loadExistingData]);
 
   const handleDataChange = (data: ExcelRowData[]) => {
     setUploadedData(data);
@@ -114,13 +120,18 @@ export function KpiUtamaTab({ department, session }: KpiUtamaTabProps): React.JS
         throw new Error(result.error || "Failed to save data");
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Gagal menyimpan data");
+      showError(
+        error instanceof Error ? error.message : "Gagal menyimpan data"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleStatusChange = async (id: number, newStatus: "OPEN" | "CLOSE") => {
+  const handleStatusChange = async (
+    id: number,
+    newStatus: "OPEN" | "CLOSE"
+  ) => {
     try {
       const response = await fetch(`/api/kta-tta/${id}`, {
         method: "PATCH",
@@ -132,12 +143,31 @@ export function KpiUtamaTab({ department, session }: KpiUtamaTabProps): React.JS
 
       if (response.ok) {
         showSuccess(`Status berhasil diubah menjadi ${newStatus}`);
-        await loadExistingData();
+
+        // Update status in local state without API call
+        setExistingData((prevData) =>
+          prevData.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  statusTindakLanjut: newStatus,
+                  updateStatus:
+                    newStatus === "CLOSE"
+                      ? "Close"
+                      : item.dueDate && new Date(item.dueDate) < new Date()
+                      ? "Due Date"
+                      : "Proses",
+                }
+              : item
+          )
+        );
       } else {
         throw new Error(result.error || "Failed to update status");
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Gagal mengubah status");
+      showError(
+        error instanceof Error ? error.message : "Gagal mengubah status"
+      );
       throw error; // Re-throw to handle in component
     }
   };
@@ -145,7 +175,6 @@ export function KpiUtamaTab({ department, session }: KpiUtamaTabProps): React.JS
   const handleView = (item: KtaKpiItem) => {
     console.log("View item:", item);
   };
-
 
   // If department doesn't have access, show access denied
   if (!hasAccess) {
@@ -187,15 +216,19 @@ export function KpiUtamaTab({ department, session }: KpiUtamaTabProps): React.JS
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Upload dan kelola data KPI (Key Performance Indicator) Utama untuk semua departemen.
-            Sebagai MTC&ENG Bureau, Anda dapat mengelola KPI dari semua departemen.
+            Upload dan kelola data KPI (Key Performance Indicator) Utama untuk
+            semua departemen. Sebagai MTC&ENG Bureau, Anda dapat mengelola KPI
+            dari semua departemen.
           </p>
         </CardContent>
       </Card>
 
-
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />

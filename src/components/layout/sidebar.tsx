@@ -7,8 +7,6 @@ import {
   LayoutDashboard,
   Database,
   Eye,
-  Bell,
-  ClipboardList,
   Users,
   ChevronDown,
   ChevronRight,
@@ -16,6 +14,7 @@ import {
   FileText,
   Wrench,
   AlertTriangle,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -66,12 +65,7 @@ const navigationItems: NavItem[] = [
     title: "Notifikasi",
     href: "/notifikasi",
     icon: Bell,
-    // badge: "New",
-  },
-  {
-    title: "Order List",
-    href: "/order-list",
-    icon: ClipboardList,
+    roles: ["ADMIN", "PLANNER", "INPUTTER"],
   },
   {
     title: "Laporan",

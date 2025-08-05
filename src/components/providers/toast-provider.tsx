@@ -68,7 +68,7 @@ export function ToastProvider({
     clearAllToasts,
   } = useToast();
 
-  const contextValue: ToastContextValue = {
+  const contextValue: ToastContextValue = React.useMemo(() => ({
     showToast,
     showSuccess,
     showError,
@@ -76,7 +76,7 @@ export function ToastProvider({
     showInfo,
     removeToast,
     clearAllToasts,
-  };
+  }), [showToast, showSuccess, showError, showWarning, showInfo, removeToast, clearAllToasts]);
 
   return (
     <ToastContext.Provider value={contextValue}>

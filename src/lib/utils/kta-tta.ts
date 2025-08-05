@@ -1,265 +1,281 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { UserRole, DataType, StatusTindakLanjut } from "@prisma/client";
 
 /**
- * Generate auto-increment registration number
- * Format: UPBE/YY/MM/XXX
+ * Calculate update status based on due date and status tindak lanjut
  */
-export async function generateNoRegister(): Promise<string> {
-  const now = new Date();
-  const year = now.getFullYear().toString().slice(-2); // 25 for 2025
-  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 01-12
-  
-  const prefix = `UPBE/${year}/${month}/`;
-  
-  // Find last number for this month
-  const lastRecord = await prisma.ktaKpiData.findFirst({
-    where: {
-      noRegister: {
-        startsWith: prefix
-      }
-    },
-    orderBy: {
-      noRegister: 'desc'
-    }
-  });
-  
-  let nextNumber = 1;
-  if (lastRecord) {
-    const lastNumber = parseInt(lastRecord.noRegister.split('/').pop() || '0');
-    nextNumber = lastNumber + 1;
+export function calculateUpdateStatus(
+  dueDate: Date | null,
+  statusTindakLanjut: StatusTindakLanjut | null
+): string {
+  if (!dueDate || !statusTindakLanjut) {
+    return "Proses";
   }
-  
-  const formattedNumber = nextNumber.toString().padStart(3, '0');
-  return `${prefix}${formattedNumber}`;
-}
 
-/**
- * Calculate due date based on criteria KTA/TTA
- * Fixed mapping berdasarkan kriteria
- */
-export async function calculateDueDate(tanggal: Date, kriteriaKtaTta: string): Promise<Date | null> {
-  try {
-    // Fixed mapping days berdasarkan kriteria (tidak pakai database)
-    const kriteriaDaysMapping: Record<string, number> = {
-      'Peralatan Bergerak': 14,
-      'Pengelolaan Jalan dan Lalu lintas': 30,
-      'Isolasi Energi': 7,
-      'Pengelolaan Ban': 21,
-      'Bekerja di dekat/atas air': 14,
-      'Bejana bertekanan': 21,
-      'Pelindung mesin / Mesin berat': 14,
-      'Bahan kimia berbahaya dan beracun': 7,
-      'House Keeping & Tata Lingkungan': 7,
-      'Lain-lain': 21
-    };
-    
-    const days = kriteriaDaysMapping[kriteriaKtaTta];
-    if (!days) return null;
-    
-    const dueDate = new Date(tanggal);
-    dueDate.setDate(dueDate.getDate() + days);
-    
-    return dueDate;
-  } catch (error) {
-    console.error('Error calculating due date:', error);
-    return null;
+  if (statusTindakLanjut === "CLOSE") {
+    return "Close";
   }
-}
 
-/**
- * Calculate update status based on Excel formula
- * =IFS(AND(S607<TODAY(),Q607="Open"),"Due Date",Q607="Close","Close",TRUE,"Proses")
- */
-export function calculateUpdateStatus(dueDate: Date | null, statusTindakLanjut: string): string {
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+  today.setHours(0, 0, 0, 0);
   
-  if (dueDate && statusTindakLanjut === 'OPEN') {
-    const dueDateNormalized = new Date(dueDate);
-    dueDateNormalized.setHours(0, 0, 0, 0);
-    
-    if (dueDateNormalized < today) {
-      return 'Due Date'; // Overdue - Red
-    }
-  }
-  
-  if (statusTindakLanjut === 'CLOSE') {
-    return 'Close'; // Completed - Green
-  }
-  
-  return 'Proses'; // In Progress - Yellow
-}
+  const dueDateOnly = new Date(dueDate);
+  dueDateOnly.setHours(0, 0, 0, 0);
 
-/**
- * Get status color for UI
- */
-export function getStatusColor(updateStatus: string): string {
-  switch (updateStatus) {
-    case 'Close':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'Due Date':
-      return 'bg-red-100 text-red-800 border-red-200';
-    case 'Proses':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+  if (dueDateOnly < today) {
+    return "Due Date";
   }
-}
 
-/**
- * Map PIC to department for filtering
- */
-export const PIC_DEPARTMENT_MAPPING = {
-  'ECDC': 'ECDC',
-  'HE - TU': 'HETU',
-  'Mine Electrical': 'MMTC',
-  'Mine Maintenance': 'MMTC',
-  'Plant Maintenance & Civil': 'PMTC'
-} as const;
-
-/**
- * Get allowed PIC options based on user role and department
- */
-export function getAllowedPIC(userRole: string, userDepartment?: string, dataType: 'KTA_TTA' | 'KPI_UTAMA' = 'KTA_TTA'): string[] {
-  const allPIC = Object.keys(PIC_DEPARTMENT_MAPPING);
-  
-  if (dataType === 'KPI_UTAMA') {
-    // KPI Utama - hanya di MTC&ENG, tapi PIC bisa semua dept
-    if (userDepartment === 'MTC&ENG Bureau' || userRole === 'INPUTTER' || userRole === 'ADMIN') {
-      return allPIC; // Can select all departments
-    }
-    return []; // No access if not MTC&ENG
-  } else {
-    // KTA&TTA - semua dept kecuali MTC&ENG
-    if (userDepartment === 'MTC&ENG Bureau') {
-      return []; // MTC&ENG cannot access KTA&TTA
-    }
-    
-    if (userRole === 'INPUTTER' || userRole === 'ADMIN') {
-      return allPIC; // Can select all departments
-    }
-    
-    if (userRole === 'PLANNER' && userDepartment) {
-      // Planner can only select PIC that maps to their department
-      return allPIC.filter(pic => 
-        PIC_DEPARTMENT_MAPPING[pic as keyof typeof PIC_DEPARTMENT_MAPPING] === userDepartment
-      );
-    }
-  }
-  
-  return [];
-}
-
-/**
- * Default criteria options for KTA/TTA
- */
-export const KRITERIA_KTA_TTA_OPTIONS = [
-  'Peralatan Bergerak',
-  'Pengelolaan Jalan dan Lalu lintas',
-  'Isolasi Energi',
-  'Pengelolaan Ban',
-  'Bekerja di dekat/atas air',
-  'Bejana bertekanan',
-  'Pelindung mesin / Mesin berat',
-  'Bahan kimia berbahaya dan beracun',
-  'House Keeping & Tata Lingkungan',
-  'Lain-lain'
-];
-
-/**
- * Initialize default criteria (tanpa days)
- */
-export async function initializeDefaultKriteria(): Promise<void> {
-  const count = await prisma.kriteriaKtaTta.count();
-  
-  if (count === 0) {
-    const defaultKriteria = [
-      { kriteria: 'Peralatan Bergerak' },
-      { kriteria: 'Pengelolaan Jalan dan Lalu lintas' },
-      { kriteria: 'Isolasi Energi' },
-      { kriteria: 'Pengelolaan Ban' },
-      { kriteria: 'Bekerja di dekat/atas air' },
-      { kriteria: 'Bejana bertekanan' },
-      { kriteria: 'Pelindung mesin / Mesin berat' },
-      { kriteria: 'Bahan kimia berbahaya dan beracun' },
-      { kriteria: 'House Keeping & Tata Lingkungan' },
-      { kriteria: 'Lain-lain' }
-    ];
-    
-    await prisma.kriteriaKtaTta.createMany({
-      data: defaultKriteria
-    });
-  }
+  return "Proses";
 }
 
 /**
  * Check if user has access to specific data type
  */
 export function hasDataTypeAccess(
-  userRole: string, 
-  userDepartment: string | undefined, 
-  dataType: 'KTA_TTA' | 'KPI_UTAMA'
+  userRole: UserRole,
+  userDepartment: string | undefined,
+  dataType: DataType
 ): boolean {
-  if (userRole === 'ADMIN') return true;
-  
-  if (dataType === 'KPI_UTAMA') {
-    // KPI Utama only for MTC&ENG Bureau
-    return userDepartment === 'MTC&ENG Bureau' || userRole === 'INPUTTER';
-  } else {
-    // KTA&TTA for all departments except MTC&ENG Bureau
-    return userDepartment !== 'MTC&ENG Bureau';
+  // Admin has access to everything
+  if (userRole === UserRole.ADMIN) {
+    return true;
+  }
+
+  // Inputter has access to everything
+  if (userRole === UserRole.INPUTTER) {
+    return true;
+  }
+
+  // Planner access rules
+  if (userRole === UserRole.PLANNER) {
+    // KPI_UTAMA is only for MTC&ENG Bureau
+    if (dataType === DataType.KPI_UTAMA) {
+      return userDepartment === "MTC&ENG Bureau";
+    }
+    
+    // KTA_TTA is for all departments except MTC&ENG Bureau
+    if (dataType === DataType.KTA_TTA) {
+      return userDepartment !== "MTC&ENG Bureau";
+    }
+  }
+
+  // Viewer has read-only access to everything
+  if (userRole === UserRole.VIEWER) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get allowed PIC departments based on user role and data type
+ */
+export function getAllowedPIC(
+  userRole: UserRole,
+  userDepartment: string | undefined,
+  dataType: DataType
+): string[] {
+  const allDepartments = [
+    "MTC&ENG Bureau",
+    "MMTC", 
+    "PMTC",
+    "ECDC",
+    "HETU"
+  ];
+
+  // Admin and users from MTC&ENG Bureau can access all departments for KPI_UTAMA
+  if (userRole === UserRole.ADMIN || userDepartment === "MTC&ENG Bureau") {
+    if (dataType === DataType.KPI_UTAMA) {
+      return allDepartments;
+    }
+  }
+
+  // Inputter can access all departments
+  if (userRole === UserRole.INPUTTER) {
+    return allDepartments;
+  }
+
+  // Planner can only access their own department for KTA_TTA
+  if (userRole === UserRole.PLANNER && userDepartment) {
+    if (dataType === DataType.KTA_TTA) {
+      return [userDepartment];
+    }
+  }
+
+  // Default case
+  if (userDepartment) {
+    return [userDepartment];
+  }
+
+  return allDepartments;
+}
+
+/**
+ * Initialize default KTA/TTA criteria
+ */
+export async function initializeDefaultKriteria(): Promise<void> {
+  const defaultKriteria = [
+    "Kebersihan area kerja",
+    "Penggunaan APD lengkap",
+    "Kondisi peralatan kerja",
+    "Prosedur kerja sesuai SOP",
+    "Housekeeping area kerja",
+    "Pengelolaan limbah",
+    "Kondisi akses jalan",
+    "Sistem pencahayaan",
+    "Ventilasi area kerja",
+    "Kondisi emergency exit"
+  ];
+
+  try {
+    // Check if criteria already exist
+    const existingCount = await prisma.kriteriaKtaTta.count();
+    
+    if (existingCount === 0) {
+      // Insert default criteria
+      await prisma.kriteriaKtaTta.createMany({
+        data: defaultKriteria.map(kriteria => ({
+          kriteria,
+          isActive: true
+        })),
+        skipDuplicates: true
+      });
+    }
+  } catch (error) {
+    console.error("Error initializing default criteria:", error);
+    throw new Error("Failed to initialize default criteria");
   }
 }
 
 /**
- * Smart mapping untuk kriteria dengan nomor urut
- * "01. Peralatan Bergerak" → "Peralatan Bergerak"
+ * Validate KTA/TTA data
+ */
+export function validateKtaData(data: Record<string, unknown>): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (!data.nppPelapor) {
+    errors.push("NPP Pelapor is required");
+  }
+
+  if (!data.namaPelapor) {
+    errors.push("Nama Pelapor is required");
+  }
+
+  if (!data.tanggal) {
+    errors.push("Tanggal is required");
+  }
+
+  if (!data.lokasi) {
+    errors.push("Lokasi is required");
+  }
+
+  if (!data.keterangan) {
+    errors.push("Keterangan is required");
+  }
+
+  if (!data.picDepartemen) {
+    errors.push("PIC Departemen is required");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Generate unique register number for KTA/TTA
+ */
+export async function generateRegisterNumber(dataType: DataType): Promise<string> {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  
+  const prefix = dataType === DataType.KTA_TTA ? "KTA" : "KPI";
+  const baseNumber = `${prefix}-${year}${month}`;
+
+  // Count existing records with similar pattern
+  const existingCount = await prisma.ktaKpiData.count({
+    where: {
+      noRegister: {
+        startsWith: baseNumber
+      }
+    }
+  });
+
+  const sequenceNumber = String(existingCount + 1).padStart(4, "0");
+  return `${baseNumber}-${sequenceNumber}`;
+}
+
+/**
+ * Department mapping utilities
+ */
+export const departmentMapping = {
+  "MTC&ENG Bureau": "MTCENG",
+  "MMTC": "MMTC",
+  "PMTC": "PMTC", 
+  "ECDC": "ECDC",
+  "HETU": "HETU"
+} as const;
+
+export function getDepartmentCode(departmentName: string): string {
+  return departmentMapping[departmentName as keyof typeof departmentMapping] || "UNKNOWN";
+}
+
+export function getDepartmentName(departmentCode: string): string {
+  const entry = Object.entries(departmentMapping).find(([, code]) => code === departmentCode);
+  return entry ? entry[0] : departmentCode;
+}
+
+/**
+ * Clean kriteria KTA/TTA string
  */
 export function cleanKriteriaKtaTta(kriteria: string): string {
-  if (!kriteria) return kriteria;
+  if (!kriteria) return "";
   
-  // Remove nomor urut di depan (format: "01. ", "02. ", dll)
-  const cleaned = kriteria.replace(/^\d+\.\s*/, '').trim();
-  
-  // Mapping alternatif nama
-  const kriteriaMapping: Record<string, string> = {
-    'peralatan bergerak': 'Peralatan Bergerak',
-    'pengelolaan jalan dan lalu lintas': 'Pengelolaan Jalan dan Lalu lintas',
-    'pengelolaan jalan dan lalulintas': 'Pengelolaan Jalan dan Lalu lintas',
-    'isolasi energi': 'Isolasi Energi',
-    'pengelolaan ban': 'Pengelolaan Ban',
-    'bekerja di dekat/atas air': 'Bekerja di dekat/atas air',
-    'bekerja di dekat atas air': 'Bekerja di dekat/atas air',
-    'bejana bertekanan': 'Bejana bertekanan',
-    'pelindung mesin / mesin berat': 'Pelindung mesin / Mesin berat',
-    'pelindung mesin mesin berat': 'Pelindung mesin / Mesin berat',
-    'bahan kimia berbahaya dan beracun': 'Bahan kimia berbahaya dan beracun',
-    'house keeping & tata lingkungan': 'House Keeping & Tata Lingkungan',
-    'house keeping tata lingkungan': 'House Keeping & Tata Lingkungan',
-    'housekeeping & tata lingkungan': 'House Keeping & Tata Lingkungan',
-    'lain-lain': 'Lain-lain',
-    'lain lain': 'Lain-lain'
-  };
-  
-  const normalizedKey = cleaned.toLowerCase().trim();
-  return kriteriaMapping[normalizedKey] || cleaned;
+  return kriteria
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^\w\s&-]/g, "");
 }
 
 /**
- * Format date to Indonesian locale
+ * Calculate due date based on tanggal and kriteria
  */
-export function formatDate(dateString?: string | Date): string {
-  if (!dateString) return '-';
-  try {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric'
-    });
-  } catch {
-    return String(dateString);
+export async function calculateDueDate(
+  tanggal: Date,
+  _kriteriaKtaTta: string
+): Promise<Date> {
+  // Default due date is 30 days from tanggal
+  const dueDate = new Date(tanggal);
+  dueDate.setDate(dueDate.getDate() + 30);
+  
+  // You can add more complex logic here based on kriteria
+  // For now, just return the default due date
+  return dueDate;
+}
+
+/**
+ * Build PIC where clause for queries
+ */
+export function buildPICWhereClause(
+  userRole: UserRole,
+  userDepartment: string | undefined,
+  dataType: DataType,
+  filters: Record<string, unknown> = {}
+): Record<string, unknown> {
+  const whereClause: Record<string, unknown> = {
+    dataType,
+    ...filters
+  };
+
+  // Role-based filtering
+  if (userRole === UserRole.PLANNER && userDepartment) {
+    if (dataType === DataType.KTA_TTA) {
+      whereClause.picDepartemen = userDepartment;
+    }
   }
+
+  return whereClause;
 }

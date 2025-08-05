@@ -92,8 +92,8 @@ export function KtaKpiInputTable({
   const [selectedItem, setSelectedItem] = useState<KtaKpiItem | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [updatingItems, setUpdatingItems] = useState<Set<number>>(new Set());
-  
-  const { showSuccess, showError } = useToastContext();
+
+  const { showError } = useToastContext();
 
   const formatDate = (date: Date | string | undefined) => {
     if (!date) return "-";
@@ -158,17 +158,20 @@ export function KtaKpiInputTable({
     }
   };
 
-  const handleStatusChange = async (item: KtaKpiItem, newStatus: "OPEN" | "CLOSE") => {
+  const handleStatusChange = async (
+    item: KtaKpiItem,
+    newStatus: "OPEN" | "CLOSE"
+  ) => {
     if (!onStatusChange) return;
 
-    setUpdatingItems(prev => new Set(prev).add(item.id));
+    setUpdatingItems((prev) => new Set(prev).add(item.id));
     try {
       await onStatusChange(item.id, newStatus);
-      showSuccess(`Status berhasil diubah menjadi ${newStatus}`);
+      // Toast notification handled by parent component
     } catch {
       showError("Gagal mengubah status");
     } finally {
-      setUpdatingItems(prev => {
+      setUpdatingItems((prev) => {
         const newSet = new Set(prev);
         newSet.delete(item.id);
         return newSet;
@@ -203,15 +206,18 @@ export function KtaKpiInputTable({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"}</CardTitle>
+          <CardTitle>
+            Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Belum Ada Data</h3>
             <p className="text-muted-foreground">
-              Belum ada data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"} yang tersimpan.
-              Upload file Excel untuk menambah data.
+              Belum ada data{" "}
+              {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"} yang
+              tersimpan. Upload file Excel untuk menambah data.
             </p>
           </div>
         </CardContent>
@@ -224,13 +230,16 @@ export function KtaKpiInputTable({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"} ({data.length})</span>
+            <span>
+              Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"} (
+              {data.length})
+            </span>
             <Badge variant="outline">{data.length} records</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {/* Fixed Width Table Container with Horizontal Scroll */}
-          <div 
+          <div
             className="border bg-background overflow-auto w-full max-w-[calc(100vw-32px)] md:max-w-[calc(100vw-320px)]"
             style={{ maxHeight }}
           >
@@ -243,9 +252,13 @@ export function KtaKpiInputTable({
                   <TableHead className="w-32">Lokasi</TableHead>
                   <TableHead className="w-48">Keterangan</TableHead>
                   <TableHead className="w-24 text-center">Status</TableHead>
-                  <TableHead className="w-28 text-center">Update Status</TableHead>
+                  <TableHead className="w-28 text-center">
+                    Update Status
+                  </TableHead>
                   <TableHead className="w-24 text-center">Due Date</TableHead>
-                  <TableHead className="w-32 text-center">Ubah Status</TableHead>
+                  <TableHead className="w-32 text-center">
+                    Ubah Status
+                  </TableHead>
                   <TableHead className="w-20 text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -260,20 +273,29 @@ export function KtaKpiInputTable({
                     </TableCell>
                     <TableCell className="text-xs">
                       <div>
-                        <div className="font-medium">{item.namaPelapor || "-"}</div>
-                        <div className="text-muted-foreground">{item.nppPelapor || "-"}</div>
+                        <div className="font-medium">
+                          {item.namaPelapor || "-"}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {item.nppPelapor || "-"}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
                       <div>
                         <div>{item.lokasi || "-"}</div>
                         {item.areaTemuan && (
-                          <div className="text-muted-foreground">({item.areaTemuan})</div>
+                          <div className="text-muted-foreground">
+                            ({item.areaTemuan})
+                          </div>
                         )}
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
-                      <div className="max-w-48 truncate" title={item.keterangan}>
+                      <div
+                        className="max-w-48 truncate"
+                        title={item.keterangan}
+                      >
                         {item.keterangan || "-"}
                       </div>
                     </TableCell>
@@ -290,7 +312,7 @@ export function KtaKpiInputTable({
                       {onStatusChange && (
                         <Select
                           value={item.statusTindakLanjut || "OPEN"}
-                          onValueChange={(value: "OPEN" | "CLOSE") => 
+                          onValueChange={(value: "OPEN" | "CLOSE") =>
                             handleStatusChange(item, value)
                           }
                           disabled={updatingItems.has(item.id)}
@@ -421,7 +443,7 @@ export function KtaKpiInputTable({
                     Update Status
                   </label>
                   <div className="mt-1">
-                    {getUpdateStatusBadge(selectedItem.updateStatus, selectedItem.dueDate)}
+                    {getUpdateStatusBadge(selectedItem.updateStatus)}
                   </div>
                 </div>
                 <div>
@@ -433,7 +455,9 @@ export function KtaKpiInputTable({
               </div>
 
               {/* Additional Info */}
-              {(selectedItem.kategori || selectedItem.sumberTemuan || selectedItem.kriteriaKtaTta) && (
+              {(selectedItem.kategori ||
+                selectedItem.sumberTemuan ||
+                selectedItem.kriteriaKtaTta) && (
                 <div className="grid grid-cols-1 gap-4">
                   {selectedItem.kategori && (
                     <div>
@@ -468,7 +492,9 @@ export function KtaKpiInputTable({
                   <div>
                     <span>Dibuat: {formatDate(selectedItem.createdAt)}</span>
                     {selectedItem.createdBy && (
-                      <span className="block">oleh {selectedItem.createdBy.username}</span>
+                      <span className="block">
+                        oleh {selectedItem.createdBy.username}
+                      </span>
                     )}
                   </div>
                   <div>
@@ -480,7 +506,10 @@ export function KtaKpiInputTable({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
               Tutup
             </Button>
           </DialogFooter>

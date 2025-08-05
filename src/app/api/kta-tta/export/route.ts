@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const exportData = data.map((record) => {
       const updateStatus = calculateUpdateStatus(
         record.dueDate,
-        record.statusTindakLanjut || ""
+        record.statusTindakLanjut || null
       );
 
       return {

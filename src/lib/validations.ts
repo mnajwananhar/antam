@@ -1,10 +1,5 @@
 import { z } from "zod";
-import {
-  UserRole,
-  DataType,
-  NotificationUrgency,
-  EquipmentStatus,
-} from "@prisma/client";
+import { UserRole, DataType, EquipmentStatus } from "@prisma/client";
 
 // Auth schemas
 export const loginSchema = z.object({
@@ -166,57 +161,6 @@ export const bulkKtaKpiDataSchema = z.object({
   data: z.array(ktaKpiDataSchema),
 });
 
-// Notification schemas
-export const notificationSchema = z.object({
-  departmentId: z.number(),
-  reportTime: z
-    .string()
-    .regex(
-      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-      "Format waktu tidak valid (HH:MM)"
-    ),
-  urgency: z.nativeEnum(NotificationUrgency),
-  problemDetail: z
-    .string()
-    .min(5, "Detail masalah minimal 5 karakter")
-    .max(1000, "Detail masalah maksimal 1000 karakter")
-    .trim(),
-});
-
-export const updateNotificationSchema = notificationSchema
-  .extend({
-    status: z.enum(["PROCESS", "COMPLETE"]),
-  })
-  .partial()
-  .extend({
-    // Make some fields optional for updates
-    problemDetail: z
-      .string()
-      .min(5, "Detail masalah minimal 5 karakter")
-      .max(1000, "Detail masalah maksimal 1000 karakter")
-      .trim()
-      .optional(),
-  });
-
-// Order schemas
-export const orderActivitySchema = z.object({
-  activity: z.string().min(1, "Activity is required"),
-  object: z.string().min(1, "Object is required"),
-  isCompleted: z.boolean().default(false),
-});
-
-export const orderSchema = z.object({
-  notificationId: z.number(),
-  jobName: z.string().min(1, "Job name is required"),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format")
-    .optional(),
-  description: z.string().optional(),
-  activities: z.array(orderActivitySchema),
-});
-
 // Maintenance routine schemas
 export const maintenanceActivitySchema = z.object({
   activity: z.string().min(1, "Activity is required"),
@@ -312,8 +256,6 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type OperationalReportInput = z.infer<typeof operationalReportSchema>;
 export type KtaKpiDataInput = z.infer<typeof ktaKpiDataSchema>;
-export type NotificationInput = z.infer<typeof notificationSchema>;
-export type OrderInput = z.infer<typeof orderSchema>;
 export type MaintenanceRoutineInput = z.infer<typeof maintenanceRoutineSchema>;
 export type CriticalIssueInput = z.infer<typeof criticalIssueSchema>;
 export type SafetyIncidentInput = z.infer<typeof safetyIncidentSchema>;

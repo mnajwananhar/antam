@@ -4,14 +4,7 @@ import { departmentUtils } from "@/lib/utils";
 import { UserRole } from "@prisma/client";
 
 // Routes that require authentication
-const protectedRoutes = [
-  "/dashboard",
-  "/input",
-  "/notifikasi",
-  "/order-list",
-  "/admin",
-  "/api/protected",
-];
+const protectedRoutes = ["/dashboard", "/input", "/admin", "/api/protected"];
 
 // Routes that are only accessible to admins
 const adminOnlyRoutes = ["/admin"];

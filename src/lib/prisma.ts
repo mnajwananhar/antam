@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== "production") {
 // Database utility functions
 export const dbUtils = {
   /**
-   * Generate unique number for notifications and maintenance
+   * Generate unique number for maintenance
    */
   generateUniqueNumber: (
     departmentCode: string,
@@ -37,31 +37,19 @@ export const dbUtils = {
    * Get next sequence number for unique number generation
    */
   getNextSequenceNumber: async (
-    table: "notification" | "maintenanceRoutine",
+    table: "maintenanceRoutine",
     departmentCode: string,
     date: Date
   ): Promise<number> => {
     const dateStr = date.toISOString().split("T")[0].replace(/-/g, "");
 
-    let count: number;
-
-    if (table === "notification") {
-      count = await prisma.notification.count({
-        where: {
-          uniqueNumber: {
-            startsWith: `${departmentCode}-${dateStr}-`,
-          },
+    const count = await prisma.maintenanceRoutine.count({
+      where: {
+        uniqueNumber: {
+          startsWith: `${departmentCode}-${dateStr}-`,
         },
-      });
-    } else {
-      count = await prisma.maintenanceRoutine.count({
-        where: {
-          uniqueNumber: {
-            startsWith: `${departmentCode}-${dateStr}-`,
-          },
-        },
-      });
-    }
+      },
+    });
 
     return count + 1;
   },

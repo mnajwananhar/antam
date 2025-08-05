@@ -15,11 +15,9 @@ export async function GET() {
       parseInt(session.user.id)
     );
 
-    return Response.json(
-      apiUtils.createApiResponse(
-        accessibleDepartments,
-        "Departments retrieved successfully"
-      )
+    return apiUtils.createApiResponse(
+      accessibleDepartments,
+      "Departments retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching departments:", error);

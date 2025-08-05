@@ -138,12 +138,12 @@ export const departmentUtils = {
     // Handle specific known department slugs for exact matching
     const slugMap: Record<string, string> = {
       "mtc-eng-bureau": "MTC&ENG Bureau",
-      "mmtc": "MMTC",
-      "pmtc": "PMTC",
-      "ecdc": "ECDC",
-      "hetu": "HETU",
+      mmtc: "MMTC",
+      pmtc: "PMTC",
+      ecdc: "ECDC",
+      hetu: "HETU",
     };
-    
+
     return (
       slugMap[slug] ||
       // Fallback to generic conversion
@@ -304,11 +304,11 @@ export const apiUtils = {
   },
 
   createApiResponse: <T>(data: T, message?: string) => {
-    return {
+    return Response.json({
       success: true,
       data,
       message: message || "Operation successful",
-    };
+    });
   },
 
   createApiError: (message: string, status: number = 500) => {
@@ -344,33 +344,6 @@ export const equipmentUtils = {
     };
     return (
       badgeColors[status as keyof typeof badgeColors] ||
-      "bg-gray-100 text-gray-800"
-    );
-  },
-};
-
-// Notification utilities
-export const notificationUtils = {
-  getUrgencyColor: (urgency: string): string => {
-    const urgencyColors = {
-      NORMAL: "text-blue-600 bg-blue-50",
-      URGENT: "text-orange-600 bg-orange-50",
-      EMERGENCY: "text-red-600 bg-red-50",
-    };
-    return (
-      urgencyColors[urgency as keyof typeof urgencyColors] ||
-      "text-gray-600 bg-gray-50"
-    );
-  },
-
-  getUrgencyBadgeColor: (urgency: string): string => {
-    const badgeColors = {
-      NORMAL: "bg-blue-100 text-blue-800",
-      URGENT: "bg-orange-100 text-orange-800",
-      EMERGENCY: "bg-red-100 text-red-800",
-    };
-    return (
-      badgeColors[urgency as keyof typeof badgeColors] ||
       "bg-gray-100 text-gray-800"
     );
   },

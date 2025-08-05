@@ -5,6 +5,7 @@ import {
   calculateUpdateStatus,
   getAllowedPIC,
   hasDataTypeAccess,
+  buildPICWhereClause,
 } from "@/lib/utils/kta-tta";
 
 // GET /api/kta-tta - Fetch KTA/TTA data with filtering
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest) {
     const picFilter = searchParams.get("pic");
     const statusFilter = searchParams.get("status");
     const search = searchParams.get("search");
+    const limit = parseInt(searchParams.get("limit") || "1000"); // Default limit for scalability
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     // Check if user has access to this data type
     if (
@@ -37,26 +40,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build where clause based on user permissions
-    const whereClause: Record<string, unknown> = {
-      dataType: dataType,
-    };
-
-    // Apply PIC filtering based on user role
-    const allowedPIC = getAllowedPIC(
+    // Build optimized where clause for high scalability
+    const whereClause = buildPICWhereClause(
       session.user.role,
       session.user.departmentName || undefined,
       dataType
     );
-    if (allowedPIC.length > 0) {
-      whereClause.picDepartemen = {
-        in: allowedPIC,
-      };
-    }
 
-    // Apply additional filters
-    if (picFilter) {
-      whereClause.picDepartemen = picFilter;
+    // Apply additional filters (respecting PIC filtering)
+    if (picFilter && whereClause.picDepartemen !== undefined) {
+      // Only apply picFilter if user has access to that PIC
+      const allowedPICs = getAllowedPIC(
+        session.user.role,
+        session.user.departmentName || undefined,
+        dataType
+      );
+      
+      if (allowedPICs.length === 0 || allowedPICs.includes(picFilter)) {
+        whereClause.picDepartemen = picFilter;
+      }
     }
 
     if (statusFilter) {
@@ -72,31 +74,49 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Optimized query with pagination for high scalability
     const data = await prisma.ktaKpiData.findMany({
       where: whereClause,
       include: {
         createdBy: {
           select: {
+            id: true,
             username: true,
             role: true,
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" } // Secondary sort for consistent pagination
+      ],
+      take: Math.min(limit, 5000), // Cap at 5000 for performance
+      skip: offset,
     });
+
+    // Get total count for pagination (only if needed)
+    const totalCount = offset === 0 && data.length < limit 
+      ? data.length 
+      : await prisma.ktaKpiData.count({ where: whereClause });
 
     // Calculate update status for each record
     const dataWithUpdateStatus = data.map((record) => ({
       ...record,
       updateStatus: calculateUpdateStatus(
         record.dueDate,
-        record.statusTindakLanjut || ""
+        record.statusTindakLanjut || null
       ),
     }));
 
-    return NextResponse.json({ data: dataWithUpdateStatus });
+    return NextResponse.json({ 
+      data: dataWithUpdateStatus,
+      meta: {
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: totalCount > (offset + data.length)
+      }
+    });
   } catch (error) {
     console.error("Error fetching KTA/TTA data:", error);
     return NextResponse.json(

@@ -85,7 +85,7 @@ const COLUMN_HEADERS = {
 
 const REQUIRED_COLUMNS = [
   "nppPelapor",
-  "namaPelapor", 
+  "namaPelapor",
   "tanggal",
   "lokasi",
   "keterangan",
@@ -106,11 +106,12 @@ export function ExcelUpload({
     column: string;
   } | null>(null);
   const [editValue, setEditValue] = useState("");
-  
+
   const { showSuccess, showError, showInfo } = useToastContext();
 
   // Generate unique ID for new rows
-  const generateId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const generateId = () =>
+    `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   // Handle file upload
   const handleFileUpload = useCallback(
@@ -137,7 +138,9 @@ export function ExcelUpload({
           }) as string[][];
 
           if (jsonData.length < 2) {
-            throw new Error("File Excel harus memiliki minimal header dan satu baris data");
+            throw new Error(
+              "File Excel harus memiliki minimal header dan satu baris data"
+            );
           }
 
           // Map headers to our column keys
@@ -152,21 +155,21 @@ export function ExcelUpload({
             "NPP Pelapor/ Nomor Pegawai": "nppPelapor",
             "Nama Pelapor": "namaPelapor",
             "Perusahaan/ Biro": "perusahaanBiro",
-            "Tanggal": "tanggal",
-            "Lokasi": "lokasi",
+            Tanggal: "tanggal",
+            Lokasi: "lokasi",
             "Area Temuan": "areaTemuan",
-            "Keterangan": "keterangan",
-            "Foto": "fotoUrl",
-            "Kategori": "kategori",
+            Keterangan: "keterangan",
+            Foto: "fotoUrl",
+            Kategori: "kategori",
             "Sumber Temuan": "sumberTemuan",
-            "PIC": "picDepartemen",
+            PIC: "picDepartemen",
             "Kriteria KTA/TTA": "kriteriaKtaTta",
             "Perusahaan Pengelola": "perusahaanPengelola",
             "Tindak Lanjut Secara Langsung": "tindakLanjutLangsung",
             "Status Tindak Lanjut": "statusTindakLanjut",
-            "Biro": "biro",
+            Biro: "biro",
             "Due Date": "dueDate",
-            "Update Status": "updateStatus"
+            "Update Status": "updateStatus",
           };
 
           for (let i = 1; i < jsonData.length; i++) {
@@ -183,48 +186,77 @@ export function ExcelUpload({
               if (header && row[index] !== undefined) {
                 // Use exact header mapping first
                 let key = headerMapping[header.trim()];
-                
+
                 // If no exact match, try fuzzy matching
                 if (!key) {
                   const normalizedHeader = header.toLowerCase().trim();
-                  if (normalizedHeader.includes('register')) key = 'noRegister';
-                  else if (normalizedHeader.includes('npp') || normalizedHeader.includes('nomor pegawai')) key = 'nppPelapor';
-                  else if (normalizedHeader.includes('nama pelapor')) key = 'namaPelapor';
-                  else if (normalizedHeader.includes('perusahaan') && normalizedHeader.includes('biro')) key = 'perusahaanBiro';
-                  else if (normalizedHeader.includes('tanggal')) key = 'tanggal';
-                  else if (normalizedHeader.includes('lokasi')) key = 'lokasi';
-                  else if (normalizedHeader.includes('area temuan')) key = 'areaTemuan';
-                  else if (normalizedHeader.includes('keterangan')) key = 'keterangan';
-                  else if (normalizedHeader.includes('foto')) key = 'fotoUrl';
-                  else if (normalizedHeader.includes('kategori')) key = 'kategori';
-                  else if (normalizedHeader.includes('sumber temuan')) key = 'sumberTemuan';
-                  else if (normalizedHeader.includes('pic') && !normalizedHeader.includes('kriteria')) key = 'picDepartemen';
-                  else if (normalizedHeader.includes('kriteria')) key = 'kriteriaKtaTta';
-                  else if (normalizedHeader.includes('perusahaan pengelola')) key = 'perusahaanPengelola';
-                  else if (normalizedHeader.includes('tindak lanjut')) key = 'tindakLanjutLangsung';
-                  else if (normalizedHeader.includes('status')) key = 'statusTindakLanjut';
-                  else if (normalizedHeader.includes('biro')) key = 'biro';
-                  else if (normalizedHeader.includes('due date')) key = 'dueDate';
-                  else if (normalizedHeader.includes('update status')) key = 'updateStatus';
+                  if (normalizedHeader.includes("register")) key = "noRegister";
+                  else if (
+                    normalizedHeader.includes("npp") ||
+                    normalizedHeader.includes("nomor pegawai")
+                  )
+                    key = "nppPelapor";
+                  else if (normalizedHeader.includes("nama pelapor"))
+                    key = "namaPelapor";
+                  else if (
+                    normalizedHeader.includes("perusahaan") &&
+                    normalizedHeader.includes("biro")
+                  )
+                    key = "perusahaanBiro";
+                  else if (normalizedHeader.includes("tanggal"))
+                    key = "tanggal";
+                  else if (normalizedHeader.includes("lokasi")) key = "lokasi";
+                  else if (normalizedHeader.includes("area temuan"))
+                    key = "areaTemuan";
+                  else if (normalizedHeader.includes("keterangan"))
+                    key = "keterangan";
+                  else if (normalizedHeader.includes("foto")) key = "fotoUrl";
+                  else if (normalizedHeader.includes("kategori"))
+                    key = "kategori";
+                  else if (normalizedHeader.includes("sumber temuan"))
+                    key = "sumberTemuan";
+                  else if (
+                    normalizedHeader.includes("pic") &&
+                    !normalizedHeader.includes("kriteria")
+                  )
+                    key = "picDepartemen";
+                  else if (normalizedHeader.includes("kriteria"))
+                    key = "kriteriaKtaTta";
+                  else if (normalizedHeader.includes("perusahaan pengelola"))
+                    key = "perusahaanPengelola";
+                  else if (normalizedHeader.includes("tindak lanjut"))
+                    key = "tindakLanjutLangsung";
+                  else if (normalizedHeader.includes("status"))
+                    key = "statusTindakLanjut";
+                  else if (normalizedHeader.includes("biro")) key = "biro";
+                  else if (normalizedHeader.includes("due date"))
+                    key = "dueDate";
+                  else if (normalizedHeader.includes("update status"))
+                    key = "updateStatus";
                 }
-                
+
                 if (key && row[index] !== undefined && row[index] !== null) {
                   const cellValue = row[index].toString().trim();
-                  
+
                   // Handle date fields
-                  if (key === 'tanggal' || key === 'dueDate') {
+                  if (key === "tanggal" || key === "dueDate") {
                     if (cellValue) {
                       try {
                         // Handle Excel date serial numbers
                         let date: Date;
-                        if (!isNaN(Number(cellValue)) && Number(cellValue) > 40000) {
+                        if (
+                          !isNaN(Number(cellValue)) &&
+                          Number(cellValue) > 40000
+                        ) {
                           // Excel serial date (starts from 1900-01-01)
-                          date = new Date((Number(cellValue) - 25569) * 86400 * 1000);
+                          date = new Date(
+                            (Number(cellValue) - 25569) * 86400 * 1000
+                          );
                         } else {
                           // Regular date string
                           date = new Date(cellValue);
                         }
-                        
+
                         if (!isNaN(date.getTime())) {
                           mappedRow[key] = date.toISOString().split("T")[0];
                         } else {
@@ -252,10 +284,15 @@ export function ExcelUpload({
 
           setData(mappedData);
           onDataChange(mappedData);
-          setSuccess(`Berhasil memuat ${mappedData.length} baris data dari Excel`);
-          showSuccess(`Berhasil memuat ${mappedData.length} baris data dari Excel`);
+          setSuccess(
+            `Berhasil memuat ${mappedData.length} baris data dari Excel`
+          );
+          showSuccess(
+            `Berhasil memuat ${mappedData.length} baris data dari Excel`
+          );
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "Gagal membaca file Excel";
+          const errorMessage =
+            err instanceof Error ? err.message : "Gagal membaca file Excel";
           setError(errorMessage);
           showError(errorMessage);
         } finally {
@@ -272,11 +309,15 @@ export function ExcelUpload({
 
       reader.readAsArrayBuffer(file);
     },
-    [onDataChange]
+    [onDataChange, showError, showSuccess]
   );
 
   // Handle cell editing
-  const handleCellEdit = (rowId: string, column: string, currentValue: string) => {
+  const handleCellEdit = (
+    rowId: string,
+    column: string,
+    currentValue: string
+  ) => {
     setEditingCell({ rowId, column });
     setEditValue(currentValue);
   };
@@ -404,7 +445,7 @@ export function ExcelUpload({
                 className="cursor-pointer"
               />
             </div>
-            
+
             <Button
               variant="outline"
               onClick={downloadTemplate}
@@ -455,155 +496,203 @@ export function ExcelUpload({
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Preview Data ({data.length} baris)</span>
-              <Badge variant={data.every((row) => getRowValidation(row).isValid) ? "default" : "destructive"}>
-                {data.filter((row) => getRowValidation(row).isValid).length} valid / {data.length} total
+              <Badge
+                variant={
+                  data.every((row) => getRowValidation(row).isValid)
+                    ? "default"
+                    : "destructive"
+                }
+              >
+                {data.filter((row) => getRowValidation(row).isValid).length}{" "}
+                valid / {data.length} total
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {/* Fixed Width Table Container with Horizontal Scroll */}
-            <div 
-              className="border bg-background max-h-96 overflow-auto w-full max-w-[calc(100vw-32px)] md:max-w-[calc(100vw-320px)]"
-            >
+            <div className="border bg-background max-h-96 overflow-auto w-full max-w-[calc(100vw-32px)] md:max-w-[calc(100vw-320px)]">
               <Table className="w-max min-w-full">
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead className="w-12 text-center">No</TableHead>
-                      <TableHead className="w-16 text-center">Status</TableHead>
-                      {Object.entries(COLUMN_HEADERS).map(([key, label]) => (
-                        <TableHead key={key} className={`${
-                          key === 'noRegister' ? 'w-32' :
-                          key === 'keterangan' ? 'w-48' :
-                          key === 'tanggal' || key === 'dueDate' ? 'w-28' :
-                          'w-32'
-                        }`}>
-                          {label}
-                          {REQUIRED_COLUMNS.includes(key) && (
-                            <span className="text-destructive ml-1">*</span>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-12 text-center">No</TableHead>
+                    <TableHead className="w-16 text-center">Status</TableHead>
+                    {Object.entries(COLUMN_HEADERS).map(([key, label]) => (
+                      <TableHead
+                        key={key}
+                        className={`${
+                          key === "noRegister"
+                            ? "w-32"
+                            : key === "keterangan"
+                            ? "w-48"
+                            : key === "tanggal" || key === "dueDate"
+                            ? "w-28"
+                            : "w-32"
+                        }`}
+                      >
+                        {label}
+                        {REQUIRED_COLUMNS.includes(key) && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
+                      </TableHead>
+                    ))}
+                    <TableHead className="w-24 text-center"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.map((row, index) => {
+                    const validation = getRowValidation(row);
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className={
+                          !validation.isValid ? "bg-destructive/5" : ""
+                        }
+                      >
+                        <TableCell className="text-center font-medium">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {validation.isValid ? (
+                            <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                          ) : (
+                            <div
+                              title={`Error: ${validation.errors.join(", ")}`}
+                            >
+                              <AlertCircle className="h-4 w-4 text-destructive mx-auto" />
+                            </div>
                           )}
-                        </TableHead>
-                      ))}
-                      <TableHead className="w-24 text-center"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.map((row, index) => {
-                      const validation = getRowValidation(row);
-                      return (
-                        <TableRow key={row.id} className={!validation.isValid ? "bg-destructive/5" : ""}>
-                          <TableCell className="text-center font-medium">
-                            {index + 1}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {validation.isValid ? (
-                              <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                        </TableCell>
+                        {Object.keys(COLUMN_HEADERS).map((column) => (
+                          <TableCell
+                            key={column}
+                            className={`${
+                              column === "noRegister"
+                                ? "w-32"
+                                : column === "keterangan"
+                                ? "w-48"
+                                : column === "tanggal" || column === "dueDate"
+                                ? "w-28"
+                                : "w-32"
+                            }`}
+                          >
+                            {editingCell?.rowId === row.id &&
+                            editingCell?.column === column ? (
+                              <div className="flex items-center gap-1">
+                                {column.includes("tanggal") ||
+                                column.includes("date") ? (
+                                  <Input
+                                    type="date"
+                                    value={editValue}
+                                    onChange={(e) =>
+                                      setEditValue(e.target.value)
+                                    }
+                                    className="h-8 text-xs"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleCellSave();
+                                      if (e.key === "Escape")
+                                        handleCellCancel();
+                                    }}
+                                  />
+                                ) : (
+                                  <Input
+                                    value={editValue}
+                                    onChange={(e) =>
+                                      setEditValue(e.target.value)
+                                    }
+                                    className="h-8 text-xs"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleCellSave();
+                                      if (e.key === "Escape")
+                                        handleCellCancel();
+                                    }}
+                                  />
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleCellSave}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <CheckCircle className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleCellCancel}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
                             ) : (
-                              <div title={`Error: ${validation.errors.join(", ")}`}>
-                                <AlertCircle className="h-4 w-4 text-destructive mx-auto" />
+                              <div
+                                className="cursor-pointer hover:bg-muted/50 p-1 rounded group min-h-6 flex items-center"
+                                onClick={() =>
+                                  !disabled &&
+                                  handleCellEdit(
+                                    row.id,
+                                    column,
+                                    row[column]?.toString() || ""
+                                  )
+                                }
+                              >
+                                <span className="truncate max-w-40">
+                                  {row[column] || (
+                                    <span className="text-muted-foreground italic">
+                                      Kosong
+                                    </span>
+                                  )}
+                                </span>
+                                {!disabled && (
+                                  <Edit className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                )}
                               </div>
                             )}
                           </TableCell>
-                          {Object.keys(COLUMN_HEADERS).map((column) => (
-                            <TableCell key={column} className={`${
-                              column === 'noRegister' ? 'w-32' :
-                              column === 'keterangan' ? 'w-48' :
-                              column === 'tanggal' || column === 'dueDate' ? 'w-28' :
-                              'w-32'
-                            }`}>
-                              {editingCell?.rowId === row.id && editingCell?.column === column ? (
-                                <div className="flex items-center gap-1">
-                                  {column.includes("tanggal") || column.includes("date") ? (
-                                    <Input
-                                      type="date"
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      className="h-8 text-xs"
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") handleCellSave();
-                                        if (e.key === "Escape") handleCellCancel();
-                                      }}
-                                    />
-                                  ) : (
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      className="h-8 text-xs"
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") handleCellSave();
-                                        if (e.key === "Escape") handleCellCancel();
-                                      }}
-                                    />
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleCellSave}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <CheckCircle className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleCellCancel}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div
-                                  className="cursor-pointer hover:bg-muted/50 p-1 rounded group min-h-6 flex items-center"
-                                  onClick={() =>
-                                    !disabled &&
-                                    handleCellEdit(row.id, column, row[column]?.toString() || "")
-                                  }
-                                >
-                                  <span className="truncate max-w-40">
-                                    {row[column] || (
-                                      <span className="text-muted-foreground italic">Kosong</span>
-                                    )}
-                                  </span>
-                                  {!disabled && (
-                                    <Edit className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  )}
-                                </div>
-                              )}
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteRow(row.id)}
-                              disabled={disabled}
-                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
+                        ))}
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteRow(row.id)}
+                            disabled={disabled}
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
               </Table>
             </div>
-            
+
             {/* Validation Summary */}
             <div className="p-4 border-t bg-muted/30">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    {data.filter((row) => getRowValidation(row).isValid).length} valid
+                    {
+                      data.filter((row) => getRowValidation(row).isValid).length
+                    }{" "}
+                    valid
                   </span>
                   <span className="flex items-center gap-1">
                     <AlertCircle className="h-4 w-4 text-destructive" />
-                    {data.filter((row) => !getRowValidation(row).isValid).length} error
+                    {
+                      data.filter((row) => !getRowValidation(row).isValid)
+                        .length
+                    }{" "}
+                    error
                   </span>
                 </div>
                 <span className="text-muted-foreground">
-                  Field wajib: {REQUIRED_COLUMNS.map((col) => COLUMN_HEADERS[col as keyof typeof COLUMN_HEADERS]).join(", ")}
+                  Field wajib:{" "}
+                  {REQUIRED_COLUMNS.map(
+                    (col) => COLUMN_HEADERS[col as keyof typeof COLUMN_HEADERS]
+                  ).join(", ")}
                 </span>
               </div>
             </div>
