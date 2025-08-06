@@ -46,6 +46,7 @@ import {
   SHIFT_TYPES,
   ShiftType,
 } from "@/types/daily-activity";
+import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
 
 // Custom Toast Component
 const Toast = ({
@@ -538,11 +539,7 @@ export function DailyActivityTab({
           );
 
           setOperationalReport(report);
-          setSuccess(
-            `✅ Data berhasil dimuat untuk edit - ${
-              report.isComplete ? "Status: Complete" : "Status: Draft"
-            }`
-          );
+          setSuccess("Data berhasil dimuat untuk edit");
 
           console.log("Successfully loaded data for edit:", {
             id: recordId,
@@ -705,12 +702,14 @@ export function DailyActivityTab({
         const data = await response.json();
         setOperationalReport(data.report);
         setSuccess(
-          editId ? "✅ Data berhasil diupdate" : "✅ Progres berhasil disimpan"
+          editId ? "Data berhasil diperbarui" : "Progres berhasil disimpan"
         );
         showToast(
-          editId ? "Data berhasil diupdate!" : "Progres berhasil disimpan!",
+          editId ? "Data berhasil diperbarui!" : "Progres berhasil disimpan!",
           "success"
         );
+        // Notify other tabs about the data change
+        notifyDataUpdate(DATA_CATEGORIES.OPERATIONAL_REPORTS);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to save progress");
@@ -769,15 +768,17 @@ export function DailyActivityTab({
         setOperationalReport(data.report);
         setSuccess(
           editId
-            ? "✅ Laporan berhasil diupdate dan diselesaikan"
-            : "✅ Laporan berhasil diselesaikan"
+            ? "Data berhasil diupdate"
+            : "Laporan berhasil diselesaikan"
         );
         showToast(
           editId
-            ? "Laporan berhasil diupdate dan diselesaikan!"
+            ? "Data berhasil diupdate!"
             : "Laporan berhasil diselesaikan!",
           "success"
         );
+        // Notify other tabs about the data change
+        notifyDataUpdate(DATA_CATEGORIES.OPERATIONAL_REPORTS);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to finalize report");
@@ -1276,25 +1277,25 @@ export function DailyActivityTab({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Aktivitas Harian - {department.name}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              <CardTitle>
+                {isEditMode ? "Edit Aktivitas Harian" : `Aktivitas Harian - ${department.name}`}
+              </CardTitle>
+            </div>
             {isEditMode && (
-              <Badge variant="default" className="ml-2">
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
                 <EditIcon className="h-3 w-3 mr-1" />
                 Edit Mode
               </Badge>
             )}
-          </CardTitle>
+          </div>
           <CardDescription>
-            Pencatatan aktivitas harian peralatan dengan sistem kolaboratif
-            antar shift
-            {editId && (
-              <span className="text-blue-600 font-medium">
-                {" "}
-                • Mengedit data dengan ID: {editId}
-              </span>
-            )}
+            {editId 
+              ? "Perbarui data aktivitas harian peralatan yang dipilih"
+              : "Pencatatan aktivitas harian peralatan dengan sistem kolaboratif antar shift"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1998,7 +1999,7 @@ export function DailyActivityTab({
                       {isSaving
                         ? "Menyimpan..."
                         : editId
-                        ? "Update Progres"
+                        ? "Perbarui Data"
                         : "Simpan Progres"}
                     </Button>
                     <Button
@@ -2015,53 +2016,25 @@ export function DailyActivityTab({
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       {isSaving
-                        ? "Menyelesaikan..."
+                        ? "Menyimpan..."
                         : editId
-                        ? "Update & Selesaikan"
+                        ? "Perbarui & Selesaikan"
                         : "Selesaikan Laporan"}
                     </Button>
                   </div>
 
                   {/* Info untuk tombol disabled */}
                   {(!isTargetMet || !areActivitiesValid) && (
-                    <div className="text-center text-sm text-muted-foreground/80">
+                    <div className="text-center text-sm text-muted-foreground">
                       <p>
-                        💡{" "}
-                        <strong className="text-foreground">
-                          {editId ? "Update Progres" : "Simpan Progres"}
-                        </strong>{" "}
-                        dapat dilakukan kapan saja.
-                        <strong className="text-foreground">
-                          {" "}
-                          {editId
-                            ? "Update & Selesaikan"
-                            : "Selesaikan Laporan"}
-                        </strong>{" "}
-                        memerlukan total {targetHours} jam dan durasi aktivitas
-                        yang sesuai.
+                        {editId
+                          ? "Perbarui & Selesaikan memerlukan total"
+                          : "Selesaikan Laporan memerlukan total"
+                        } {targetHours} jam dan detail aktivitas yang sesuai
                       </p>
                     </div>
                   )}
 
-                  {/* User Context */}
-                  <div className="border-t pt-4">
-                    <p className="text-xs text-muted-foreground">
-                      Logged in as:{" "}
-                      <span className="font-medium">
-                        {session.user.username}
-                      </span>{" "}
-                      ({session.user.role})
-                      {session.user.departmentName && (
-                        <span> - {session.user.departmentName}</span>
-                      )}
-                      {editId && (
-                        <span className="text-blue-600">
-                          {" "}
-                          • Edit Mode: ID {editId}
-                        </span>
-                      )}
-                    </p>
-                  </div>
                 </>
               )}
             </>

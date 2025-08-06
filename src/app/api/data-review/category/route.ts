@@ -99,17 +99,8 @@ export async function GET(request: NextRequest) {
           break;
 
         case "kta-tta":
-          const ktaFilter = {
-            dataType: "KTA_TTA" as const,
-            ...(session.user.role === "PLANNER" && session.user.departmentName
-              ? {
-                  picDepartemen: session.user.departmentName,
-                }
-              : {}),
-          };
-          total = await prisma.ktaKpiData.count({ where: ktaFilter });
+          total = await prisma.ktaKpiData.count();
           const ktaData = await prisma.ktaKpiData.findMany({
-            where: ktaFilter,
             include: {
               createdBy: {
                 select: {
@@ -154,10 +145,8 @@ export async function GET(request: NextRequest) {
             );
           }
 
-          const kpiFilter = { dataType: "KPI_UTAMA" as const };
-          total = await prisma.ktaKpiData.count({ where: kpiFilter });
+          total = await prisma.ktaKpiData.count();
           const kpiData = await prisma.ktaKpiData.findMany({
-            where: kpiFilter,
             include: {
               createdBy: {
                 select: {

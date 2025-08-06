@@ -18,14 +18,16 @@ import {
   Edit,
   Trash2,
   Search,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Calendar,
   Loader2,
   Plus,
 } from "lucide-react";
+import { notifyDataUpdate, listenForDataUpdates, setupSmartRefresh } from "@/lib/utils/data-sync";
+import { EditModal } from "./edit-modal";
+import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
+import { LoadingState, ErrorState } from "@/components/ui/loading";
 
 // Custom hook for debounced search
 function useDebounce<T>(value: T, delay: number): T {
@@ -163,7 +165,12 @@ export function DataCategoryTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [localSearch, setLocalSearch] = useState("");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
+
+  // Standard feedback system
+  const { crud, ConfirmationComponent } = useStandardFeedback();
 
   // Debounce search to prevent excessive filtering
   const debouncedLocalSearch = useDebounce(localSearch, 300);
@@ -245,12 +252,30 @@ export function DataCategoryTable({
     }
   }, [category.id]);
 
-  // Load data when dependencies change
+  // Load data when dependencies change (no auto-refresh)
   useEffect(() => {
     if (category.id) {
       loadData();
     }
   }, [category.id, currentPage, loadData]);
+
+  // Setup smart refresh: only when tab becomes visible, window gets focus, or data changes from other tabs
+  useEffect(() => {
+    if (!category.id) return;
+
+    const cleanupSmartRefresh = setupSmartRefresh(() => {
+      loadData();
+    });
+
+    const cleanupDataSync = listenForDataUpdates(category.id, () => {
+      loadData();
+    });
+
+    return () => {
+      cleanupSmartRefresh();
+      cleanupDataSync();
+    };
+  }, [category.id, loadData]);
 
   // Apply search filters with debounced search
   useEffect(() => {
@@ -305,128 +330,72 @@ export function DataCategoryTable({
     return dept?.name || `Dept ${departmentId}`;
   };
 
-  // Handle Edit - redirect to proper input form with correct tab names
+  // Handle Edit - modal for simple data, redirect for complex data
   const handleEdit = (record: BaseRecord) => {
     console.log(`Editing ${category.id} record:`, record);
 
-    // Map category to department and FEATURE KEY (not custom tab names)
-    const routeMapping = {
-      "operational-reports": { dept: "mmtc", feature: "DAILY_ACTIVITY" },
-      "kta-tta": { dept: "mmtc", feature: "KTA_TTA" },
-      "kpi-utama": { dept: "mtc-eng-bureau", feature: "KPI_UTAMA" },
-      "maintenance-routine": { dept: "mmtc", feature: "MAINTENANCE_ROUTINE" },
-      "critical-issues": { dept: "mmtc", feature: "CRITICAL_ISSUE" },
-      "safety-incidents": {
-        dept: "mtc-eng-bureau",
-        feature: "SAFETY_INCIDENT",
-      },
-      "energy-targets": { dept: "mtc-eng-bureau", feature: "ENERGY_IKES" },
-      "energy-consumption": {
-        dept: "mtc-eng-bureau",
-        feature: "ENERGY_CONSUMPTION",
-      },
-    };
+    // Categories that should redirect to input page (complex forms)
+    // Only Daily Activity (operational-reports) redirects, others use modal
+    const redirectCategories = ["operational-reports"];
+    
+    if (redirectCategories.includes(category.id)) {
+      // Redirect to input page for complex forms
+      const routeMapping = {
+        "operational-reports": { dept: "mmtc", feature: "DAILY_ACTIVITY" },
+        "kta-tta": { dept: "mmtc", feature: "KTA_TTA" },
+        "kpi-utama": { dept: "mtc-eng-bureau", feature: "KPI_UTAMA" },
+        "maintenance-routine": { dept: "mmtc", feature: "MAINTENANCE_ROUTINE" },
+      };
 
-    const mapping = routeMapping[category.id as keyof typeof routeMapping];
-    if (mapping) {
-      // Use feature key as tab value, not custom names
-      const url = `/input/${mapping.dept}?tab=${mapping.feature}&edit=${record.id}`;
-      console.log(`Redirecting to: ${url}`);
-      console.log(`Feature: ${mapping.feature} (not custom tab name)`);
-      router.push(url);
+      const mapping = routeMapping[category.id as keyof typeof routeMapping];
+      if (mapping) {
+        const url = `/input/${mapping.dept}?tab=${mapping.feature}&edit=${record.id}`;
+        console.log(`Redirecting to: ${url}`);
+        router.push(url);
+      }
     } else {
-      alert(
-        `Edit untuk ${category.name} belum tersedia. Route mapping: ${category.id}`
-      );
+      // Open edit modal for simple data
+      setEditingRecordId(record.id as number);
+      setEditModalOpen(true);
     }
   };
 
   // Handle Delete with confirmation
   const handleDelete = async (record: BaseRecord) => {
-    if (
-      !confirm(
-        `Apakah Anda yakin ingin menghapus data ini?\n\n${category.name}: ${record.id}\n\nTindakan ini tidak dapat dibatalkan.`
-      )
-    ) {
-      return;
-    }
-
-    setDeletingId(record.id as number);
-
-    try {
-      console.log(`Deleting ${category.id} record ${record.id}`);
-
-      const response = await fetch(
-        `/api/data-review/${category.id}/${record.id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+    const result = await crud.delete(
+      () => fetch(`/api/data-review/${category.id}/${record.id}`, {
+        method: "DELETE",
+      }),
+      category.name,
+      async () => {
+        await loadData();
+        notifyDataUpdate(category.id);
       }
+    );
 
-      // Success - refresh data
-      await loadData();
-      alert(`Data ${category.name} berhasil dihapus!`);
-    } catch (error) {
-      console.error("Delete error:", error);
-      alert(
-        `Gagal menghapus data: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    } finally {
-      setDeletingId(null);
-    }
+    return result.success;
   };
 
   const renderTableContent = () => {
     if (isLoading) {
       return (
-        <>
-          {/* Loading skeleton rows */}
-          {Array.from({ length: 5 }).map((_, index) => (
-            <TableRow key={`skeleton-${index}`}>
-              <TableCell colSpan={6} className="py-4">
-                <div className="flex items-center space-x-4">
-                  <div className="animate-pulse flex space-x-4 w-full">
-                    <div className="rounded-full bg-gray-200 h-8 w-8"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </>
+        <TableRow>
+          <TableCell colSpan={6}>
+            <LoadingState message={`Loading ${category.name}...`} />
+          </TableCell>
+        </TableRow>
       );
     }
 
     if (error) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="text-center py-12">
-            <div className="flex flex-col items-center gap-3">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <div className="text-sm text-destructive text-center">
-                <div className="font-medium">Error loading {category.name}</div>
-                <div className="text-xs mt-1">{error}</div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadData}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Coba Lagi
-              </Button>
-            </div>
+          <TableCell colSpan={6}>
+            <ErrorState 
+              title={`Error loading ${category.name}`}
+              message={error}
+              onRetry={loadData}
+            />
           </TableCell>
         </TableRow>
       );
@@ -974,8 +943,8 @@ export function DataCategoryTable({
   return (
     <div className="space-y-4">
       {/* Local Search and Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+        <div className="flex-1 max-w-full sm:max-w-sm">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -988,45 +957,32 @@ export function DataCategoryTable({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Refresh Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-
           {/* Status Indicator */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-2 w-2 border-b border-primary"></div>
-                <span>Loading...</span>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                <span className="hidden sm:inline">Memuat data...</span>
               </>
             ) : error ? (
               <>
                 <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                <span>Error</span>
+                <span className="hidden sm:inline">Error memuat data</span>
               </>
             ) : (
               <>
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span>Ready</span>
+                <span className="hidden sm:inline">Data terbaru</span>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="border rounded-lg">
-        <Table>
+      {/* Data Table - Responsive */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               {renderTableHeaders()}
@@ -1034,19 +990,19 @@ export function DataCategoryTable({
             </TableRow>
           </TableHeader>
           <TableBody>{renderTableContent()}</TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Menampilkan {(currentPage - 1) * pageSize + 1}-
-            {Math.min(currentPage * pageSize, totalRecords)} dari{" "}
-            {totalRecords.toLocaleString("id-ID")} data
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+          <div className="text-sm text-muted-foreground text-center sm:text-left">
+            <span className="hidden sm:inline">Menampilkan {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalRecords)} dari{" "}</span>
+            <span className="font-medium">{totalRecords.toLocaleString("id-ID")} data</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -1097,6 +1053,23 @@ export function DataCategoryTable({
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingRecordId(null);
+        }}
+        categoryId={category.id}
+        recordId={editingRecordId}
+        onSuccess={() => {
+          loadData();
+        }}
+      />
+      
+      {/* Confirmation Dialog */}
+      {ConfirmationComponent}
     </div>
   );
 }

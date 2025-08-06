@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UserRole, DataType, EquipmentStatus } from "@prisma/client";
+import { UserRole, EquipmentStatus } from "@prisma/client";
 
 // Auth schemas
 export const loginSchema = z.object({
@@ -154,7 +154,6 @@ export const ktaKpiDataSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format")
     .optional(),
   updateStatus: z.string().optional(),
-  dataType: z.nativeEnum(DataType),
 });
 
 export const bulkKtaKpiDataSchema = z.object({

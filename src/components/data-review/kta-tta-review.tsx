@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { getAllowedPIC, hasDataTypeAccess } from "@/lib/utils/kta-tta";
+import { getAllowedPIC, hasDataAccess } from "@/lib/utils/kta-tta";
 import {
   FileSpreadsheet,
   BarChart3,
@@ -71,14 +71,22 @@ export function KtaTtaReview({ user, dataType }: KtaTtaReviewProps) {
   const [statusFilter, setStatusFilter] = useState("");
 
   // Check access permission
-  const hasAccess = hasDataTypeAccess(user.role, user.department, dataType);
-  const allowedPIC = getAllowedPIC(user.role, user.department, dataType);
+  const hasAccess = hasDataAccess();
+  const [allowedPIC, setAllowedPIC] = useState<string[]>([]);
+
+  // Load allowed PIC
+  useEffect(() => {
+    const loadPIC = async () => {
+      const pics = await getAllowedPIC(user.role, user.department);
+      setAllowedPIC(pics);
+    };
+    loadPIC();
+  }, [user.role, user.department]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
-        dataType,
         ...(picFilter && { picDepartemen: picFilter }),
         ...(statusFilter && { statusUpdate: statusFilter }),
         ...(searchTerm && { search: searchTerm }),
@@ -97,7 +105,7 @@ export function KtaTtaReview({ user, dataType }: KtaTtaReviewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [dataType, picFilter, statusFilter, searchTerm]);
+  }, [picFilter, statusFilter, searchTerm]);
 
   useEffect(() => {
     if (hasAccess) {
@@ -107,7 +115,7 @@ export function KtaTtaReview({ user, dataType }: KtaTtaReviewProps) {
 
   const handleExportData = async () => {
     try {
-      const response = await fetch(`/api/kta-tta/export?dataType=${dataType}`);
+      const response = await fetch(`/api/kta-tta/export`);
       if (!response.ok) {
         throw new Error("Failed to export data");
       }
@@ -116,7 +124,7 @@ export function KtaTtaReview({ user, dataType }: KtaTtaReviewProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `export_${dataType.toLowerCase()}_${
+      a.download = `export_kta_kpi_${
         new Date().toISOString().split("T")[0]
       }.xlsx`;
       document.body.appendChild(a);

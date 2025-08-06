@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Bell,
   Settings,
+  Cog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -96,16 +97,23 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    title: "Manage Alat",
-    href: "/manage-alat",
+    title: "Manage",
     icon: Settings,
     roles: ["ADMIN"],
-  },
-  {
-    title: "Manajemen Pengguna",
-    href: "/admin/users",
-    icon: Users,
-    roles: ["ADMIN"],
+    children: [
+      {
+        title: "Manage Alat",
+        href: "/manage-alat",
+        icon: Cog,
+        roles: ["ADMIN"],
+      },
+      {
+        title: "Manajemen Pengguna",
+        href: "/admin/users",
+        icon: Users,
+        roles: ["ADMIN"],
+      },
+    ],
   },
 ];
 

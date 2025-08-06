@@ -220,17 +220,17 @@ function OrderListContent({
   return (
     <div className="flex-shrink-0 bg-black px-6 py-4 min-h-screen">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-500/20 rounded-lg">
+        {/* Header - Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="p-2 bg-yellow-500/20 rounded-lg flex-shrink-0">
               <Wrench className="h-5 w-5 text-yellow-400" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-yellow-400">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-400 truncate">
                 Order List
               </h1>
-              <p className="text-gray-300">
+              <p className="text-sm sm:text-base text-gray-300">
                 Kelola dan pantau work order departemen
               </p>
             </div>
@@ -275,37 +275,37 @@ function OrderListContent({
                 >
                   {/* Order Header - Always Visible */}
                   <div
-                    className="p-6 cursor-pointer hover:bg-gray-800/30 rounded-t-lg"
+                    className="p-4 sm:p-6 cursor-pointer hover:bg-gray-800/30 rounded-t-lg"
                     onClick={() => toggleExpandOrder(order.id)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
-                        <h3 className="text-lg font-bold text-yellow-400 flex items-center gap-3">
-                          {order.jobName}
-                          <span className="text-xs bg-gray-800/50 text-gray-300 border border-gray-600 px-2 py-1 rounded-md font-normal">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-bold text-yellow-400 flex items-center gap-2 sm:gap-3">
+                          <span className="truncate flex-1">{order.jobName}</span>
+                          <span className="text-xs bg-gray-800/50 text-gray-300 border border-gray-600 px-2 py-1 rounded-md font-normal flex-shrink-0">
                             {isExpanded ? "▼" : "▶"}
                           </span>
                         </h3>
-                        <div className="flex items-center gap-6 text-sm text-gray-300">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-300">
                           <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span>{dateUtils.formatDate(order.startDate)}</span>
+                            <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <span className="truncate">{dateUtils.formatDate(order.startDate)}</span>
                             {order.endDate && (
-                              <span>
+                              <span className="flex-shrink-0">
                                 {" "}
                                 - {dateUtils.formatDate(order.endDate)}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <span className="text-xs sm:text-sm truncate">
                               Dari:{" "}
                               <span className="font-medium text-yellow-400">
                                 {order.notification.uniqueNumber}
                               </span>
                             </span>
                             <Badge
-                              className={`border font-medium ${getUrgencyColor(
+                              className={`border font-medium text-xs flex-shrink-0 ${getUrgencyColor(
                                 order.notification.urgency
                               )}`}
                             >
@@ -314,8 +314,8 @@ function OrderListContent({
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
+                      <div className="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0">
+                        <div className="text-left sm:text-right">
                           <div className="text-sm font-semibold text-yellow-400">
                             {progress}% Selesai
                           </div>
@@ -328,9 +328,9 @@ function OrderListContent({
                           </div>
                         </div>
                         {progress === 100 ? (
-                          <CheckCircle className="h-6 w-6 text-emerald-400" />
+                          <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
                         ) : (
-                          <AlertCircle className="h-6 w-6 text-yellow-400" />
+                          <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
                         )}
                       </div>
                     </div>
@@ -348,9 +348,9 @@ function OrderListContent({
 
                   {/* Expandable Content */}
                   {isExpanded && (
-                    <div className="border-t border-gray-700 bg-gray-800/20 p-6 rounded-b-lg">
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-6 text-sm">
+                    <div className="border-t border-gray-700 bg-gray-800/20 p-4 sm:p-6 rounded-b-lg">
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm">
                           <div className="space-y-1">
                             <p className="font-medium text-gray-300">
                               Departemen:
@@ -390,7 +390,7 @@ function OrderListContent({
                             {order.activities.map((activity) => (
                               <div
                                 key={activity.id}
-                                className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg border border-gray-600 hover:border-yellow-500/50 transition-colors"
+                                className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-600 hover:border-yellow-500/50 transition-colors"
                               >
                                 {canUpdateActivity ? (
                                   <Checkbox
@@ -402,21 +402,21 @@ function OrderListContent({
                                         checked as boolean
                                       )
                                     }
-                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-gray-500"
+                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-gray-500 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 ) : (
                                   <Checkbox
                                     checked={activity.isCompleted}
                                     disabled
-                                    className="data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500 border-gray-600"
+                                    className="data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500 border-gray-600 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 )}
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <span
                                     className={
                                       activity.isCompleted
-                                        ? "line-through text-gray-500"
-                                        : "text-gray-300"
+                                        ? "line-through text-gray-500 text-sm break-words"
+                                        : "text-gray-300 text-sm break-words"
                                     }
                                   >
                                     <span className="font-medium">
@@ -425,16 +425,16 @@ function OrderListContent({
                                     - {activity.object}
                                   </span>
                                 </div>
-                                <div className="text-xs font-medium">
+                                <div className="text-xs font-medium flex-shrink-0">
                                   {activity.isCompleted ? (
                                     <span className="text-emerald-400 flex items-center gap-1">
                                       <CheckCircle className="h-3 w-3" />
-                                      Selesai
+                                      <span className="hidden sm:inline">Selesai</span>
                                     </span>
                                   ) : (
                                     <span className="text-gray-500 flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      Belum
+                                      <span className="hidden sm:inline">Belum</span>
                                     </span>
                                   )}
                                 </div>

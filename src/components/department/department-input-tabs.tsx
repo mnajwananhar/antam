@@ -247,8 +247,9 @@ export function DepartmentInputTabs({
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <div className="overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-1 h-auto p-1">
+        {/* Mobile: Use scrollable tabs */}
+        <div className="md:hidden">
+          <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 p-1">
             {availableFeatures.map((feature) => {
               const Icon = getTabIcon(feature);
               const isAccessible = canAccessFeature(feature);
@@ -258,13 +259,57 @@ export function DepartmentInputTabs({
                 <TabsTrigger
                   key={feature}
                   value={feature}
-                  className={`flex flex-col gap-1 h-16 text-xs relative ${
+                  className={`flex items-center gap-2 text-xs whitespace-nowrap px-3 py-2 min-w-fit h-10 relative ${
+                    isActive && editId ? "bg-blue-100 border-blue-300" : ""
+                  }`}
+                  disabled={!isAccessible}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-xs">
+                    {FEATURE_LABELS[feature as keyof typeof FEATURE_LABELS] ||
+                      feature}
+                  </span>
+                  {!isAccessible && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 text-xs px-1"
+                    >
+                      !
+                    </Badge>
+                  )}
+                  {isActive && editId && (
+                    <Badge
+                      variant="default"
+                      className="absolute -top-1 -left-1 text-xs px-1"
+                    >
+                      Edit
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+        
+        {/* Desktop: Use grid layout */}
+        <div className="hidden md:block">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-1 h-auto p-1">
+            {availableFeatures.map((feature) => {
+              const Icon = getTabIcon(feature);
+              const isAccessible = canAccessFeature(feature);
+              const isActive = activeTab === feature;
+
+              return (
+                <TabsTrigger
+                  key={feature}
+                  value={feature}
+                  className={`flex flex-col gap-1 h-16 text-xs relative p-2 ${
                     isActive && editId ? "bg-blue-100 border-blue-300" : ""
                   }`}
                   disabled={!isAccessible}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="text-center leading-tight">
+                  <span className="text-center leading-tight text-xs">
                     {FEATURE_LABELS[feature as keyof typeof FEATURE_LABELS] ||
                       feature}
                   </span>

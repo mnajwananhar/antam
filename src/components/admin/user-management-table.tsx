@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToastContext } from "@/components/providers/toast-provider";
+import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import { EditUserDialog } from "@/components/admin/edit-user-dialog";
 import { MoreHorizontal, Edit, Search, UserCheck, UserX } from "lucide-react";
 import { roleUtils, dateUtils } from "@/lib/utils";
@@ -63,7 +63,7 @@ export function UserManagementTable({
   const router = useRouter();
 
   // ✅ MENGGUNAKAN TOAST SYSTEM
-  const { showError, showSuccess } = useToastContext();
+  const { feedback, ConfirmationComponent } = useStandardFeedback();
 
   // Filter users based on search and filters
   const filteredUsers = users.filter((user) => {
@@ -90,9 +90,12 @@ export function UserManagementTable({
     currentStatus: boolean
   ) => {
     const action = currentStatus ? "menonaktifkan" : "mengaktifkan";
-    if (!confirm(`Apakah Anda yakin ingin ${action} pengguna "${username}"?`)) {
-      return;
-    }
+    const confirmed = await feedback.confirm({
+      title: "Konfirmasi",
+      message: `Apakah Anda yakin ingin ${action} pengguna "${username}"?`,
+      variant: currentStatus ? "destructive" : "default"
+    });
+    if (!confirmed) return;
 
     setIsLoading(true);
 
@@ -118,13 +121,13 @@ export function UserManagementTable({
         throw new Error(result.error || "Gagal mengubah status pengguna");
       }
 
-      showSuccess(`Status pengguna "${username}" berhasil diubah`);
+      feedback.success(`Status pengguna "${username}" berhasil diubah`);
 
       // Refresh the page to get updated data
       router.refresh();
     } catch (error) {
       console.error("Error toggling user status:", error);
-      showError(
+      feedback.error(
         error instanceof Error ? error.message : "Terjadi kesalahan sistem"
       );
     } finally {
@@ -152,62 +155,65 @@ export function UserManagementTable({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-          <div className="relative">
+      {/* Filters - Responsive */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-start">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Cari pengguna atau departemen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-64"
+              className="pl-9 w-full"
             />
           </div>
 
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Semua Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Role</SelectItem>
-              {USER_ROLE_OPTIONS.map((role) => (
-                <SelectItem key={role.value} value={role.value}>
-                  {role.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Semua Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Role</SelectItem>
+                {USER_ROLE_OPTIONS.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Semua Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="active">Aktif</SelectItem>
-              <SelectItem value="inactive">Tidak Aktif</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Semua Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="active">Aktif</SelectItem>
+                <SelectItem value="inactive">Tidak Aktif</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-
-        <div className="text-sm text-muted-foreground">
+        
+        <div className="text-sm text-muted-foreground text-center sm:text-left">
           Menampilkan {filteredUsers.length} dari {users.length} pengguna
         </div>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg">
-        <Table>
+      {/* Table - Responsive with horizontal scroll */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Departemen</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="min-w-[120px]">Username</TableHead>
+              <TableHead className="min-w-[80px]">Role</TableHead>
+              <TableHead className="min-w-[120px] hidden sm:table-cell">Departemen</TableHead>
+              <TableHead className="min-w-[80px]">Status</TableHead>
+              <TableHead className="min-w-[120px] hidden md:table-cell">Last Login</TableHead>
+              <TableHead className="min-w-[100px] hidden lg:table-cell">Created</TableHead>
+              <TableHead className="text-right min-w-[80px]">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -226,13 +232,25 @@ export function UserManagementTable({
               filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {user.username}
-                      {user.id.toString() === currentUser.id && (
-                        <Badge variant="outline" className="text-xs">
-                          You
-                        </Badge>
-                      )}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate">{user.username}</span>
+                        {user.id.toString() === currentUser.id && (
+                          <Badge variant="outline" className="text-xs flex-shrink-0">
+                            You
+                          </Badge>
+                        )}
+                      </div>
+                      {/* Show department on mobile */}
+                      <div className="sm:hidden">
+                        {user.department ? (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {user.department.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
 
@@ -245,15 +263,16 @@ export function UserManagementTable({
                           | "destructive"
                           | "outline"
                       }
+                      className="text-xs"
                     >
                       {roleUtils.getRoleDisplayName(user.role)}
                     </Badge>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {user.department ? (
-                      <div className="space-y-1">
-                        <div className="font-medium text-sm">
+                      <div className="space-y-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
                           {user.department.name}
                         </div>
                         <Badge variant="outline" className="text-xs">
@@ -266,21 +285,22 @@ export function UserManagementTable({
                   </TableCell>
 
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       {user.isActive ? (
-                        <UserCheck className="h-4 w-4 text-green-600" />
+                        <UserCheck className="h-4 w-4 text-green-600 flex-shrink-0" />
                       ) : (
-                        <UserX className="h-4 w-4 text-red-600" />
+                        <UserX className="h-4 w-4 text-red-600 flex-shrink-0" />
                       )}
                       <Badge
                         variant={user.isActive ? "success" : "destructive"}
+                        className="text-xs"
                       >
-                        {user.isActive ? "Aktif" : "Tidak Aktif"}
+                        {user.isActive ? "Aktif" : "Nonaktif"}
                       </Badge>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm hidden md:table-cell">
                     {user.lastLogin ? (
                       dateUtils.formatDateTime(user.lastLogin)
                     ) : (
@@ -290,7 +310,7 @@ export function UserManagementTable({
                     )}
                   </TableCell>
 
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm hidden lg:table-cell">
                     {dateUtils.formatDate(user.createdAt)}
                   </TableCell>
 
@@ -357,7 +377,8 @@ export function UserManagementTable({
               ))
             )}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
 
       {/* Edit User Dialog */}
@@ -367,6 +388,9 @@ export function UserManagementTable({
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
       />
+      
+      {/* Confirmation Dialog */}
+      {ConfirmationComponent}
     </div>
   );
 }

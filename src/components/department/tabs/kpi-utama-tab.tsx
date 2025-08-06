@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+// Badge component not needed in this version
 import { TrendingUp, Upload, Table as TableIcon, Building } from "lucide-react";
 import { Department } from "@prisma/client";
 import {
@@ -16,6 +16,7 @@ import {
   type KtaKpiItem,
 } from "@/components/kta-tta";
 import { useToastContext } from "@/lib/hooks";
+import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
 
 interface KpiUtamaTabProps {
   department: Department;
@@ -42,20 +43,20 @@ export function KpiUtamaTab({
     setIsLoadingData(true);
     try {
       console.log(
-        "Loading KPI Utama data - MTC&ENG Bureau unrestricted access"
+        "Loading KTA & KPI data - MTC&ENG Bureau unrestricted access"
       );
-      const response = await fetch(`/api/kta-tta?dataType=KPI_UTAMA`);
+      const response = await fetch(`/api/kta-tta`);
+      
       if (response.ok) {
         const result = await response.json();
         console.log(
-          "Loaded KPI Utama data:",
+          "Loaded unified KTA/KPI data:",
           result.data?.length || 0,
           "records"
         );
-        console.log("Unrestricted access - showing data from all departments");
         setExistingData(result.data || []);
       } else {
-        showError("Gagal memuat data existing");
+        showError("Gagal memuat data");
       }
     } catch {
       showError("Terjadi kesalahan saat memuat data");
@@ -104,7 +105,6 @@ export function KpiUtamaTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dataType: "KPI_UTAMA",
           data: uploadedData,
         }),
       });
@@ -112,10 +112,13 @@ export function KpiUtamaTab({
       const result = await response.json();
 
       if (response.ok) {
-        showSuccess(`Berhasil menyimpan ${uploadedData.length} data KPI Utama`);
+        showSuccess(`Berhasil menyimpan ${uploadedData.length} data KTA/KPI`);
         setUploadedData([]);
         setActiveTab("data");
         await loadExistingData();
+        
+        // Notify other tabs about the data change
+        notifyDataUpdate(DATA_CATEGORIES.KTA_TTA);
       } else {
         throw new Error(result.error || "Failed to save data");
       }
@@ -143,6 +146,9 @@ export function KpiUtamaTab({
 
       if (response.ok) {
         showSuccess(`Status berhasil diubah menjadi ${newStatus}`);
+
+        // Notify other tabs about the data change
+        notifyDataUpdate(DATA_CATEGORIES.KTA_TTA);
 
         // Update status in local state without API call
         setExistingData((prevData) =>
@@ -201,27 +207,19 @@ export function KpiUtamaTab({
     );
   }
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Manajemen Data KPI Utama - {department.name}
-            <Badge variant="default" className="ml-2">
-              Bureau Only
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Upload dan kelola data KPI (Key Performance Indicator) Utama untuk
-            semua departemen. Sebagai MTC&ENG Bureau, Anda dapat mengelola KPI
-            dari semua departemen.
-          </p>
-        </CardContent>
-      </Card>
+      <Alert>
+        <TrendingUp className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Excel Upload Center - MTC&ENG Bureau</strong>
+          <br />
+          Sebagai MTC&ENG Bureau, Anda dapat upload data Excel untuk <strong>KPI Utama</strong> dan <strong>KTA & TTA</strong> dari semua departemen.
+          Fitur upload Excel telah dipindahkan ke sini dari tab-tab departemen lain.
+        </AlertDescription>
+      </Alert>
 
       {/* Main Tabs */}
       <Tabs
@@ -232,7 +230,7 @@ export function KpiUtamaTab({
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
-            Upload Data
+            Upload Excel
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <TableIcon className="h-4 w-4" />
@@ -240,12 +238,24 @@ export function KpiUtamaTab({
           </TabsTrigger>
         </TabsList>
 
+        {/* Single Upload */}
         <TabsContent value="upload" className="space-y-6">
-          <ExcelUpload
-            onDataChange={handleDataChange}
-            dataType="KPI_UTAMA"
-            disabled={isLoading}
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Data KTA/TTA & KPI Utama</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-sm mb-4">
+                Upload data KTA (Key Task Analysis), TTA (Task Task Analysis), dan KPI Utama untuk semua departemen.
+                Semua data akan disimpan dalam satu sistem terpadu.
+              </p>
+              <ExcelUpload
+                onDataChange={handleDataChange}
+                dataType="KTA_TTA"
+                disabled={isLoading}
+              />
+            </CardContent>
+          </Card>
 
           {/* Save Button */}
           {uploadedData.length > 0 && (
@@ -256,16 +266,13 @@ export function KpiUtamaTab({
                     <span className="text-sm font-medium">
                       {uploadedData.length} data siap disimpan
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      (Multi-departemen)
-                    </span>
                   </div>
                   <Button
                     onClick={handleSaveUploadedData}
                     disabled={isLoading}
                     className="flex items-center gap-2"
                   >
-                    {isLoading ? "Menyimpan..." : "Simpan Data KPI Utama"}
+                    {isLoading ? "Menyimpan..." : "Simpan Data"}
                   </Button>
                 </div>
               </CardContent>
@@ -273,10 +280,23 @@ export function KpiUtamaTab({
           )}
         </TabsContent>
 
+        {/* Data View */}
         <TabsContent value="data" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Tersimpan ({existingData.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-sm mb-4">
+                Menampilkan semua data KTA/TTA dan KPI Utama dari semua departemen.
+                MTC&ENG Bureau dapat melihat dan mengelola semua data tanpa batasan.
+              </p>
+            </CardContent>
+          </Card>
+
           <KtaKpiInputTable
             data={existingData}
-            dataType="KPI_UTAMA"
+            dataType="KTA_TTA"
             isLoading={isLoadingData}
             onStatusChange={handleStatusChange}
             onView={handleView}

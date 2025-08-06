@@ -19,6 +19,8 @@ import {
   useToastContext,
   useApiToast,
 } from "@/components/providers/toast-provider";
+import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import {
   Plus,
   AlertTriangle,
@@ -79,6 +81,7 @@ export function CriticalIssueTab({
   // Menggunakan toast system yang robust
   const { showError } = useToastContext();
   const { executeWithToast } = useApiToast();
+  const { crud, ConfirmationComponent } = useStandardFeedback();
 
   const [newIssue, setNewIssue] = useState({
     issueName: "",
@@ -231,6 +234,9 @@ export function CriticalIssueTab({
 
           // Reload data
           loadCriticalIssues();
+          
+          // Notify other tabs about the data change
+          notifyDataUpdate(DATA_CATEGORIES.CRITICAL_ISSUES);
         },
         onError: (error) => {
           // Handle validation errors
@@ -254,22 +260,14 @@ export function CriticalIssueTab({
   };
 
   const handleDelete = async (issueId: number): Promise<void> => {
-    if (!confirm("Apakah Anda yakin ingin menghapus critical issue ini?")) {
-      return;
-    }
-
-    await executeWithToast(
-      () =>
-        fetch(`/api/critical-issue/${issueId}`, {
-          method: "DELETE",
-        }),
-      undefined, // Let API response determine success message
-      undefined, // Let API response determine error message
-      {
-        showLoading: true,
-        onSuccess: () => {
-          loadCriticalIssues();
-        },
+    await crud.delete(
+      () => fetch(`/api/critical-issue/${issueId}`, {
+        method: "DELETE",
+      }),
+      "critical issue",
+      () => {
+        loadCriticalIssues();
+        notifyDataUpdate(DATA_CATEGORIES.CRITICAL_ISSUES);
       }
     );
   };
@@ -292,7 +290,7 @@ export function CriticalIssueTab({
     });
 
     // Only when user is on MTC&ENG tab, they can select different departments
-    // When on other department tabs (ECDC, MMTC, PMTC, HETU), they can only input to that department
+    // When on other department tabs, they can only input to that department
     if (department.name && departmentUtils.isMtcEngBureau(department.name)) {
       return true;
     }
@@ -532,6 +530,9 @@ export function CriticalIssueTab({
           )}
         </CardContent>
       </Card>
+      
+      {/* Confirmation Dialog */}
+      {ConfirmationComponent}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateDueDate,
   getAllowedPIC,
-  hasDataTypeAccess,
   cleanKriteriaKtaTta,
   calculateUpdateStatus,
 } from "@/lib/utils/kta-tta";
@@ -40,31 +39,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { data: excelData, dataType = "KTA_TTA" } = body;
+    const { data: excelData } = body;
 
     if (!Array.isArray(excelData) || excelData.length === 0) {
       return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
 
-    // Check if user has access to this data type
-    if (
-      !hasDataTypeAccess(
-        session.user.role,
-        session.user.departmentName || undefined,
-        dataType
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Access denied for this data type" },
-        { status: 403 }
-      );
-    }
-
     // Get allowed PIC for current user
-    const allowedPIC = getAllowedPIC(
+    const allowedPIC = await getAllowedPIC(
       session.user.role,
-      session.user.departmentName || undefined,
-      dataType
+      session.user.departmentName || undefined
     );
 
     // Filter data based on user permissions
@@ -119,8 +103,7 @@ export async function POST(request: NextRequest) {
               tanggal: {
                 gte: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
                 lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-              },
-              dataType: dataType as "KTA_TTA" | "KPI_UTAMA"
+              }
             }
           });
           
@@ -216,7 +199,6 @@ export async function POST(request: NextRequest) {
             biro: row.biro,
             dueDate,
             updateStatus, // Use calculated update status
-            dataType: dataType as "KTA_TTA" | "KPI_UTAMA",
             createdById: parseInt(session.user.id),
           },
         });
@@ -262,7 +244,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { data: excelData, dataType = "KTA_TTA" } = body;
+    const { data: excelData } = body;
 
     if (!Array.isArray(excelData)) {
       return NextResponse.json(
@@ -271,25 +253,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check if user has access to this data type
-    if (
-      !hasDataTypeAccess(
-        session.user.role,
-        session.user.departmentName || undefined,
-        dataType
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Access denied for this data type" },
-        { status: 403 }
-      );
-    }
-
     // Get allowed PIC for current user
-    const allowedPIC = getAllowedPIC(
+    const allowedPIC = await getAllowedPIC(
       session.user.role,
-      session.user.departmentName || undefined,
-      dataType
+      session.user.departmentName || undefined
     );
 
     const validationResults = {

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useToastContext } from "@/lib/hooks";
+import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import { Bell, Plus, Edit, Trash2, Clock, AlertTriangle, AlertCircle, Info } from "lucide-react";
 import { roleUtils, dateUtils } from "@/lib/utils";
 
@@ -70,7 +70,7 @@ interface CreateOrderForm {
 
 export default function NotifikasiPage() {
   const { data: session, status } = useSession();
-  const { showSuccess, showError } = useToastContext();
+  const { feedback, crud, ConfirmationComponent } = useStandardFeedback();
 
   if (status === "loading") {
     return <div>Loading...</div>;
@@ -82,19 +82,20 @@ export default function NotifikasiPage() {
 
   return (
     <AppLayout>
-      <NotifikasiContent session={session} showSuccess={showSuccess} showError={showError} />
+      <NotifikasiContent session={session} feedback={feedback} crud={crud} />
+      {ConfirmationComponent}
     </AppLayout>
   );
 }
 
 function NotifikasiContent({ 
   session, 
-  showSuccess, 
-  showError 
+  feedback, 
+  crud 
 }: { 
   session: { user: { id: string; role: string; departmentId?: number | null; username: string } };
-  showSuccess: (message: string) => void;
-  showError: (message: string) => void;
+  feedback: ReturnType<typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback>["feedback"];
+  crud: ReturnType<typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback>["crud"];
 }) {
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -152,15 +153,15 @@ function NotifikasiContent({
         const data = await response.json();
         setNotifications(data.data?.notifications || []);
       } else {
-        showError("Gagal memuat notifikasi");
+        feedback.error("Gagal memuat notifikasi");
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
-      showError("Terjadi kesalahan saat memuat notifikasi");
+      feedback.error("Terjadi kesalahan saat memuat notifikasi");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, showError]);
+  }, [searchTerm, statusFilter, feedback]);
 
   useEffect(() => {
     loadNotifications();
@@ -169,7 +170,7 @@ function NotifikasiContent({
   const handleCreateNotification = async () => {
     try {
       if (!createForm.departmentId || !createForm.problemDetail) {
-        showError("Mohon lengkapi semua field yang wajib diisi");
+        feedback.error("Mohon lengkapi semua field yang wajib diisi");
         return;
       }
 
@@ -185,7 +186,7 @@ function NotifikasiContent({
       });
 
       if (response.ok) {
-        showSuccess("Notifikasi berhasil dibuat");
+        feedback.created("Notifikasi");
         setIsCreateDialogOpen(false);
         setCreateForm({
           departmentId: "",
@@ -196,11 +197,11 @@ function NotifikasiContent({
         loadNotifications();
       } else {
         const error = await response.json();
-        showError(error.error || "Gagal membuat notifikasi");
+        feedback.error(error.error || "Gagal membuat notifikasi");
       }
     } catch (error) {
       console.error("Error creating notification:", error);
-      showError("Terjadi kesalahan saat membuat notifikasi");
+      feedback.error("Terjadi kesalahan saat membuat notifikasi");
     }
   };
 
@@ -227,17 +228,17 @@ function NotifikasiContent({
       });
 
       if (response.ok) {
-        showSuccess("Notifikasi berhasil diperbarui");
+        feedback.updated("Notifikasi");
         setIsEditDialogOpen(false);
         setEditingNotification(null);
         loadNotifications();
       } else {
         const error = await response.json();
-        showError(error.error || "Gagal memperbarui notifikasi");
+        feedback.error(error.error || "Gagal memperbarui notifikasi");
       }
     } catch (error) {
       console.error("Error updating notification:", error);
-      showError("Terjadi kesalahan saat memperbarui notifikasi");
+      feedback.error("Terjadi kesalahan saat memperbarui notifikasi");
     }
   };
 
@@ -251,38 +252,25 @@ function NotifikasiContent({
       });
 
       if (response.ok) {
-        showSuccess("Notifikasi berhasil ditutup");
+        feedback.success("Notifikasi berhasil ditutup");
         loadNotifications();
       } else {
         const error = await response.json();
-        showError(error.error || "Gagal menutup notifikasi");
+        feedback.error(error.error || "Gagal menutup notifikasi");
       }
     } catch (error) {
       console.error("Error closing notification:", error);
-      showError("Terjadi kesalahan saat menutup notifikasi");
+      feedback.error("Terjadi kesalahan saat menutup notifikasi");
     }
   };
 
   // Handle Delete Notification
   const handleDeleteNotification = async (notificationId: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus notifikasi ini?")) return;
-
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        showSuccess("Notifikasi berhasil dihapus");
-        loadNotifications();
-      } else {
-        const error = await response.json();
-        showError(error.error || "Gagal menghapus notifikasi");
-      }
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      showError("Terjadi kesalahan saat menghapus notifikasi");
-    }
+    await crud.delete(
+      () => fetch(`/api/notifications/${notificationId}`, { method: "DELETE" }),
+      "notifikasi",
+      () => loadNotifications()
+    );
   };
 
   // Handle Create Order - open modal in notification page
@@ -294,13 +282,13 @@ function NotifikasiContent({
   // Handle Submit Create Order
   const handleSubmitCreateOrder = async () => {
     if (!selectedNotificationForOrder) {
-      showError("Notifikasi tidak ditemukan");
+      feedback.error("Notifikasi tidak ditemukan");
       return;
     }
 
     try {
       if (!createOrderForm.jobName) {
-        showError("Mohon lengkapi nama pekerjaan");
+        feedback.error("Mohon lengkapi nama pekerjaan");
         return;
       }
 
@@ -322,7 +310,7 @@ function NotifikasiContent({
       });
 
       if (response.ok) {
-        showSuccess("Order berhasil dibuat");
+        feedback.created("Order");
         setIsCreateOrderDialogOpen(false);
         setSelectedNotificationForOrder(null);
         setCreateOrderForm({
@@ -335,11 +323,11 @@ function NotifikasiContent({
         loadNotifications(); // Refresh to show updated orders count
       } else {
         const error = await response.json();
-        showError(error.error || "Gagal membuat order");
+        feedback.error(error.error || "Gagal membuat order");
       }
     } catch (error) {
       console.error("Error creating order:", error);
-      showError("Terjadi kesalahan saat membuat order");
+      feedback.error("Terjadi kesalahan saat membuat order");
     }
   };
 
@@ -430,10 +418,10 @@ function NotifikasiContent({
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Bell className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Notifikasi</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Bell className="h-6 w-6 flex-shrink-0" />
+          <h1 className="text-xl sm:text-2xl font-bold truncate">Notifikasi</h1>
         </div>
         
         {canCreateNotification && (
@@ -444,7 +432,7 @@ function NotifikasiContent({
                 Buat Notifikasi
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Buat Notifikasi Baru</DialogTitle>
               </DialogHeader>
@@ -506,7 +494,7 @@ function NotifikasiContent({
                   />
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button 
                     onClick={handleCreateNotification}
                     className="flex-1"
@@ -530,7 +518,7 @@ function NotifikasiContent({
       {/* Edit Dialog */}
       {editingNotification && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Notifikasi - {editingNotification.uniqueNumber}</DialogTitle>
             </DialogHeader>
@@ -619,7 +607,7 @@ function NotifikasiContent({
                 />
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <Button 
                   onClick={handleUpdateNotification}
                   className="flex-1"
@@ -659,7 +647,7 @@ function NotifikasiContent({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Tanggal Mulai *</label>
                   <Input
@@ -698,30 +686,35 @@ function NotifikasiContent({
                 </div>
                 <div className="space-y-3">
                   {createOrderForm.activities.map((activity, index) => (
-                    <div key={index} className="grid grid-cols-11 gap-2 items-center">
-                      <div className="col-span-5">
+                    <div key={index} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-center p-3 border rounded-lg">
+                      <div className="sm:col-span-5">
+                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">Aktivitas</label>
                         <Input
                           placeholder="Aktivitas"
                           value={activity.activity}
                           onChange={(e) => updateOrderActivity(index, 'activity', e.target.value)}
+                          className="w-full"
                         />
                       </div>
-                      <div className="col-span-4">
+                      <div className="sm:col-span-5">
+                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">Objek</label>
                         <Input
                           placeholder="Objek"
                           value={activity.object}
                           onChange={(e) => updateOrderActivity(index, 'object', e.target.value)}
+                          className="w-full"
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2 flex justify-end">
                         {createOrderForm.activities.length > 1 && (
                           <Button 
                             variant="outline" 
                             size="sm" 
                             onClick={() => removeOrderActivity(index)}
-                            className="text-red-600"
+                            className="text-red-600 w-full sm:w-auto"
                           >
-                            Hapus
+                            <Trash2 className="h-4 w-4 sm:mr-1" />
+                            <span className="sm:inline">Hapus</span>
                           </Button>
                         )}
                       </div>
@@ -730,7 +723,7 @@ function NotifikasiContent({
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <Button 
                   onClick={handleSubmitCreateOrder}
                   className="flex-1"
@@ -756,7 +749,7 @@ function NotifikasiContent({
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
             <div className="flex-1">
               <Input
                 placeholder="Cari berdasarkan nomor, masalah, atau departemen..."
@@ -765,7 +758,7 @@ function NotifikasiContent({
               />
             </div>
             <Select value={statusFilter} onValueChange={(value: "ALL" | "PROCESS" | "COMPLETE") => setStatusFilter(value)}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -832,47 +825,48 @@ function NotifikasiContent({
                     <p className="text-xs text-muted-foreground">
                       Dibuat oleh: {notification.createdBy.username}
                     </p>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 flex-wrap">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => handleEditNotification(notification)}
+                        className="w-full sm:w-auto"
                       >
                         <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                        <span>Edit</span>
                       </Button>
                       
                       {notification.status === "PROCESS" && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-green-600 hover:text-green-700"
+                          className="text-green-600 hover:text-green-700 w-full sm:w-auto"
                           onClick={() => handleCloseNotification(notification.id)}
                         >
                           <Clock className="h-4 w-4 mr-1" />
-                          Close
+                          <span>Close</span>
                         </Button>
                       )}
                       
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-blue-600 hover:text-blue-700 w-full sm:w-auto"
                         onClick={() => handleCreateOrder(notification)}
                       >
                         <Plus className="h-4 w-4 mr-1" />
-                        Create Order
+                        <span>Create Order</span>
                       </Button>
                       
                       {notification.orders.length === 0 && (
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 w-full sm:w-auto"
                           onClick={() => handleDeleteNotification(notification.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
-                          Hapus
+                          <span>Hapus</span>
                         </Button>
                       )}
                     </div>

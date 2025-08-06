@@ -18,6 +18,7 @@ import {
   useToastContext,
   useApiToast,
 } from "@/components/providers/toast-provider";
+import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
 import { Plus, Zap, TrendingUp, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -159,6 +160,8 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
 
     // Reload data
     loadEnergyData();
+    // Notify other tabs about the data change
+    notifyDataUpdate(DATA_CATEGORIES.ENERGY_TARGETS);
     setIsSubmitting(false);
   };
 

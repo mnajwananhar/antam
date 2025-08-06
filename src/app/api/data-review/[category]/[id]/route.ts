@@ -50,19 +50,10 @@ export async function DELETE(
           break;
 
         case "kta-tta":
-          deletedRecord = await prisma.ktaKpiData.delete({
-            where: {
-              id: recordId,
-              dataType: "KTA_TTA",
-            },
-          });
-          break;
-
         case "kpi-utama":
           deletedRecord = await prisma.ktaKpiData.delete({
             where: {
               id: recordId,
-              dataType: "KPI_UTAMA",
             },
           });
           break;

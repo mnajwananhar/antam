@@ -54,7 +54,7 @@ import {
   Tag,
   FolderOpen,
 } from "lucide-react";
-import { useToastContext } from "@/components/providers/toast-provider";
+import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import { dateUtils } from "@/lib/utils";
 
 interface Equipment {
@@ -119,7 +119,7 @@ function ManageAlatContent() {
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  const { showSuccess, showError } = useToastContext();
+  const { feedback, crud, ConfirmationComponent } = useStandardFeedback();
 
   const fetchEquipment = useCallback(async (page = 1) => {
     try {
@@ -139,11 +139,11 @@ function ManageAlatContent() {
       setTotalPages(data.pagination.totalPages);
       setCurrentPage(page);
     } catch {
-      showError("Gagal memuat data equipment", "Error");
+      feedback.error("Gagal memuat data equipment");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, categoryFilter, showError]);
+  }, [searchTerm, categoryFilter, feedback]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -153,9 +153,9 @@ function ManageAlatContent() {
       const data = await response.json();
       setCategories(data.data);
     } catch {
-      showError("Gagal memuat kategori equipment", "Error");
+      feedback.error("Gagal memuat kategori equipment");
     }
-  }, [showError]);
+  }, [feedback]);
 
   useEffect(() => {
     fetchCategories();
@@ -171,7 +171,7 @@ function ManageAlatContent() {
 
   const handleAddEquipment = async () => {
     if (!formData.name || !formData.code || !formData.categoryId) {
-      showError("Semua field harus diisi", "Error");
+      feedback.error("Semua field harus diisi");
       return;
     }
 
@@ -193,14 +193,14 @@ function ManageAlatContent() {
         throw new Error(result.error || "Failed to add equipment");
       }
 
-      showSuccess("Equipment berhasil ditambahkan", "Berhasil");
+      feedback.created("Equipment");
 
       setIsAddDialogOpen(false);
       setFormData({ name: "", code: "", categoryId: "" });
       fetchEquipment(currentPage);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal menambahkan equipment";
-      showError(errorMessage, "Error");
+      feedback.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -208,7 +208,7 @@ function ManageAlatContent() {
 
   const handleEditEquipment = async () => {
     if (!editingEquipment || !formData.name || !formData.code || !formData.categoryId) {
-      showError("Semua field harus diisi", "Error");
+      feedback.error("Semua field harus diisi");
       return;
     }
 
@@ -230,7 +230,7 @@ function ManageAlatContent() {
         throw new Error(result.error || "Failed to update equipment");
       }
 
-      showSuccess("Equipment berhasil diperbarui", "Berhasil");
+      feedback.updated("Equipment");
 
       setIsEditDialogOpen(false);
       setEditingEquipment(null);
@@ -238,34 +238,18 @@ function ManageAlatContent() {
       fetchEquipment(currentPage);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui equipment";
-      showError(errorMessage, "Error");
+      feedback.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteEquipment = async (id: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus equipment ini? Tindakan ini tidak dapat dibatalkan.")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/equipment/manage/${id}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete equipment");
-      }
-
-      showSuccess("Equipment berhasil dihapus", "Berhasil");
-      fetchEquipment(currentPage);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Gagal menghapus equipment";
-      showError(errorMessage, "Error");
-    }
+    await crud.delete(
+      () => fetch(`/api/equipment/manage/${id}`, { method: "DELETE" }),
+      "equipment", 
+      () => fetchEquipment(currentPage)
+    );
   };
 
   const openEditDialog = (equipment: Equipment) => {
@@ -314,15 +298,15 @@ function ManageAlatContent() {
       setCategoryTotalPages(data.pagination.totalPages);
       setCategoryCurrentPage(page);
     } catch {
-      showError("Gagal memuat data kategori", "Error");
+      feedback.error("Gagal memuat data kategori");
     } finally {
       setCategoryLoading(false);
     }
-  }, [categorySearchTerm, showError]);
+  }, [categorySearchTerm, feedback]);
 
   const handleAddCategory = async () => {
     if (!categoryFormData.name || !categoryFormData.code) {
-      showError("Semua field harus diisi", "Error");
+      feedback.error("Semua field harus diisi");
       return;
     }
 
@@ -340,7 +324,7 @@ function ManageAlatContent() {
         throw new Error(result.error || "Failed to add category");
       }
 
-      showSuccess("Kategori berhasil ditambahkan", "Berhasil");
+      feedback.created("Kategori");
 
       setIsAddCategoryDialogOpen(false);
       setCategoryFormData({ name: "", code: "" });
@@ -348,7 +332,7 @@ function ManageAlatContent() {
       fetchCategories(); // Refresh dropdown categories
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal menambahkan kategori";
-      showError(errorMessage, "Error");
+      feedback.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -356,7 +340,7 @@ function ManageAlatContent() {
 
   const handleEditCategory = async () => {
     if (!editingCategory || !categoryFormData.name || !categoryFormData.code) {
-      showError("Semua field harus diisi", "Error");
+      feedback.error("Semua field harus diisi");
       return;
     }
 
@@ -374,7 +358,7 @@ function ManageAlatContent() {
         throw new Error(result.error || "Failed to update category");
       }
 
-      showSuccess("Kategori berhasil diperbarui", "Berhasil");
+      feedback.updated("Kategori");
 
       setIsEditCategoryDialogOpen(false);
       setEditingCategory(null);
@@ -383,35 +367,21 @@ function ManageAlatContent() {
       fetchCategories(); // Refresh dropdown categories
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui kategori";
-      showError(errorMessage, "Error");
+      feedback.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus kategori ini? Tindakan ini tidak dapat dibatalkan.")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/equipment/categories/${id}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete category");
+    await crud.delete(
+      () => fetch(`/api/equipment/categories/${id}`, { method: "DELETE" }),
+      "kategori",
+      () => {
+        fetchCategoriesPaginated(categoryCurrentPage);
+        fetchCategories(); // Refresh dropdown categories
       }
-
-      showSuccess("Kategori berhasil dihapus", "Berhasil");
-      fetchCategoriesPaginated(categoryCurrentPage);
-      fetchCategories(); // Refresh dropdown categories
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Gagal menghapus kategori";
-      showError(errorMessage, "Error");
-    }
+    );
   };
 
   const openEditCategoryDialog = (category: Category) => {
@@ -438,9 +408,9 @@ function ManageAlatContent() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manage Alat</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Alat</h1>
           <p className="text-muted-foreground">
             Kelola data peralatan dan kategori
           </p>
@@ -448,67 +418,70 @@ function ManageAlatContent() {
       </div>
 
       <Tabs defaultValue="equipment" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="equipment" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto sm:mx-0">
+          <TabsTrigger value="equipment" className="flex items-center gap-2 text-xs sm:text-sm">
             <Settings className="h-4 w-4" />
-            Equipment
+            <span className="hidden sm:inline">Equipment</span>
+            <span className="sm:hidden">Alat</span>
           </TabsTrigger>
-          <TabsTrigger value="categories" className="flex items-center gap-2">
+          <TabsTrigger value="categories" className="flex items-center gap-2 text-xs sm:text-sm">
             <FolderOpen className="h-4 w-4" />
-            Kategori
+            <span className="hidden sm:inline">Kategori</span>
+            <span className="sm:hidden">Kat.</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Equipment Tab */}
         <TabsContent value="equipment" className="space-y-6">
           {/* Equipment Header */}
-          <div className="flex justify-end">
-            <Button onClick={() => setIsAddDialogOpen(true)}>
+          <div className="flex justify-center sm:justify-end">
+            <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              Tambah Equipment
+              <span className="hidden sm:inline">Tambah Equipment</span>
+              <span className="sm:hidden">Tambah Alat</span>
             </Button>
           </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Equipment</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Equipment</CardTitle>
+            <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{equipment.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{equipment.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Working</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Working</CardTitle>
             <div className="h-2 w-2 bg-green-500 rounded-full"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-xl sm:text-2xl font-bold text-green-600">
               {equipment.filter((eq) => eq.currentStatus === "WORKING").length}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Breakdown</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Breakdown</CardTitle>
             <div className="h-2 w-2 bg-red-500 rounded-full"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-xl sm:text-2xl font-bold text-red-600">
               {equipment.filter((eq) => eq.currentStatus === "BREAKDOWN").length}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kategori</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">Kategori</CardTitle>
             <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{categories.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{categories.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -573,17 +546,18 @@ function ManageAlatContent() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama Equipment</TableHead>
-                    <TableHead>Kode</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Update</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Equipment</TableHead>
+                      <TableHead className="hidden sm:table-cell">Kode</TableHead>
+                      <TableHead className="hidden md:table-cell">Kategori</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden lg:table-cell">Last Update</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {equipment.length === 0 ? (
                     <TableRow>
@@ -599,29 +573,38 @@ function ManageAlatContent() {
                   ) : (
                     equipment.map((eq) => (
                       <TableRow key={eq.id}>
-                        <TableCell className="font-medium">{eq.name}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{eq.name}</span>
+                            <span className="sm:hidden text-xs text-muted-foreground">
+                              {eq.code}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <code className="text-xs bg-muted px-2 py-1 rounded">
                             {eq.code}
                           </code>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <Badge variant="outline">{eq.category.name}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(eq.currentStatus)}>
-                            {eq.currentStatus}
+                            <span className="hidden sm:inline">{eq.currentStatus}</span>
+                            <span className="sm:hidden">{eq.currentStatus.charAt(0)}</span>
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                           {dateUtils.formatDateTime(eq.lastStatusChange)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => openEditDialog(eq)}
+                              className="h-8 w-8 p-0"
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -630,6 +613,7 @@ function ManageAlatContent() {
                               size="sm"
                               onClick={() => handleDeleteEquipment(eq.id)}
                               disabled={eq._count.operationalReports > 0}
+                              className="h-8 w-8 p-0"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -639,28 +623,36 @@ function ManageAlatContent() {
                     ))
                   )}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => fetchEquipment(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="flex items-center px-4">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => fetchEquipment(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4">
+                  <div className="text-sm text-muted-foreground text-center sm:text-left">
+                    <span className="hidden sm:inline">Halaman {currentPage} dari {totalPages}</span>
+                    <span className="sm:hidden">Page {currentPage}/{totalPages}</span>
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchEquipment(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      size="sm"
+                    >
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchEquipment(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      size="sm"
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <span className="sm:hidden">Next</span>
+                    </Button>
+                  </div>
                 </div>
               )}
             </>
@@ -1064,6 +1056,8 @@ function ManageAlatContent() {
         </DialogContent>
       </Dialog>
 
+      {/* Confirmation Dialog */}
+      {ConfirmationComponent}
     </div>
   );
 }

@@ -18,10 +18,6 @@ enum UserRole {
   VIEWER
 }
 
-enum DataType {
-  KTA_TTA
-  KPI_UTAMA
-}
 
 enum NotificationUrgency {
   NORMAL
@@ -234,7 +230,6 @@ model KtaKpiData {
   biro                  String?  @db.VarChar(50)
   dueDate               DateTime? @db.Date
   updateStatus          String?  @db.VarChar(50) // Computed field: Close, Proses, Due Date
-  dataType              DataType
   createdById           Int
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -242,11 +237,25 @@ model KtaKpiData {
   // Relations
   createdBy             User       @relation(fields: [createdById], references: [id])
 
-  @@index([dataType])
   @@index([tanggal])
   @@index([picDepartemen])
   @@index([statusTindakLanjut])
   @@map("kta_kpi_data")
+}
+
+// Department PIC Mapping for filtering KTA-TTA data
+model DepartmentPicMapping {
+  id             Int      @id @default(autoincrement())
+  departmentCode String   @db.VarChar(10)
+  picValue       String   @db.VarChar(100)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([departmentCode, picValue])
+  @@index([departmentCode])
+  @@index([isActive])
+  @@map("department_pic_mappings")
 }
 
 // Lookup table for KTA/TTA criteria

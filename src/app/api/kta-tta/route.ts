@@ -3,9 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   calculateUpdateStatus,
-  getAllowedPIC,
-  hasDataTypeAccess,
-  buildPICWhereClause,
 } from "@/lib/utils/kta-tta";
 
 // GET /api/kta-tta - Fetch KTA/TTA data with filtering
@@ -17,48 +14,39 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const dataType = (searchParams.get("dataType") || "KTA_TTA") as
-      | "KTA_TTA"
-      | "KPI_UTAMA";
+    const departmentParam = searchParams.get("department");
     const picFilter = searchParams.get("pic");
     const statusFilter = searchParams.get("status");
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "1000"); // Default limit for scalability
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    // Check if user has access to this data type
-    if (
-      !hasDataTypeAccess(
-        session.user.role,
-        session.user.departmentName || undefined,
-        dataType
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Access denied for this data type" },
-        { status: 403 }
-      );
+    // Build where clause based on department parameter
+    let whereClause: any = {};
+    
+    // Filter by PIC based on department parameter
+    if (departmentParam) {
+      const picMappings = await prisma.departmentPicMapping.findMany({
+        where: {
+          departmentCode: departmentParam,
+          isActive: true
+        },
+        select: {
+          picValue: true
+        }
+      });
+      
+      if (picMappings.length > 0) {
+        const allowedPICs = picMappings.map(mapping => mapping.picValue);
+        whereClause.picDepartemen = {
+          in: allowedPICs
+        };
+      }
     }
 
-    // Build optimized where clause for high scalability
-    const whereClause = buildPICWhereClause(
-      session.user.role,
-      session.user.departmentName || undefined,
-      dataType
-    );
-
-    // Apply additional filters (respecting PIC filtering)
-    if (picFilter && whereClause.picDepartemen !== undefined) {
-      // Only apply picFilter if user has access to that PIC
-      const allowedPICs = getAllowedPIC(
-        session.user.role,
-        session.user.departmentName || undefined,
-        dataType
-      );
-      
-      if (allowedPICs.length === 0 || allowedPICs.includes(picFilter)) {
-        whereClause.picDepartemen = picFilter;
-      }
+    // Apply additional filters
+    if (picFilter) {
+      whereClause.picDepartemen = picFilter;
     }
 
     if (statusFilter) {

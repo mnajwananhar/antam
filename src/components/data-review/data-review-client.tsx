@@ -21,7 +21,6 @@ import {
   Battery,
   Plus,
   AlertCircle,
-  RefreshCw,
 } from "lucide-react";
 import { DataCategoryTable } from "@/components/data-review";
 
@@ -69,9 +68,6 @@ export function DataReviewClient({
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState("operational-reports");
   const [globalSearch, setGlobalSearch] = useState("");
-  const [stats, setStats] = useState<Record<string, number>>({});
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [statsError, setStatsError] = useState<string | null>(null);
   const router = useRouter();
 
   // Initialize client-side only
@@ -79,12 +75,6 @@ export function DataReviewClient({
     setIsClient(true);
   }, []);
 
-  // Auto-load stats when component mounts (remove auto-refresh)
-  useEffect(() => {
-    if (isClient) {
-      loadGlobalStats();
-    }
-  }, [isClient]);
 
   // Filter categories based on user access
   const visibleCategories = dataCategories.filter((category) => {
@@ -99,84 +89,8 @@ export function DataReviewClient({
     return true;
   });
 
-  const loadGlobalStats = async () => {
-    try {
-      setStatsError(null);
 
-      // Add timeout to prevent infinite loading
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch("/api/data-review/stats", {
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats || {});
-      } else {
-        const errorData = await response.json();
-        setStats({
-          "operational-reports": 0,
-          "kta-tta": 0,
-          "kpi-utama": 0,
-          "maintenance-routine": 0,
-          "critical-issues": 0,
-          "safety-incidents": 0,
-          "energy-targets": 0,
-          "energy-consumption": 0,
-        });
-        setStatsError(
-          `HTTP ${response.status}: ${errorData.error || response.statusText}`
-        );
-      }
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-
-      // Always set some stats even if loading fails
-      setStats({
-        "operational-reports": 0,
-        "kta-tta": 0,
-        "kpi-utama": 0,
-        "maintenance-routine": 0,
-        "critical-issues": 0,
-        "safety-incidents": 0,
-        "energy-targets": 0,
-        "energy-consumption": 0,
-      });
-
-      if (error instanceof Error && error.name === "AbortError") {
-        setStatsError("Request timeout - stats loading took too long");
-      } else {
-        setStatsError(
-          error instanceof Error ? error.message : "Failed to load statistics"
-        );
-      }
-    } finally {
-      setIsLoadingStats(false);
-    }
-  };
-
-  const handleEdit = (categoryId: string, recordId: number) => {
-    // Redirect to appropriate input form with pre-filled data
-    const routes = {
-      "operational-reports": `/input/daily-activity/edit/${recordId}`,
-      "kta-tta": `/input/kta-tta/edit/${recordId}`,
-      "kpi-utama": `/input/kpi-utama/edit/${recordId}`,
-      "maintenance-routine": `/input/maintenance-routine/edit/${recordId}`,
-      "critical-issues": `/input/critical-issues/edit/${recordId}`,
-      "safety-incidents": `/input/safety-incidents/edit/${recordId}`,
-      "energy-targets": `/input/energy-targets/edit/${recordId}`,
-      "energy-consumption": `/input/energy-consumption/edit/${recordId}`,
-    };
-
-    const route = routes[categoryId as keyof typeof routes];
-    if (route) {
-      window.location.href = route;
-    }
-  };
+  // Note: Edit handling is now done in DataCategoryTable component
 
   const handleDelete = async (categoryId: string, recordId: number) => {
     if (
@@ -196,8 +110,6 @@ export function DataReviewClient({
       );
 
       if (response.ok) {
-        // Refresh stats and current tab data
-        loadGlobalStats();
         // Force refresh the table component
         router.refresh();
       } else {
@@ -255,100 +167,59 @@ export function DataReviewClient({
           </div>
         </div>
 
-        <div className="flex gap-2">
-          {/* Manual Refresh Button */}
+        {session.user.role !== "VIEWER" && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
-            onClick={loadGlobalStats}
-            disabled={isLoadingStats}
+            onClick={() => (window.location.href = "/input")}
             className="flex items-center gap-2"
           >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`}
-            />
-            Refresh Stats
+            <Plus className="h-4 w-4" />
+            Tambah Data Baru
           </Button>
-
-          {/* Stats Status */}
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
-            {isLoadingStats ? (
-              <>
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                Loading stats...
-              </>
-            ) : statsError ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                Stats error
-              </>
-            ) : (
-              <>
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                Stats ready
-              </>
-            )}
-          </div>
-
-          {session.user.role !== "VIEWER" && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => (window.location.href = "/input")}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Tambah Data Baru
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Stats Error Alert */}
-      {statsError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Stats loading error:</strong> {statsError}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={loadGlobalStats}
-              className="ml-2 h-auto p-1 text-xs"
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
-      {/* Data Category Tabs - SINGLE TABS ONLY */}
+      {/* Data Category Tabs - RESPONSIVE TABS */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-          {visibleCategories.map((category) => {
-            const IconComponent = getIconComponent(category.icon);
-            const count = stats[category.id] || 0;
-
-            return (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="flex items-center gap-2 text-xs relative"
-              >
-                <IconComponent className="h-4 w-4" />
-                <span className="hidden sm:inline">{category.name}</span>
-                {count > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 text-xs h-4 min-w-4 px-1"
-                  >
-                    {count > 99 ? "99+" : count}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        {/* Mobile: Use scrollable tabs */}
+        <div className="md:hidden">
+          <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 p-1">
+            {visibleCategories.map((category) => {
+              const IconComponent = getIconComponent(category.icon);
+              return (
+                <TabsTrigger
+                  key={category.id}
+                  value={category.id}
+                  className="flex items-center gap-2 text-xs whitespace-nowrap px-3 py-2 min-w-fit"
+                >
+                  <IconComponent className="h-4 w-4" />
+                  <span className="text-xs">{category.name}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+        
+        {/* Desktop: Use grid layout */}
+        <div className="hidden md:block">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1">
+            {visibleCategories.map((category) => {
+              const IconComponent = getIconComponent(category.icon);
+              return (
+                <TabsTrigger
+                  key={category.id}
+                  value={category.id}
+                  className="flex flex-col items-center gap-1 text-xs p-2 h-auto"
+                >
+                  <IconComponent className="h-4 w-4" />
+                  <span className="text-xs leading-tight text-center">{category.name}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
 
         {visibleCategories.map((category) => (
           <TabsContent
@@ -358,25 +229,21 @@ export function DataReviewClient({
           >
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {React.createElement(getIconComponent(category.icon), {
-                      className: "h-5 w-5",
+                      className: "h-5 w-5 flex-shrink-0",
                     })}
-                    <div>
-                      <CardTitle className="text-lg">{category.name}</CardTitle>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base sm:text-lg truncate">{category.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {category.description}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {(stats[category.id] || 0).toLocaleString("id-ID")}{" "}
-                      records
-                    </Badge>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {category.departmentSpecific && (
-                      <Badge variant="secondary">
+                      <Badge variant="secondary" className="text-xs">
                         {category.departmentSpecific}
                       </Badge>
                     )}
@@ -389,7 +256,7 @@ export function DataReviewClient({
                   category={category}
                   globalSearch={globalSearch}
                   session={session}
-                  onEdit={(recordId) => handleEdit(category.id, recordId)}
+                  onEdit={() => {}} // Handled by DataCategoryTable internally
                   onDelete={
                     canDelete()
                       ? (recordId) => handleDelete(category.id, recordId)

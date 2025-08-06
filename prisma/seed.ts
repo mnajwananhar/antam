@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, EquipmentStatus, DataType, NotificationUrgency, NotificationStatus, MaintenanceType, StatusTindakLanjut } from "@prisma/client";
+import { PrismaClient, UserRole, EquipmentStatus, NotificationUrgency, NotificationStatus, MaintenanceType, StatusTindakLanjut } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { seedKriteriaKtaTta } from './seeds/kriteria-kta-tta';
 import { seedOperationalData } from './seeds/operational-data';
@@ -234,6 +234,26 @@ async function main() {
   );
 
   console.log(`✅ Created ${equipment.length} equipment`);
+
+  // Create Department PIC Mappings
+  console.log("🗂️ Creating department PIC mappings...");
+  const departmentPicMappings = [
+    { departmentCode: "HETU", picValue: "HETU" },
+    { departmentCode: "HETU", picValue: "HE-TU" },
+    { departmentCode: "PMTC", picValue: "PMTC" },
+    { departmentCode: "PMTC", picValue: "Plant Maintenance & Civil" },
+    { departmentCode: "ECDC", picValue: "ECDC" },
+    { departmentCode: "MMTC", picValue: "MMTC" },
+    { departmentCode: "MMTC", picValue: "Mine Electrical" },
+    { departmentCode: "MMTC", picValue: "Mine Maintenance" },
+  ];
+
+  await prisma.departmentPicMapping.createMany({
+    data: departmentPicMappings,
+    skipDuplicates: true,
+  });
+
+  console.log(`✅ Created ${departmentPicMappings.length} department PIC mappings`);
 
   // Create users FIRST (dependency for equipment status history)
   console.log("👥 Creating users...");
@@ -486,7 +506,6 @@ async function main() {
       biro: "MMTC",
       dueDate: new Date('2025-07-29'),
       updateStatus: "Proses",
-      dataType: DataType.KTA_TTA,
       createdById: inputterUser.id,
     },
     {
@@ -508,7 +527,6 @@ async function main() {
       biro: "PMTC",
       dueDate: new Date('2025-08-03'),
       updateStatus: "Proses",
-      dataType: DataType.KTA_TTA,
       createdById: inputterUser.id,
     },
     {
@@ -530,7 +548,6 @@ async function main() {
       biro: "ECDC",
       dueDate: new Date('2025-07-17'),
       updateStatus: "Close",
-      dataType: DataType.KTA_TTA,
       createdById: inputterUser.id,
     }
   ];
@@ -556,7 +573,6 @@ async function main() {
       biro: "MTC&ENG Bureau",
       dueDate: new Date('2025-08-15'),
       updateStatus: "Proses",
-      dataType: DataType.KPI_UTAMA,
       createdById: inputterUser.id,
     },
     {
@@ -578,7 +594,6 @@ async function main() {
       biro: "MTC&ENG Bureau",
       dueDate: new Date('2025-08-08'),
       updateStatus: "Proses",
-      dataType: DataType.KPI_UTAMA,
       createdById: inputterUser.id,
     }
   ];

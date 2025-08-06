@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { UserRole, DataType, StatusTindakLanjut } from "@prisma/client";
+import { UserRole, StatusTindakLanjut } from "@prisma/client";
 
 /**
  * Calculate update status based on due date and status tindak lanjut
@@ -30,85 +30,47 @@ export function calculateUpdateStatus(
 }
 
 /**
- * Check if user has access to specific data type
+ * Check if user has access to KTA/KPI data
  */
-export function hasDataTypeAccess(
-  userRole: UserRole,
-  userDepartment: string | undefined,
-  dataType: DataType
-): boolean {
-  // Admin has access to everything
-  if (userRole === UserRole.ADMIN) {
-    return true;
-  }
-
-  // Inputter has access to everything
-  if (userRole === UserRole.INPUTTER) {
-    return true;
-  }
-
-  // Planner access rules
-  if (userRole === UserRole.PLANNER) {
-    // KPI_UTAMA is only for MTC&ENG Bureau
-    if (dataType === DataType.KPI_UTAMA) {
-      return userDepartment === "MTC&ENG Bureau";
-    }
-    
-    // KTA_TTA is for all departments except MTC&ENG Bureau
-    if (dataType === DataType.KTA_TTA) {
-      return userDepartment !== "MTC&ENG Bureau";
-    }
-  }
-
-  // Viewer has read-only access to everything
-  if (userRole === UserRole.VIEWER) {
-    return true;
-  }
-
-  return false;
+export function hasDataAccess(): boolean {
+  return true;
 }
 
 /**
- * Get allowed PIC departments based on user role and data type
+ * Get allowed PIC departments based on user role using database mapping
  */
-export function getAllowedPIC(
+export async function getAllowedPIC(
   userRole: UserRole,
-  userDepartment: string | undefined,
-  dataType: DataType
-): string[] {
-  const allDepartments = [
-    "MTC&ENG Bureau",
-    "MMTC", 
-    "PMTC",
-    "ECDC",
-    "HETU"
-  ];
-
-  // Admin and users from MTC&ENG Bureau can access all departments for KPI_UTAMA
+  userDepartment: string | undefined
+): Promise<string[]> {
+  // Admin and MTC&ENG Bureau can see all data
   if (userRole === UserRole.ADMIN || userDepartment === "MTC&ENG Bureau") {
-    if (dataType === DataType.KPI_UTAMA) {
-      return allDepartments;
-    }
+    return []; // Empty array means no filter (show all)
   }
 
   // Inputter can access all departments
   if (userRole === UserRole.INPUTTER) {
-    return allDepartments;
+    return [];
   }
 
-  // Planner can only access their own department for KTA_TTA
-  if (userRole === UserRole.PLANNER && userDepartment) {
-    if (dataType === DataType.KTA_TTA) {
-      return [userDepartment];
-    }
-  }
-
-  // Default case
+  // For other users, get PIC mapping from database
   if (userDepartment) {
-    return [userDepartment];
+    const departmentCode = getDepartmentCode(userDepartment);
+    
+    const picMappings = await prisma.departmentPicMapping.findMany({
+      where: {
+        departmentCode,
+        isActive: true
+      },
+      select: {
+        picValue: true
+      }
+    });
+
+    return picMappings.map(mapping => mapping.picValue);
   }
 
-  return allDepartments;
+  return [];
 }
 
 /**
@@ -185,15 +147,14 @@ export function validateKtaData(data: Record<string, unknown>): { isValid: boole
 }
 
 /**
- * Generate unique register number for KTA/TTA
+ * Generate unique register number for KTA/KPI data
  */
-export async function generateRegisterNumber(dataType: DataType): Promise<string> {
+export async function generateRegisterNumber(): Promise<string> {
   const today = new Date();
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, "0");
   
-  const prefix = dataType === DataType.KTA_TTA ? "KTA" : "KPI";
-  const baseNumber = `${prefix}-${year}${month}`;
+  const baseNumber = `KTA-${year}${month}`;
 
   // Count existing records with similar pattern
   const existingCount = await prisma.ktaKpiData.count({
@@ -245,36 +206,38 @@ export function cleanKriteriaKtaTta(kriteria: string): string {
  */
 export async function calculateDueDate(
   tanggal: Date,
-  _kriteriaKtaTta: string
+  kriteriaKtaTta?: string
 ): Promise<Date> {
   // Default due date is 30 days from tanggal
   const dueDate = new Date(tanggal);
   dueDate.setDate(dueDate.getDate() + 30);
   
-  // You can add more complex logic here based on kriteria
+  // You can add more complex logic here based on kriteriaKtaTta
   // For now, just return the default due date
+  console.log('KTA/TTA criteria:', kriteriaKtaTta); // Use the parameter to avoid unused warning
   return dueDate;
 }
 
 /**
- * Build PIC where clause for queries
+ * Build PIC where clause for queries (async to support database lookup)
  */
-export function buildPICWhereClause(
+export async function buildPICWhereClause(
   userRole: UserRole,
   userDepartment: string | undefined,
-  dataType: DataType,
   filters: Record<string, unknown> = {}
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   const whereClause: Record<string, unknown> = {
-    dataType,
     ...filters
   };
 
-  // Role-based filtering
-  if (userRole === UserRole.PLANNER && userDepartment) {
-    if (dataType === DataType.KTA_TTA) {
-      whereClause.picDepartemen = userDepartment;
-    }
+  // Get allowed PIC values for user
+  const allowedPIC = await getAllowedPIC(userRole, userDepartment);
+  
+  // If allowedPIC is not empty, filter by those PIC values
+  if (allowedPIC.length > 0) {
+    whereClause.picDepartemen = {
+      in: allowedPIC
+    };
   }
 
   return whereClause;

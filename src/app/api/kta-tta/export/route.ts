@@ -1,53 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   getAllowedPIC,
-  hasDataTypeAccess,
   calculateUpdateStatus,
 } from "@/lib/utils/kta-tta";
 import * as XLSX from "xlsx";
 
-// GET /api/kta-tta/export - Export KTA/TTA or KPI Utama data to Excel
-export async function GET(request: NextRequest) {
+// GET /api/kta-tta/export - Export KTA/KPI data to Excel
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const dataType = (searchParams.get("dataType") || "KTA_TTA") as
-      | "KTA_TTA"
-      | "KPI_UTAMA";
-
-    // Check if user has access to this data type
-    if (
-      !hasDataTypeAccess(
-        session.user.role,
-        session.user.departmentName || undefined,
-        dataType
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Access denied for this data type" },
-        { status: 403 }
-      );
-    }
-
     // Build where clause based on user permissions
     const whereClause: {
-      dataType: "KTA_TTA" | "KPI_UTAMA";
       picDepartemen?: { in: string[] };
-    } = {
-      dataType: dataType,
-    };
+    } = {};
 
     // Apply PIC filtering based on user role
-    const allowedPIC = getAllowedPIC(
+    const allowedPIC = await getAllowedPIC(
       session.user.role,
-      session.user.departmentName || undefined,
-      dataType
+      session.user.departmentName || undefined
     );
     if (allowedPIC.length > 0) {
       whereClause.picDepartemen = {
@@ -138,8 +114,8 @@ export async function GET(request: NextRequest) {
 
     worksheet["!cols"] = columnWidths;
 
-    // Add worksheet to workbook
-    const sheetName = dataType === "KTA_TTA" ? "KTA_TTA" : "KPI_Utama";
+    // Add worksheet to workbook  
+    const sheetName = "KTA_KPI_Data";
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Generate buffer
@@ -147,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `export_${dataType.toLowerCase()}_${timestamp}.xlsx`;
+    const filename = `export_kta_kpi_${timestamp}.xlsx`;
 
     // Return file as response
     return new NextResponse(buffer, {
