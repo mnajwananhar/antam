@@ -15,6 +15,7 @@ import {
   Wrench,
   AlertTriangle,
   Bell,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,12 @@ const navigationItems: NavItem[] = [
         icon: AlertTriangle,
       },
     ],
+  },
+  {
+    title: "Manage Alat",
+    href: "/manage-alat",
+    icon: Settings,
+    roles: ["ADMIN"],
   },
   {
     title: "Manajemen Pengguna",
