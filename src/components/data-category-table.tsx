@@ -340,6 +340,8 @@ export function DataCategoryTable({
     setDeletingId(null);
   };
 
+
+
   const renderTableContent = () => {
     if (isLoading) {
       return (
@@ -526,31 +528,36 @@ export function DataCategoryTable({
             <TableCell>
               <div className="flex items-center gap-2">
                 <Calendar className="h-3 w-3 text-muted-foreground" />
-                {formatDate(ktaRecord.tanggal)}
+                <span className="text-sm">{formatDate(ktaRecord.tanggal)}</span>
               </div>
             </TableCell>
             <TableCell>
-              <div className="max-w-xs">
-                <div className="font-medium truncate">
-                  {ktaRecord.keterangan || "No description"}
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  {ktaRecord.keterangan || "-"}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {ktaRecord.noRegister}
-                </div>
+                {ktaRecord.noRegister && (
+                  <div className="text-xs text-muted-foreground font-mono">
+                    No. Register: {ktaRecord.noRegister}
+                  </div>
+                )}
               </div>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline">
-                {ktaRecord.departmentName ||
-                  getDepartmentName(ktaRecord.picDepartemenId || 0)}
-              </Badge>
             </TableCell>
             <TableCell>
               <div className="text-sm">
-                <div>{ktaRecord.namaPelapor || "-"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {ktaRecord.nppPelapor}
+                {ktaRecord.departmentName || "-"}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  {ktaRecord.namaPelapor || "-"}
                 </div>
+                {ktaRecord.nppPelapor && (
+                  <div className="text-xs text-muted-foreground">
+                    NPP: {ktaRecord.nppPelapor}
+                  </div>
+                )}
               </div>
             </TableCell>
             <TableCell>

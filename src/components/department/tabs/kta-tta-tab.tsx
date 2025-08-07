@@ -23,7 +23,6 @@ interface KtaTtaTabProps {
 
 export function KtaTtaTab({
   department,
-  session,
 }: KtaTtaTabProps): React.JSX.Element {
   const [existingData, setExistingData] = useState<KtaKpiItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);

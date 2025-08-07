@@ -187,9 +187,12 @@ export function KtaKpiTable({
                   <TableRow>
                     <TableHead className="w-12 text-center">No</TableHead>
                     <TableHead className="w-32">No. Register</TableHead>
+                    <TableHead className="w-36">Nama Pelapor</TableHead>
                     <TableHead className="w-28">Tanggal</TableHead>
                     <TableHead className="w-40">Lokasi</TableHead>
+                    <TableHead className="w-36">Area Temuan</TableHead>
                     <TableHead className="w-48">Keterangan</TableHead>
+                    <TableHead className="w-36">Sumber Temuan</TableHead>
                     <TableHead className="w-32">PIC Departemen</TableHead>
                     <TableHead className="w-24">Status</TableHead>
                     <TableHead className="w-28">Due Date</TableHead>
@@ -209,6 +212,14 @@ export function KtaKpiTable({
                       <TableCell className="font-medium">
                         {item.noRegister || "-"}
                       </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="truncate max-w-32" title={item.namaPelapor}>
+                            {item.namaPelapor || "-"}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>{formatDate(item.tanggal)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -219,10 +230,26 @@ export function KtaKpiTable({
                         </div>
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-muted-foreground" />
+                          <span className="truncate max-w-32" title={item.areaTemuan}>
+                            {item.areaTemuan || "-"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <div className="max-w-48">
                           <p className="truncate" title={item.keterangan}>
                             {item.keterangan || "-"}
                           </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <FileText className="h-3 w-3 text-muted-foreground" />
+                          <span className="truncate max-w-32" title={item.sumberTemuan}>
+                            {item.sumberTemuan || "-"}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>

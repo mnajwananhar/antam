@@ -62,9 +62,25 @@ interface CreateOrderForm {
   startDate: string;
   endDate: string;
   description: string;
+  selectedJobLibraryId: number | null;
   activities: Array<{
     activity: string;
     object: string;
+  }>;
+}
+
+interface JobLibrary {
+  id: number;
+  jobName: string;
+  description: string | null;
+  activities: Array<{
+    id: number;
+    activity: string;
+    object: {
+      id: number;
+      materialNumber: string;
+      materialName: string;
+    };
   }>;
 }
 
@@ -100,6 +116,7 @@ function NotifikasiContent({
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [jobLibraries, setJobLibraries] = useState<JobLibrary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -108,6 +125,7 @@ function NotifikasiContent({
   const [selectedNotificationForOrder, setSelectedNotificationForOrder] = useState<Notification | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PROCESS" | "COMPLETE">("ALL");
+  const [jobSearchTerm, setJobSearchTerm] = useState("");
   
   const [createForm, setCreateForm] = useState<CreateNotificationForm>({
     departmentId: "",
@@ -121,6 +139,7 @@ function NotifikasiContent({
     startDate: dateUtils.getCurrentDate(),
     endDate: "",
     description: "",
+    selectedJobLibraryId: null,
     activities: [{ activity: "", object: "" }],
   });
 
@@ -139,6 +158,27 @@ function NotifikasiContent({
     };
     loadDepartments();
   }, []);
+
+  // Load job libraries
+  const loadJobLibraries = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (jobSearchTerm) params.append("search", jobSearchTerm);
+      params.append("limit", "100"); // Load more for search
+
+      const response = await fetch(`/api/job-library?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setJobLibraries(data.data?.jobLibraries || []);
+      }
+    } catch (error) {
+      console.error("Error loading job libraries:", error);
+    }
+  }, [jobSearchTerm]);
+
+  useEffect(() => {
+    loadJobLibraries();
+  }, [loadJobLibraries]);
 
   // Load notifications
   const loadNotifications = useCallback(async () => {
@@ -276,6 +316,7 @@ function NotifikasiContent({
   // Handle Create Order - open modal in notification page
   const handleCreateOrder = (notification: Notification) => {
     setSelectedNotificationForOrder(notification);
+    setJobSearchTerm(""); // Reset search term
     setIsCreateOrderDialogOpen(true);
   };
 
@@ -318,6 +359,7 @@ function NotifikasiContent({
           startDate: dateUtils.getCurrentDate(),
           endDate: "",
           description: "",
+          selectedJobLibraryId: null,
           activities: [{ activity: "", object: "" }],
         });
         loadNotifications(); // Refresh to show updated orders count
@@ -352,6 +394,30 @@ function NotifikasiContent({
     setCreateOrderForm({
       ...createOrderForm,
       activities: newActivities
+    });
+  };
+
+  // Handle job selection from library
+  const handleJobLibrarySelection = (jobLibrary: JobLibrary) => {
+    setCreateOrderForm({
+      ...createOrderForm,
+      jobName: jobLibrary.jobName,
+      description: jobLibrary.description || "",
+      selectedJobLibraryId: jobLibrary.id,
+      activities: jobLibrary.activities.map(activity => ({
+        activity: activity.activity,
+        object: `${activity.object.materialNumber} - ${activity.object.materialName}`
+      }))
+    });
+    setJobSearchTerm(""); // Clear search after selection
+  };
+
+  // Reset job selection to manual input
+  const handleManualJobInput = () => {
+    setCreateOrderForm({
+      ...createOrderForm,
+      selectedJobLibraryId: null,
+      activities: [{ activity: "", object: "" }]
     });
   };
 
@@ -639,12 +705,70 @@ function NotifikasiContent({
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Nama Pekerjaan *</label>
-                <Input
-                  placeholder="Masukkan nama pekerjaan"
-                  value={createOrderForm.jobName}
-                  onChange={(e) => setCreateOrderForm({...createOrderForm, jobName: e.target.value})}
-                />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Nama Pekerjaan *</label>
+                  {createOrderForm.selectedJobLibraryId && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleManualJobInput}
+                      className="text-xs"
+                    >
+                      Input Manual
+                    </Button>
+                  )}
+                </div>
+                
+                {!createOrderForm.selectedJobLibraryId ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Cari job dari library atau ketik manual..."
+                      value={jobSearchTerm || createOrderForm.jobName}
+                      onChange={(e) => {
+                        if (!createOrderForm.selectedJobLibraryId) {
+                          setCreateOrderForm({...createOrderForm, jobName: e.target.value});
+                        }
+                        setJobSearchTerm(e.target.value);
+                      }}
+                    />
+                    
+                    {/* Job Library Search Results */}
+                    {jobSearchTerm && jobLibraries.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto border rounded-md bg-white shadow-lg">
+                        {jobLibraries
+                          .filter(job => job.jobName.toLowerCase().includes(jobSearchTerm.toLowerCase()))
+                          .slice(0, 5)
+                          .map((job) => (
+                            <div
+                              key={job.id}
+                              className="p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                              onClick={() => handleJobLibrarySelection(job)}
+                            >
+                              <div className="font-medium text-sm">{job.jobName}</div>
+                              {job.description && (
+                                <div className="text-xs text-gray-500 truncate">{job.description}</div>
+                              )}
+                              <div className="text-xs text-blue-600">
+                                {job.activities.length} aktivitas tersedia
+                              </div>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-blue-900">{createOrderForm.jobName}</div>
+                        <div className="text-sm text-blue-700">
+                          Dari Library - {createOrderForm.activities.length} aktivitas terisi otomatis
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -735,6 +859,7 @@ function NotifikasiContent({
                   onClick={() => {
                     setIsCreateOrderDialogOpen(false);
                     setSelectedNotificationForOrder(null);
+                    setJobSearchTerm(""); // Reset search term
                   }}
                   className="flex-1"
                 >

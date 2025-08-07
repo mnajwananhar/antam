@@ -467,3 +467,52 @@ model ApprovalRequest {
   @@index([requesterId])
   @@map("approval_requests")
 }
+
+// Job Library System
+model JobLibrary {
+  id          Int      @id @default(autoincrement())
+  jobName     String   @db.VarChar(255)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  activities  JobActivity[]
+
+  @@index([jobName])
+  @@map("job_library")
+}
+
+model JobActivity {
+  id        Int        @id @default(autoincrement())
+  jobId     Int
+  activity  String     @db.VarChar(255)
+  objectId  Int        // Reference to JobObject
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations  
+  job       JobLibrary @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  object    JobObject  @relation(fields: [objectId], references: [id])
+
+  @@index([jobId])
+  @@map("job_activities")
+}
+
+model JobObject {
+  id             Int           @id @default(autoincrement())
+  materialNumber String        @db.VarChar(100)
+  materialName   String        @db.VarChar(255)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  jobActivities  JobActivity[]
+
+  @@unique([materialNumber])
+  @@index([materialNumber])
+  @@index([materialName])
+  @@map("job_objects")
+}

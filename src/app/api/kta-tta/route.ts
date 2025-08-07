@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Build where clause based on department parameter
-    let whereClause: any = {};
+    const whereClause: Record<string, unknown> = {};
     
     // Filter by PIC based on department parameter
     if (departmentParam) {

@@ -20,6 +20,20 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
     const includeAll = searchParams.get("includeAll") === "true";
+    const statsOnly = searchParams.get("stats") === "true";
+    
+    // If stats only, return category statistics
+    if (statsOnly) {
+      const total = await prisma.equipmentCategory.count({
+        where: { isActive: true }
+      });
+      
+      return NextResponse.json({
+        stats: {
+          total
+        }
+      });
+    }
 
     if (includeAll) {
       // Return all active categories for dropdown/select components

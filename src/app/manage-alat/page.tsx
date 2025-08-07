@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,14 +27,16 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+
+import { UniversalTable } from "@/components/ui/universal-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  createEquipmentColumns,
+  createEquipmentActions,
+  createEquipmentFilters,
+  createCategoryColumns,
+  createCategoryActions,
+
+} from "./equipment-table-config";
 import {
   Dialog,
   DialogContent,
@@ -46,16 +47,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus,
-  Search,
-  Edit,
-  Trash2,
   Settings,
-  Filter,
   Tag,
   FolderOpen,
 } from "lucide-react";
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
-import { dateUtils } from "@/lib/utils";
 
 interface Equipment {
   id: number;
@@ -95,6 +91,7 @@ function ManageAlatContent() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -111,63 +108,186 @@ function ManageAlatContent() {
   const [categorySearchTerm, setCategorySearchTerm] = useState("");
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryTotalPages, setCategoryTotalPages] = useState(1);
+  const [categoryTotalItems, setCategoryTotalItems] = useState(0);
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
   const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
     code: "",
   });
+
+  // Stats states for overall data
+  const [equipmentStats, setEquipmentStats] = useState({
+    total: 0,
+    working: 0,
+    breakdown: 0,
+    standby: 0,
+  });
+  const [totalCategories, setTotalCategories] = useState(0);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const { feedback, crud, ConfirmationComponent } = useStandardFeedback();
+  
+  // Use ref to avoid feedback dependency issues
+  const feedbackRef = useRef(feedback);
+  feedbackRef.current = feedback;
 
-  const fetchEquipment = useCallback(async (page = 1) => {
+  // Helper functions for refetching data after CRUD operations
+  const refetchEquipmentData = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        page: page.toString(),
+        page: currentPage.toString(),
         limit: "10",
         ...(searchTerm && { search: searchTerm }),
         ...(categoryFilter !== "all" && { categoryId: categoryFilter }),
       });
 
-      const response = await fetch(`/api/equipment/manage?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch equipment");
+      const [equipmentResponse, statsResponse] = await Promise.all([
+        fetch(`/api/equipment/manage?${params}`),
+        fetch(`/api/equipment/manage?stats=true${searchTerm ? `&search=${searchTerm}` : ''}${categoryFilter !== "all" ? `&categoryId=${categoryFilter}` : ''}`)
+      ]);
 
-      const data = await response.json();
-      setEquipment(data.data);
-      setTotalPages(data.pagination.totalPages);
-      setCurrentPage(page);
-    } catch {
-      feedback.error("Gagal memuat data equipment");
+      if (equipmentResponse.ok) {
+        const equipmentData = await equipmentResponse.json();
+        setEquipment(equipmentData.data);
+        setTotalPages(equipmentData.pagination.totalPages);
+        setTotalItems(equipmentData.pagination.total);
+      }
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setEquipmentStats({
+          total: statsData.stats.total,
+          working: statsData.stats.working,
+          breakdown: statsData.stats.breakdown,
+          standby: statsData.stats.standby,
+        });
+      }
+    } catch (error) {
+      console.error("Error refetching equipment data:", error);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, categoryFilter, feedback]);
+  };
 
-  const fetchCategories = useCallback(async () => {
+  const refetchCategoryData = async () => {
     try {
-      const response = await fetch("/api/equipment/categories?includeAll=true");
-      if (!response.ok) throw new Error("Failed to fetch categories");
+      const [dropdownResponse, managementResponse, statsResponse] = await Promise.all([
+        fetch("/api/equipment/categories?includeAll=true"),
+        fetch(`/api/equipment/categories?page=${categoryCurrentPage}&limit=10${categorySearchTerm ? `&search=${categorySearchTerm}` : ''}`),
+        fetch("/api/equipment/categories?stats=true")
+      ]);
 
-      const data = await response.json();
-      setCategories(data.data);
-    } catch {
-      feedback.error("Gagal memuat kategori equipment");
+      if (dropdownResponse.ok) {
+        const dropdownData = await dropdownResponse.json();
+        setCategories(dropdownData.data);
+      }
+
+      if (managementResponse.ok) {
+        const managementData = await managementResponse.json();
+        setCategoriesForManagement(managementData.data);
+        setCategoryTotalPages(managementData.pagination.totalPages);
+        setCategoryTotalItems(managementData.pagination.total);
+      }
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setTotalCategories(statsData.stats.total);
+      }
+    } catch (error) {
+      console.error("Error refetching category data:", error);
     }
-  }, [feedback]);
+  };
 
+  // Initial load - hanya sekali tanpa filter
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    const loadInitialData = async () => {
+      try {
+        // Load categories for dropdown
+        const categoriesResponse = await fetch("/api/equipment/categories?includeAll=true");
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData.data);
+        }
+        
+        // Load category stats
+        const statsResponse = await fetch("/api/equipment/categories?stats=true");
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setTotalCategories(statsData.stats.total);
+        }
+        
+        // Load categories for management (paginated)
+        setCategoryLoading(true); // Set loading state
+        const categoryManagementResponse = await fetch("/api/equipment/categories?page=1&limit=10");
+        if (categoryManagementResponse.ok) {
+          const managementData = await categoryManagementResponse.json();
+          setCategoriesForManagement(managementData.data);
+          setCategoryTotalPages(managementData.pagination.totalPages);
+          setCategoryTotalItems(managementData.pagination.total);
+          setCategoryCurrentPage(1);
+        }
+        setCategoryLoading(false); // Clear loading state
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        feedbackRef.current.error("Gagal memuat data awal");
+        setCategoryLoading(false); // Clear loading state on error
+      }
+    };
+    
+    loadInitialData();
+  }, []); // Empty dependency - hanya run sekali saat mount
 
+  // Load equipment dan stats berdasarkan filter/search dengan debouncing
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      fetchEquipment(1);
+    const delayedSearch = setTimeout(async () => {
+      try {
+        // Fetch equipment with filters
+        setLoading(true);
+        const equipmentParams = new URLSearchParams({
+          page: "1",
+          limit: "10",
+          ...(searchTerm && { search: searchTerm }),
+          ...(categoryFilter !== "all" && { categoryId: categoryFilter }),
+        });
+
+        const equipmentResponse = await fetch(`/api/equipment/manage?${equipmentParams}`);
+        if (equipmentResponse.ok) {
+          const equipmentData = await equipmentResponse.json();
+          setEquipment(equipmentData.data);
+          setTotalPages(equipmentData.pagination.totalPages);
+          setTotalItems(equipmentData.pagination.total);
+          setCurrentPage(1);
+        }
+
+        // Fetch equipment stats with same filters
+        const statsParams = new URLSearchParams({
+          stats: "true",
+          ...(searchTerm && { search: searchTerm }),
+          ...(categoryFilter !== "all" && { categoryId: categoryFilter }),
+        });
+        
+        const statsResponse = await fetch(`/api/equipment/manage?${statsParams}`);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setEquipmentStats({
+            total: statsData.stats.total,
+            working: statsData.stats.working,
+            breakdown: statsData.stats.breakdown,
+            standby: statsData.stats.standby,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching equipment data:", error);
+        feedbackRef.current.error("Gagal memuat data equipment");
+      } finally {
+        setLoading(false);
+      }
     }, 500);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchTerm, categoryFilter, fetchEquipment]);
+  }, [searchTerm, categoryFilter]); // Hanya depend on values, bukan functions
 
   const handleAddEquipment = async () => {
     if (!formData.name || !formData.code || !formData.categoryId) {
@@ -197,7 +317,7 @@ function ManageAlatContent() {
 
       setIsAddDialogOpen(false);
       setFormData({ name: "", code: "", categoryId: "" });
-      fetchEquipment(currentPage);
+      refetchEquipmentData();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal menambahkan equipment";
       feedback.error(errorMessage);
@@ -235,7 +355,7 @@ function ManageAlatContent() {
       setIsEditDialogOpen(false);
       setEditingEquipment(null);
       setFormData({ name: "", code: "", categoryId: "" });
-      fetchEquipment(currentPage);
+      refetchEquipmentData();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui equipment";
       feedback.error(errorMessage);
@@ -248,7 +368,9 @@ function ManageAlatContent() {
     await crud.delete(
       () => fetch(`/api/equipment/manage/${id}`, { method: "DELETE" }),
       "equipment", 
-      () => fetchEquipment(currentPage)
+      () => {
+        refetchEquipmentData();
+      }
     );
   };
 
@@ -262,47 +384,11 @@ function ManageAlatContent() {
     setIsEditDialogOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "WORKING":
-        return "bg-green-100 text-green-800";
-      case "STANDBY":
-        return "bg-yellow-100 text-yellow-800";
-      case "BREAKDOWN":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
-  const resetFilters = () => {
-    setSearchTerm("");
-    setCategoryFilter("all");
-  };
 
-  // Category management functions
-  const fetchCategoriesPaginated = useCallback(async (page = 1) => {
-    try {
-      setCategoryLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        ...(categorySearchTerm && { search: categorySearchTerm }),
-      });
 
-      const response = await fetch(`/api/equipment/categories?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch categories");
 
-      const data = await response.json();
-      setCategoriesForManagement(data.data);
-      setCategoryTotalPages(data.pagination.totalPages);
-      setCategoryCurrentPage(page);
-    } catch {
-      feedback.error("Gagal memuat data kategori");
-    } finally {
-      setCategoryLoading(false);
-    }
-  }, [categorySearchTerm, feedback]);
+  // Category management functions - inline implementations to avoid useCallback dependencies
 
   const handleAddCategory = async () => {
     if (!categoryFormData.name || !categoryFormData.code) {
@@ -328,8 +414,7 @@ function ManageAlatContent() {
 
       setIsAddCategoryDialogOpen(false);
       setCategoryFormData({ name: "", code: "" });
-      fetchCategoriesPaginated(categoryCurrentPage);
-      fetchCategories(); // Refresh dropdown categories
+      refetchCategoryData();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal menambahkan kategori";
       feedback.error(errorMessage);
@@ -363,8 +448,7 @@ function ManageAlatContent() {
       setIsEditCategoryDialogOpen(false);
       setEditingCategory(null);
       setCategoryFormData({ name: "", code: "" });
-      fetchCategoriesPaginated(categoryCurrentPage);
-      fetchCategories(); // Refresh dropdown categories
+      refetchCategoryData();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui kategori";
       feedback.error(errorMessage);
@@ -378,8 +462,7 @@ function ManageAlatContent() {
       () => fetch(`/api/equipment/categories/${id}`, { method: "DELETE" }),
       "kategori",
       () => {
-        fetchCategoriesPaginated(categoryCurrentPage);
-        fetchCategories(); // Refresh dropdown categories
+        refetchCategoryData();
       }
     );
   };
@@ -393,17 +476,39 @@ function ManageAlatContent() {
     setIsEditCategoryDialogOpen(true);
   };
 
-  const resetCategoryFilters = () => {
-    setCategorySearchTerm("");
-  };
 
+
+  // Search dengan debouncing untuk category management - hanya untuk search
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      fetchCategoriesPaginated(1);
+    if (categorySearchTerm === "") return; // Skip jika search kosong (initial state)
+    
+    const delayedSearch = setTimeout(async () => {
+      try {
+        setCategoryLoading(true);
+        const params = new URLSearchParams({
+          page: "1",
+          limit: "10",
+          search: categorySearchTerm,
+        });
+
+        const response = await fetch(`/api/equipment/categories?${params}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCategoriesForManagement(data.data);
+          setCategoryTotalPages(data.pagination.totalPages);
+          setCategoryTotalItems(data.pagination.total);
+          setCategoryCurrentPage(1);
+        }
+      } catch (error) {
+        console.error("Error searching categories:", error);
+        feedbackRef.current.error("Gagal mencari kategori");
+      } finally {
+        setCategoryLoading(false);
+      }
     }, 500);
 
     return () => clearTimeout(delayedSearch);
-  }, [categorySearchTerm, fetchCategoriesPaginated]);
+  }, [categorySearchTerm]); // Hanya depend on search term
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -450,7 +555,7 @@ function ManageAlatContent() {
             <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{equipment.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{equipmentStats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -460,7 +565,7 @@ function ManageAlatContent() {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-green-600">
-              {equipment.filter((eq) => eq.currentStatus === "WORKING").length}
+              {equipmentStats.working}
             </div>
           </CardContent>
         </Card>
@@ -471,7 +576,7 @@ function ManageAlatContent() {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-red-600">
-              {equipment.filter((eq) => eq.currentStatus === "BREAKDOWN").length}
+              {equipmentStats.breakdown}
             </div>
           </CardContent>
         </Card>
@@ -481,63 +586,17 @@ function ManageAlatContent() {
             <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{categories.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{totalCategories}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filter & Pencarian
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari berdasarkan nama atau kode equipment..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter Kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Kategori</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {(searchTerm || categoryFilter !== "all") && (
-              <Button variant="outline" onClick={resetFilters}>
-                Reset Filter
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Equipment Table */}
       <Card>
         <CardHeader>
           <CardTitle>Daftar Equipment</CardTitle>
-          <CardDescription>
-            Kelola semua equipment yang tersedia dalam sistem
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -546,115 +605,53 @@ function ManageAlatContent() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nama Equipment</TableHead>
-                      <TableHead className="hidden sm:table-cell">Kode</TableHead>
-                      <TableHead className="hidden md:table-cell">Kategori</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Last Update</TableHead>
-                      <TableHead>Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                <TableBody>
-                  {equipment.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <div className="flex flex-col items-center gap-2">
-                          <Settings className="h-8 w-8 text-muted-foreground/50" />
-                          <p className="text-muted-foreground">
-                            Tidak ada equipment yang ditemukan
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    equipment.map((eq) => (
-                      <TableRow key={eq.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex flex-col">
-                            <span>{eq.name}</span>
-                            <span className="sm:hidden text-xs text-muted-foreground">
-                              {eq.code}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {eq.code}
-                          </code>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <Badge variant="outline">{eq.category.name}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(eq.currentStatus)}>
-                            <span className="hidden sm:inline">{eq.currentStatus}</span>
-                            <span className="sm:hidden">{eq.currentStatus.charAt(0)}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {dateUtils.formatDateTime(eq.lastStatusChange)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 sm:gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditDialog(eq)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteEquipment(eq.id)}
-                              disabled={eq._count.operationalReports > 0}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-                </Table>
-              </div>
+              <UniversalTable<Equipment>
+                data={equipment}
+                columns={createEquipmentColumns()}
+                actions={createEquipmentActions(openEditDialog, handleDeleteEquipment)}
+                loading={loading}
+                emptyState={{
+                    icon: <Settings className="h-8 w-8" />,
+                    title: "Tidak ada equipment yang ditemukan",
+                  }}
+                pagination={{
+                  currentPage,
+                  totalPages,
+                  pageSize: 10,
+                  totalItems,
+                  onPageChange: async (page) => {
+                    try {
+                      setLoading(true);
+                      const params = new URLSearchParams({
+                        page: page.toString(),
+                        limit: "10",
+                        ...(searchTerm && { search: searchTerm }),
+                        ...(categoryFilter !== "all" && { categoryId: categoryFilter }),
+                      });
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4">
-                  <div className="text-sm text-muted-foreground text-center sm:text-left">
-                    <span className="hidden sm:inline">Halaman {currentPage} dari {totalPages}</span>
-                    <span className="sm:hidden">Page {currentPage}/{totalPages}</span>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => fetchEquipment(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      size="sm"
-                    >
-                      <span className="hidden sm:inline">Previous</span>
-                      <span className="sm:hidden">Prev</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => fetchEquipment(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      size="sm"
-                    >
-                      <span className="hidden sm:inline">Next</span>
-                      <span className="sm:hidden">Next</span>
-                    </Button>
-                  </div>
-                </div>
-              )}
+                      const response = await fetch(`/api/equipment/manage?${params}`);
+                      if (response.ok) {
+                        const data = await response.json();
+                        setEquipment(data.data);
+                        setTotalPages(data.pagination.totalPages);
+                        setTotalItems(data.pagination.total);
+                        setCurrentPage(page);
+                      }
+                    } catch (error) {
+                      console.error("Error fetching equipment page:", error);
+                      feedbackRef.current.error("Gagal memuat halaman equipment");
+                    } finally {
+                      setLoading(false);
+                    }
+                  },
+                }}
+                searchable={{
+                  placeholder: "Cari berdasarkan nama atau kode equipment...",
+                  value: searchTerm,
+                  onChange: setSearchTerm,
+                }}
+                filters={createEquipmentFilters(categories, categoryFilter, setCategoryFilter)}
+              />
             </>
           )}
         </CardContent>
@@ -823,133 +820,62 @@ function ManageAlatContent() {
             </CardContent>
           </Card>
 
-          {/* Category Filter */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Filter & Pencarian Kategori
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari berdasarkan nama atau kode kategori..."
-                      value={categorySearchTerm}
-                      onChange={(e) => setCategorySearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                {categorySearchTerm && (
-                  <Button variant="outline" onClick={resetCategoryFilters}>
-                    Reset Filter
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Categories Table */}
           <Card>
             <CardHeader>
               <CardTitle>Daftar Kategori</CardTitle>
-              <CardDescription>
-                Kelola semua kategori equipment yang tersedia dalam sistem
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              {categoryLoading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama Kategori</TableHead>
-                        <TableHead>Kode</TableHead>
-                        <TableHead>Jumlah Equipment</TableHead>
-                        <TableHead>Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categoriesForManagement.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8">
-                            <div className="flex flex-col items-center gap-2">
-                              <FolderOpen className="h-8 w-8 text-muted-foreground/50" />
-                              <p className="text-muted-foreground">
-                                Tidak ada kategori yang ditemukan
-                              </p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        categoriesForManagement.map((category) => (
-                          <TableRow key={category.id}>
-                            <TableCell className="font-medium">{category.name}</TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {category.code}
-                              </code>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{category._count.equipment}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openEditCategoryDialog(category)}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteCategory(category.id)}
-                                  disabled={category._count.equipment > 0}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+              <UniversalTable
+                data={categoriesForManagement}
+                columns={createCategoryColumns()}
+                actions={createCategoryActions(
+                  openEditCategoryDialog,
+                  handleDeleteCategory
+                )}
+                searchable={{
+                  placeholder: "Cari berdasarkan nama atau kode...",
+                  value: categorySearchTerm,
+                  onChange: setCategorySearchTerm,
+                }}
+                pagination={{
+                  currentPage: categoryCurrentPage,
+                  totalPages: categoryTotalPages,
+                  pageSize: 10,
+                  totalItems: categoryTotalItems,
+                  onPageChange: async (page) => {
+                    try {
+                      setCategoryLoading(true);
+                      const params = new URLSearchParams({
+                        page: page.toString(),
+                        limit: "10",
+                        ...(categorySearchTerm && { search: categorySearchTerm }),
+                      });
 
-                  {/* Category Pagination */}
-                  {categoryTotalPages > 1 && (
-                    <div className="flex justify-center gap-2 mt-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => fetchCategoriesPaginated(categoryCurrentPage - 1)}
-                        disabled={categoryCurrentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="flex items-center px-4">
-                        Page {categoryCurrentPage} of {categoryTotalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        onClick={() => fetchCategoriesPaginated(categoryCurrentPage + 1)}
-                        disabled={categoryCurrentPage === categoryTotalPages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
+                      const response = await fetch(`/api/equipment/categories?${params}`);
+                      if (response.ok) {
+                        const data = await response.json();
+                        setCategoriesForManagement(data.data);
+                        setCategoryTotalPages(data.pagination.totalPages);
+                        setCategoryTotalItems(data.pagination.total);
+                        setCategoryCurrentPage(page);
+                      }
+                    } catch (error) {
+                      console.error("Error fetching category page:", error);
+                      feedbackRef.current.error("Gagal memuat halaman kategori");
+                    } finally {
+                      setCategoryLoading(false);
+                    }
+                  },
+                }}
+                loading={categoryLoading}
+                emptyState={{
+                  icon: <FolderOpen className="h-8 w-8 text-muted-foreground/50" />,
+                  title: "Tidak ada kategori yang ditemukan",
+                  description: "Belum ada kategori yang tersedia atau sesuai dengan pencarian Anda.",
+                }}
+                className="mt-4"
+              />
             </CardContent>
           </Card>
         </TabsContent>

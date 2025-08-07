@@ -18,6 +18,55 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const statsOnly = searchParams.get("stats") === "true";
+    
+    // If stats only, return equipment statistics
+    if (statsOnly) {
+      const search = searchParams.get("search") || "";
+      const categoryId = searchParams.get("categoryId");
+      
+      const where = {
+        AND: [
+          search
+            ? {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" as const } },
+                  { code: { contains: search, mode: "insensitive" as const } },
+                ],
+              }
+            : {},
+          categoryId && categoryId !== "all"
+            ? { categoryId: parseInt(categoryId) }
+            : {},
+          { isActive: true },
+        ],
+      };
+      
+      const equipment = await prisma.equipment.findMany({
+        where,
+        include: {
+          equipmentStatusHistory: {
+            orderBy: { changedAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+      
+      const stats = equipment.reduce(
+        (acc, eq) => {
+          const currentStatus = eq.equipmentStatusHistory[0]?.status || "WORKING";
+          acc.total++;
+          if (currentStatus === "WORKING") acc.working++;
+          else if (currentStatus === "BREAKDOWN") acc.breakdown++;
+          else if (currentStatus === "STANDBY") acc.standby++;
+          return acc;
+        },
+        { total: 0, working: 0, breakdown: 0, standby: 0 }
+      );
+      
+      return NextResponse.json({ stats });
+    }
+
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
@@ -35,7 +84,7 @@ export async function GET(request: NextRequest) {
               ],
             }
           : {},
-        categoryId ? { categoryId: parseInt(categoryId) } : {},
+        categoryId && categoryId !== "all" ? { categoryId: parseInt(categoryId) } : {},
       ],
     };
 
