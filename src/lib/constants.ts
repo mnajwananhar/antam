@@ -15,36 +15,36 @@ export const APP_CONFIG = {
 // Department configuration
 export const DEPARTMENTS = [
   {
-    id: 1,
+    id: "mtc-eng-bureau",
     name: "MTC&ENG Bureau",
     code: "MTCENG",
     description: "Maintenance & Engineering",
   },
   {
-    id: 2,
-    name: "MMTC",
-    code: "MMTC",
-    description: "Mine Maintenance",
-  },
-  {
-    id: 3,
-    name: "PMTC",
-    code: "PMTC",
-    description: "Plant Maintenance",
-  },
-  {
-    id: 4,
+    id: "ecdc",
     name: "ECDC",
     code: "ECDC",
     description: "Electric Control & Distribution",
   },
   {
-    id: 5,
+    id: "hetu",
     name: "HETU",
     code: "HETU",
-    description: "Heavy Equipment & Tailing Utilization",
+    description: "Heavy Equipment & Testing Utilization",
   },
-] as const;
+  {
+    id: "mmtc",
+    name: "MMTC",
+    code: "MMTC",
+    description: "Mine Maintenance",
+  },
+  {
+    id: "pmtc",
+    name: "PMTC",
+    code: "PMTC",
+    description: "Plant Maintenance",
+  },
+];
 
 // Equipment categories and lists
 export const EQUIPMENT_CATEGORIES = {

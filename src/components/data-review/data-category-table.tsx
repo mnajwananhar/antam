@@ -184,7 +184,6 @@ export function DataCategoryTable({
     if (!category.id) return;
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const queryParams = new URLSearchParams({
@@ -197,8 +196,13 @@ export function DataCategoryTable({
         queryParams.append("filter", category.filter);
       }
 
+      const searchTerm = debouncedGlobalSearch || debouncedLocalSearch;
+      if (searchTerm) {
+        queryParams.append("search", searchTerm);
+      }
+
       console.log(
-        `Loading data for category: ${category.id}, page: ${currentPage}, pageSize: ${pageSize}`
+        `Loading data for category: ${category.id}, page: ${currentPage}, pageSize: ${pageSize}, search: ${searchTerm}`
       );
 
       const controller = new AbortController();
@@ -222,7 +226,9 @@ export function DataCategoryTable({
 
       const result = await response.json();
       setData(result.data || []);
+      setFilteredData(result.data || []); // Set filteredData directly
       setTotalRecords(result.total || 0);
+      setError(null); // Clear error on success
 
       console.log(
         `Successfully loaded ${result.data?.length || 0} records for ${
@@ -238,12 +244,11 @@ export function DataCategoryTable({
         setError(err instanceof Error ? err.message : "Unknown error occurred");
       }
 
-      setData([]);
-      setTotalRecords(0);
+      // Do not clear data on error, keep the old data
     } finally {
       setIsLoading(false);
     }
-  }, [category.id, category.filter, currentPage]);
+  }, [category.id, category.filter, currentPage, debouncedGlobalSearch, debouncedLocalSearch]);
 
   // Reset to page 1 when category changes
   useEffect(() => {
@@ -257,7 +262,7 @@ export function DataCategoryTable({
     if (category.id) {
       loadData();
     }
-  }, [category.id, currentPage, loadData]);
+  }, [category.id, currentPage, loadData, debouncedGlobalSearch, debouncedLocalSearch]);
 
   // Setup smart refresh: only when tab becomes visible, window gets focus, or data changes from other tabs
   useEffect(() => {
@@ -277,23 +282,7 @@ export function DataCategoryTable({
     };
   }, [category.id, loadData]);
 
-  // Apply search filters with debounced search
-  useEffect(() => {
-    let filtered = data;
-
-    const searchTerm = debouncedGlobalSearch || debouncedLocalSearch;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = data.filter((item) =>
-        Object.values(item).some(
-          (value) =>
-            value && value.toString().toLowerCase().includes(searchLower)
-        )
-      );
-    }
-
-    setFilteredData(filtered);
-  }, [data, debouncedGlobalSearch, debouncedLocalSearch]);
+  
 
   const formatDate = (dateString: string | Date) => {
     if (!dateString) return "-";
@@ -401,7 +390,7 @@ export function DataCategoryTable({
       );
     }
 
-    if (filteredData.length === 0) {
+    if (filteredData.length === 0 && !isLoading && !error) {
       return (
         <TableRow>
           <TableCell colSpan={6} className="text-center py-12">

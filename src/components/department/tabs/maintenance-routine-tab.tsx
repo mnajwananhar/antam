@@ -29,6 +29,7 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
+import { CustomCalendar } from "@/components/ui/custom-calendar";
 import { MaintenanceType } from "@prisma/client";
 
 interface MaintenanceRoutineTabProps {
@@ -280,16 +281,14 @@ export function MaintenanceRoutineTab({
 
               <div>
                 <label className="text-sm font-medium">Tanggal Mulai</label>
-                <Input
-                  type="date"
+                <CustomCalendar
                   value={newRoutine.startDate}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setNewRoutine((prev) => ({
                       ...prev,
-                      startDate: e.target.value,
+                      startDate: value ? value : "",
                     }))
                   }
-                  required
                   disabled={isSubmitting}
                 />
               </div>
@@ -298,13 +297,12 @@ export function MaintenanceRoutineTab({
                 <label className="text-sm font-medium">
                   Tanggal Selesai (Opsional)
                 </label>
-                <Input
-                  type="date"
+                <CustomCalendar
                   value={newRoutine.endDate}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setNewRoutine((prev) => ({
                       ...prev,
-                      endDate: e.target.value,
+                      endDate: value ? value : "",
                     }))
                   }
                   disabled={isSubmitting}

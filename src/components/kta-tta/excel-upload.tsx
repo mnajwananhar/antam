@@ -26,6 +26,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
+import { CustomCalendar } from "@/components/ui/custom-calendar";
 import * as XLSX from "xlsx";
 
 export interface ExcelRowData {
@@ -580,18 +581,12 @@ export function ExcelUpload({
                               <div className="flex items-center gap-1">
                                 {column.includes("tanggal") ||
                                 column.includes("date") ? (
-                                  <Input
-                                    type="date"
+                                  <CustomCalendar
                                     value={editValue}
-                                    onChange={(e) =>
-                                      setEditValue(e.target.value)
+                                    onChange={(value) =>
+                                      setEditValue(value ? value : "")
                                     }
                                     className="h-8 text-xs"
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") handleCellSave();
-                                      if (e.key === "Escape")
-                                        handleCellCancel();
-                                    }}
                                   />
                                 ) : (
                                   <Input

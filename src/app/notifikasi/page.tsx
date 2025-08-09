@@ -10,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
-import { Bell, Plus, Edit, Trash2, Clock, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { Bell, Plus, Edit, Trash2, Clock, AlertTriangle, AlertCircle, Info, LibrarySquare } from "lucide-react";
+import { CustomCalendar } from "@/components/ui/custom-calendar";
 import { roleUtils, dateUtils } from "@/lib/utils";
 
 interface Notification {
@@ -121,11 +124,12 @@ function NotifikasiContent({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
+  const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false);
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
   const [selectedNotificationForOrder, setSelectedNotificationForOrder] = useState<Notification | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PROCESS" | "COMPLETE">("ALL");
-  const [jobSearchTerm, setJobSearchTerm] = useState("");
+  const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   
   const [createForm, setCreateForm] = useState<CreateNotificationForm>({
     departmentId: "",
@@ -162,11 +166,8 @@ function NotifikasiContent({
   // Load job libraries
   const loadJobLibraries = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
-      if (jobSearchTerm) params.append("search", jobSearchTerm);
-      params.append("limit", "100"); // Load more for search
-
-      const response = await fetch(`/api/job-library?${params.toString()}`);
+      // Fetch all jobs once for client-side filtering
+      const response = await fetch(`/api/job-library?limit=1000`);
       if (response.ok) {
         const data = await response.json();
         setJobLibraries(data.data?.jobLibraries || []);
@@ -174,11 +175,14 @@ function NotifikasiContent({
     } catch (error) {
       console.error("Error loading job libraries:", error);
     }
-  }, [jobSearchTerm]);
+  }, []);
 
   useEffect(() => {
-    loadJobLibraries();
-  }, [loadJobLibraries]);
+    // Only load job libraries when the dialog is opened
+    if (isCreateOrderDialogOpen) {
+      loadJobLibraries();
+    }
+  }, [isCreateOrderDialogOpen, loadJobLibraries]);
 
   // Load notifications
   const loadNotifications = useCallback(async () => {
@@ -193,19 +197,38 @@ function NotifikasiContent({
         const data = await response.json();
         setNotifications(data.data?.notifications || []);
       } else {
-        feedback.error("Gagal memuat notifikasi");
+        console.error("Gagal memuat notifikasi");
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
-      feedback.error("Terjadi kesalahan saat memuat notifikasi");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, feedback]);
+  }, [searchTerm, statusFilter]);
 
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  // Real-time updates - refresh every 30 seconds  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (statusFilter !== "ALL") params.append("status", statusFilter);
+      
+      fetch(`/api/notifications?${params.toString()}`)
+        .then(response => response.ok ? response.json() : null)
+        .then(data => {
+          if (data) {
+            setNotifications(data.data?.notifications || []);
+          }
+        })
+        .catch(console.error);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [searchTerm, statusFilter]);
 
   const handleCreateNotification = async () => {
     try {
@@ -316,7 +339,6 @@ function NotifikasiContent({
   // Handle Create Order - open modal in notification page
   const handleCreateOrder = (notification: Notification) => {
     setSelectedNotificationForOrder(notification);
-    setJobSearchTerm(""); // Reset search term
     setIsCreateOrderDialogOpen(true);
   };
 
@@ -409,17 +431,9 @@ function NotifikasiContent({
         object: `${activity.object.materialNumber} - ${activity.object.materialName}`
       }))
     });
-    setJobSearchTerm(""); // Clear search after selection
   };
 
-  // Reset job selection to manual input
-  const handleManualJobInput = () => {
-    setCreateOrderForm({
-      ...createOrderForm,
-      selectedJobLibraryId: null,
-      activities: [{ activity: "", object: "" }]
-    });
-  };
+  
 
   const getUrgencyIcon = (urgency: string) => {
     switch (urgency) {
@@ -705,87 +719,45 @@ function NotifikasiContent({
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Nama Pekerjaan *</label>
-                  {createOrderForm.selectedJobLibraryId && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleManualJobInput}
-                      className="text-xs"
-                    >
-                      Input Manual
-                    </Button>
-                  )}
+                <label className="text-sm font-medium mb-2 block">Nama Pekerjaan *</label>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Ketik nama pekerjaan atau pilih dari library..."
+                    value={createOrderForm.jobName}
+                    onChange={(e) =>
+                      setCreateOrderForm({
+                        ...createOrderForm,
+                        jobName: e.target.value,
+                        selectedJobLibraryId: null,
+                      })
+                    }
+                    className="w-full"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsLibraryDialogOpen(true)} 
+                    className="w-full"
+                  >
+                    <LibrarySquare className="h-4 w-4 mr-2" />
+                    Pilih dari Library Pekerjaan
+                  </Button>
                 </div>
-                
-                {!createOrderForm.selectedJobLibraryId ? (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Cari job dari library atau ketik manual..."
-                      value={jobSearchTerm || createOrderForm.jobName}
-                      onChange={(e) => {
-                        if (!createOrderForm.selectedJobLibraryId) {
-                          setCreateOrderForm({...createOrderForm, jobName: e.target.value});
-                        }
-                        setJobSearchTerm(e.target.value);
-                      }}
-                    />
-                    
-                    {/* Job Library Search Results */}
-                    {jobSearchTerm && jobLibraries.length > 0 && (
-                      <div className="max-h-40 overflow-y-auto border rounded-md bg-white shadow-lg">
-                        {jobLibraries
-                          .filter(job => job.jobName.toLowerCase().includes(jobSearchTerm.toLowerCase()))
-                          .slice(0, 5)
-                          .map((job) => (
-                            <div
-                              key={job.id}
-                              className="p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
-                              onClick={() => handleJobLibrarySelection(job)}
-                            >
-                              <div className="font-medium text-sm">{job.jobName}</div>
-                              {job.description && (
-                                <div className="text-xs text-gray-500 truncate">{job.description}</div>
-                              )}
-                              <div className="text-xs text-blue-600">
-                                {job.activities.length} aktivitas tersedia
-                              </div>
-                            </div>
-                          ))
-                        }
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-blue-900">{createOrderForm.jobName}</div>
-                        <div className="text-sm text-blue-700">
-                          Dari Library - {createOrderForm.activities.length} aktivitas terisi otomatis
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Tanggal Mulai *</label>
-                  <Input
-                    type="date"
+                  <CustomCalendar
                     value={createOrderForm.startDate}
-                    onChange={(e) => setCreateOrderForm({...createOrderForm, startDate: e.target.value})}
+                    onChange={(value) => setCreateOrderForm({...createOrderForm, startDate: value ? value : ""})}
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Tanggal Selesai</label>
-                  <Input
-                    type="date"
+                  <CustomCalendar
                     value={createOrderForm.endDate}
-                    onChange={(e) => setCreateOrderForm({...createOrderForm, endDate: e.target.value})}
+                    onChange={(value) => setCreateOrderForm({...createOrderForm, endDate: value ? value : ""})}
                   />
                 </div>
               </div>
@@ -859,7 +831,6 @@ function NotifikasiContent({
                   onClick={() => {
                     setIsCreateOrderDialogOpen(false);
                     setSelectedNotificationForOrder(null);
-                    setJobSearchTerm(""); // Reset search term
                   }}
                   className="flex-1"
                 >
@@ -870,6 +841,42 @@ function NotifikasiContent({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Job Library Dialog */}
+      <Dialog open={isLibraryDialogOpen} onOpenChange={setIsLibraryDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Pilih Pekerjaan dari Library</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <Input
+              placeholder="Cari pekerjaan..."
+              value={librarySearchTerm}
+              onChange={(e) => setLibrarySearchTerm(e.target.value)}
+              className="mb-4"
+            />
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {jobLibraries
+                .filter((job) =>
+                  job.jobName.toLowerCase().includes(librarySearchTerm.toLowerCase())
+                )
+                .map((job) => (
+                  <Button
+                    key={job.id}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      handleJobLibrarySelection(job);
+                      setIsLibraryDialogOpen(false);
+                    }}
+                  >
+                    {job.jobName}
+                  </Button>
+                ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <Card>
