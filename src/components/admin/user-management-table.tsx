@@ -216,7 +216,7 @@ export function UserManagementTable({
               <TableHead className="min-w-[80px]">Status</TableHead>
               <TableHead className="min-w-[120px] hidden md:table-cell">Last Login</TableHead>
               <TableHead className="min-w-[100px] hidden lg:table-cell">Created</TableHead>
-              <TableHead className="text-right min-w-[80px]">Aksi</TableHead>
+              <TableHead className="text-right min-w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -327,7 +327,7 @@ export function UserManagementTable({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuLabel></DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => handleEditUser(user)}
                           >

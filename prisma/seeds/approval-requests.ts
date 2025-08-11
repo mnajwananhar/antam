@@ -37,7 +37,7 @@ export async function seedApprovalRequests() {
         totalBreakdown: 2,
         notes: "Operasi normal, ada minor stop untuk adjustment",
       },
-      reason: "Koreksi data jam operasi berdasarkan laporan shift terbaru",
+
     },
     {
       requesterId: inputterUser.id,
@@ -52,13 +52,13 @@ export async function seedApprovalRequests() {
       newData: {
         status: "BREAKDOWN",
       },
-      reason: "Ball Mill 1 mengalami kerusakan bearing",
+
       approvedAt: new Date("2025-07-30T10:30:00Z"),
     },
     {
       requesterId: plannerMmtc.id,
       approverId: adminUser.id,
-      status: ApprovalStatus.PENDING_ADMIN_APPROVAL,
+      status: ApprovalStatus.PENDING,
       requestType: "maintenance_schedule_change",
       tableName: "maintenance_routine",
       recordId: null,
@@ -70,8 +70,7 @@ export async function seedApprovalRequests() {
         description:
           "Maintenance darurat untuk semua unit LHD karena masalah hydraulic system",
       },
-      reason:
-        "Diperlukan maintenance darurat untuk mencegah kerusakan lebih lanjut",
+
     },
     {
       requesterId: inputterUser.id,
@@ -85,7 +84,7 @@ export async function seedApprovalRequests() {
         keterangan: "Data entry error",
       },
       newData: Prisma.JsonNull,
-      reason: "Kesalahan input data, mohon dihapus",
+
       approvedAt: new Date("2025-07-29T14:15:00Z"),
     },
   ];

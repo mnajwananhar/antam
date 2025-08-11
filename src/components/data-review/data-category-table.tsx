@@ -29,6 +29,7 @@ import { notifyDataUpdate, listenForDataUpdates, setupSmartRefresh } from "@/lib
 import { EditModal } from "./edit-modal";
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import { LoadingState, ErrorState } from "@/components/ui/loading";
+import { shouldRequireApproval, getCategoryTableName, createApprovalRequest } from "@/lib/utils/approval-helper";
 
 // Custom hook for debounced search
 function useDebounce<T>(value: T, delay: number): T {
@@ -171,7 +172,7 @@ export function DataCategoryTable({
   const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
 
   // Standard feedback system
-  const { crud, ConfirmationComponent } = useStandardFeedback();
+  const { crud, feedback, ConfirmationComponent } = useStandardFeedback();
 
   // Debounce search to prevent excessive filtering
   const debouncedLocalSearch = useDebounce(localSearch, 300);
@@ -352,18 +353,51 @@ export function DataCategoryTable({
 
   // Handle Delete with confirmation
   const handleDelete = async (record: BaseRecord) => {
-    const result = await crud.delete(
-      () => fetch(`/api/data-review/${category.id}/${record.id}`, {
-        method: "DELETE",
-      }),
-      category.name,
-      async () => {
-        await loadData();
-        notifyDataUpdate(category.id);
-      }
-    );
+    // Check if user requires approval for data deletion
+    if (shouldRequireApproval(session.user.role)) {
+      // Create approval request for deletion
+      try {
+        if (!session.user.id) {
+          throw new Error("User ID tidak ditemukan");
+        }
+        
+        const tableName = getCategoryTableName(category.id);
+        const result = await createApprovalRequest({
+          requestType: "data_deletion",
+          tableName,
+          recordId: typeof record.id === 'number' ? record.id : parseInt(record.id.toString()),
+          oldData: record as Record<string, unknown>,
+          newData: {}, // Empty for deletion
+          requesterId: parseInt(session.user.id),
+        });
 
-    return result.success;
+        if (result.success) {
+          feedback.success("Permintaan penghapusan data telah dikirim untuk approval");
+          return true;
+        } else {
+          feedback.error(result.error || "Gagal membuat permintaan approval");
+          return false;
+        }
+      } catch (error) {
+        console.error("Error creating delete approval request:", error);
+        feedback.error("Gagal membuat permintaan approval");
+        return false;
+      }
+    } else {
+      // Direct delete for ADMIN/PLANNER
+      const result = await crud.delete(
+        () => fetch(`/api/data-review/${category.id}/${record.id}`, {
+          method: "DELETE",
+        }),
+        category.name,
+        async () => {
+          await loadData();
+          notifyDataUpdate(category.id);
+        }
+      );
+
+      return result.success;
+    }
   };
 
   const renderTableContent = () => {

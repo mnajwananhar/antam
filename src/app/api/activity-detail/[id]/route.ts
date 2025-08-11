@@ -58,11 +58,22 @@ export async function PUT(
       );
     }
 
+    // Calculate duration if both start and end times are provided
+    const startDate = startDateTime ? new Date(startDateTime) : null;
+    const endDate = endDateTime ? new Date(endDateTime) : null;
+    let duration: number | null = null;
+    
+    if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+      const durationMs = endDate.getTime() - startDate.getTime();
+      duration = durationMs / (1000 * 60 * 60); // Convert to hours
+    }
+
     const updatedActivity = await prisma.activityDetail.update({
       where: { id: activityId },
       data: {
-        startDateTime: startDateTime ? new Date(startDateTime) : null,
-        endDateTime: endDateTime ? new Date(endDateTime) : null,
+        startDateTime: startDate,
+        endDateTime: endDate,
+        duration: duration,
         maintenanceType: maintenanceType || null,
         description: description || null,
         object: object || null,

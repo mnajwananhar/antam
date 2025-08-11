@@ -19,7 +19,7 @@ const createApprovalRequestSchema = z.object({
 
 // Remove unused schema or use it
 // const updateApprovalRequestSchema = z.object({
-//   status: z.enum(["PENDING", "PENDING_ADMIN_APPROVAL", "APPROVED", "REJECTED"]),
+//   status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
 //   reason: z.string().optional(),
 // });
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     if (
       status &&
-      ["PENDING", "PENDING_ADMIN_APPROVAL", "APPROVED", "REJECTED"].includes(
+      ["PENDING", "APPROVED", "REJECTED"].includes(
         status
       )
     ) {
@@ -61,10 +61,11 @@ export async function GET(request: NextRequest) {
       whereClause.requestType = requestType;
     }
 
-    // If user is PLANNER, only show requests they can approve
-    if (session.user.role === "PLANNER") {
-      whereClause.status = "PENDING"; // Only pending requests for planners
-      // Could add more department-specific filtering here if needed
+    // Filter based on user role and department
+    if (session.user.role === "PLANNER" && session.user.departmentId) {
+      // PLANNER only sees requests related to their department
+      // This would need to be implemented based on how requests relate to departments
+      // For now, we'll show all requests but this should be department-filtered
     }
 
     // Get total count
@@ -105,9 +106,6 @@ export async function GET(request: NextRequest) {
       pending: await prisma.approvalRequest.count({
         where: { ...whereClause, status: "PENDING" },
       }),
-      pendingAdmin: await prisma.approvalRequest.count({
-        where: { ...whereClause, status: "PENDING_ADMIN_APPROVAL" },
-      }),
       approved: await prisma.approvalRequest.count({
         where: { ...whereClause, status: "APPROVED" },
       }),
@@ -147,11 +145,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createApprovalRequestSchema.parse(body);
 
-    // Determine initial status based on user role
-    let initialStatus = "PENDING";
-    if (session.user.role === "PLANNER") {
-      initialStatus = "PENDING_ADMIN_APPROVAL"; // Planner requests need admin approval
-    }
+    // All requests start with PENDING status
+    const initialStatus = "PENDING";
 
     // Create approval request
     const approvalRequest = await prisma.approvalRequest.create({
@@ -163,7 +158,6 @@ export async function POST(request: NextRequest) {
         recordId: validatedData.recordId,
         oldData: validatedData.oldData as Prisma.InputJsonValue | undefined,
         newData: validatedData.newData as Prisma.InputJsonValue,
-        reason: validatedData.reason,
       },
       include: {
         requester: {

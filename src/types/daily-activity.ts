@@ -33,6 +33,7 @@ export interface ActivityDetail {
   equipmentId: number
   startDateTime?: Date
   endDateTime?: Date
+  duration?: number // Duration in hours (endDateTime - startDateTime)
   maintenanceType?: string
   description?: string
   object?: string
@@ -70,6 +71,7 @@ export interface OperationalReport {
 export interface CreateActivityDetailInput {
   startDateTime?: Date
   endDateTime?: Date
+  duration?: number // Duration in hours (endDateTime - startDateTime)
   maintenanceType?: string
   description?: string
   object?: string

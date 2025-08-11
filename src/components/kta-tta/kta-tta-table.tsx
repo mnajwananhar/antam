@@ -199,7 +199,7 @@ export function KtaKpiTable({
                     <TableHead className="w-32">Dibuat Oleh</TableHead>
                     <TableHead className="w-32">Tanggal Dibuat</TableHead>
                     {showActions && (
-                      <TableHead className="w-32 text-center">Aksi</TableHead>
+                      <TableHead className="w-32 text-center"></TableHead>
                     )}
                   </TableRow>
                 </TableHeader>

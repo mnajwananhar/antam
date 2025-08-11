@@ -239,12 +239,23 @@ export async function POST(request: NextRequest) {
     if (activityDetails && Array.isArray(activityDetails)) {
       for (const activity of activityDetails) {
         if (activity.startDateTime || activity.endDateTime || activity.description) {
+          // Calculate duration if both start and end times are provided
+          const startDate = activity.startDateTime ? new Date(activity.startDateTime) : null;
+          const endDate = activity.endDateTime ? new Date(activity.endDateTime) : null;
+          let duration: number | null = null;
+          
+          if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+            const durationMs = endDate.getTime() - startDate.getTime();
+            duration = durationMs / (1000 * 60 * 60); // Convert to hours
+          }
+
           await prisma.activityDetail.create({
             data: {
               operationalReportId: report.id,
               equipmentId: parsedEquipmentId,
-              startDateTime: activity.startDateTime ? new Date(activity.startDateTime) : null,
-              endDateTime: activity.endDateTime ? new Date(activity.endDateTime) : null,
+              startDateTime: startDate,
+              endDateTime: endDate,
+              duration: duration,
               maintenanceType: activity.maintenanceType || null,
               description: activity.description || null,
               object: activity.object || null,

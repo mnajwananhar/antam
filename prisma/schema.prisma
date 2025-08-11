@@ -43,7 +43,6 @@ enum EquipmentStatus {
 
 enum ApprovalStatus {
   PENDING
-  PENDING_ADMIN_APPROVAL
   APPROVED
   REJECTED
 }
@@ -169,6 +168,7 @@ model ActivityDetail {
   equipmentId         Int
   startDateTime       DateTime?
   endDateTime         DateTime?
+  duration            Float?            // Duration in hours (endDateTime - startDateTime)
   maintenanceType     String?           @db.VarChar(100)
   description         String?           @db.Text
   object              String?           @db.VarChar(255)
@@ -450,12 +450,11 @@ model ApprovalRequest {
   requesterId  Int
   approverId   Int?
   status       ApprovalStatus @default(PENDING)
-  requestType  String         @db.VarChar(100) // 'data_change', 'data_creation', etc.
+  requestType  String         @db.VarChar(100) // 'data_change', 'data_deletion'
   tableName    String         @db.VarChar(100)
   recordId     Int?
   oldData      Json?          // Store old data as JSON
   newData      Json           // Store new data as JSON
-  reason       String?        @db.Text
   approvedAt   DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

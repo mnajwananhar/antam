@@ -175,7 +175,7 @@ function OrderListContent({
       case "URGENT":
         return "bg-yellow-900/20 text-yellow-400 border-yellow-700";
       default:
-        return "bg-gray-800/50 text-gray-300 border-gray-600";
+        return "bg-yellow-900/10 text-yellow-300 border-yellow-800";
     }
   };
 
@@ -219,7 +219,7 @@ function OrderListContent({
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-400 truncate">
                   Order List
                 </h1>
-                <p className="text-sm sm:text-base text-gray-300">
+                <p className="text-sm sm:text-base text-yellow-200">
                   Kelola dan pantau work order departemen
                 </p>
               </div>
@@ -232,7 +232,7 @@ function OrderListContent({
           {/* Order cards skeleton */}
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="border border-gray-700 rounded-lg">
+              <div key={index} className="border border-yellow-800/30 rounded-lg">
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="space-y-2 flex-1 min-w-0">
@@ -273,7 +273,7 @@ function OrderListContent({
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-400 truncate">
                 Order List
               </h1>
-              <p className="text-sm sm:text-base text-gray-300">
+              <p className="text-sm sm:text-base text-yellow-200">
                 Kelola dan pantau work order departemen
               </p>
             </div>
@@ -286,7 +286,7 @@ function OrderListContent({
             placeholder="Cari berdasarkan nama pekerjaan, nomor notifikasi, atau departemen..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent border-gray-600 text-gray-300 placeholder:text-gray-500 focus:border-yellow-500 focus:ring-yellow-500/20"
+            className="bg-transparent border-yellow-800/50 text-yellow-100 placeholder:text-yellow-400/60 focus:border-yellow-500 focus:ring-yellow-500/20"
           />
         </div>
 
@@ -300,7 +300,7 @@ function OrderListContent({
               <h3 className="text-lg font-medium mb-2 text-yellow-400">
                 Tidak ada order
               </h3>
-              <p className="text-gray-300">
+              <p className="text-yellow-200">
                 {searchTerm
                   ? "Tidak ditemukan order yang sesuai dengan pencarian"
                   : "Belum ada order yang dibuat dari notifikasi"}
@@ -314,24 +314,24 @@ function OrderListContent({
               return (
                 <div
                   key={order.id}
-                  className="border border-gray-700 rounded-lg hover:border-yellow-500/50 transition-all duration-300"
+                  className="border border-yellow-800/30 rounded-lg hover:border-yellow-500/50 transition-all duration-300"
                 >
                   {/* Order Header - Always Visible */}
                   <div
-                    className="p-4 sm:p-6 cursor-pointer hover:bg-gray-800/30 rounded-t-lg"
+                    className="p-4 sm:p-6 cursor-pointer hover:bg-yellow-900/10 rounded-t-lg"
                     onClick={() => toggleExpandOrder(order.id)}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="space-y-2 flex-1 min-w-0">
                         <h3 className="text-base sm:text-lg font-bold text-yellow-400 flex items-center gap-2 sm:gap-3">
                           <span className="truncate flex-1">{order.jobName}</span>
-                          <span className="text-xs bg-gray-800/50 text-gray-300 border border-gray-600 px-2 py-1 rounded-md font-normal flex-shrink-0">
+                          <span className="text-xs bg-yellow-900/20 text-yellow-300 border border-yellow-800/50 px-2 py-1 rounded-md font-normal flex-shrink-0">
                             {isExpanded ? "▼" : "▶"}
                           </span>
                         </h3>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-300">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-yellow-200">
                           <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <Clock className="h-4 w-4 text-yellow-400/70 flex-shrink-0" />
                             <span className="truncate">{dateUtils.formatDate(order.startDate)}</span>
                             {order.endDate && (
                               <span className="flex-shrink-0">
@@ -362,7 +362,7 @@ function OrderListContent({
                           <div className="text-sm font-semibold text-yellow-400">
                             {progress}% Selesai
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-yellow-400/70">
                             {
                               order.activities.filter((a) => a.isCompleted)
                                 .length
@@ -380,7 +380,7 @@ function OrderListContent({
 
                     {/* Progress Bar */}
                     <div className="mt-4">
-                      <div className="w-full bg-gray-800 rounded-full h-2">
+                      <div className="w-full bg-black/50 rounded-full h-2">
                         <div
                           className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
@@ -391,11 +391,11 @@ function OrderListContent({
 
                   {/* Expandable Content */}
                   {isExpanded && (
-                    <div className="border-t border-gray-700 bg-gray-800/20 p-4 sm:p-6 rounded-b-lg">
+                    <div className="border-t border-yellow-800/30 bg-yellow-900/5 p-4 sm:p-6 rounded-b-lg">
                       <div className="space-y-4 sm:space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm">
                           <div className="space-y-1">
-                            <p className="font-medium text-gray-300">
+                            <p className="font-medium text-yellow-300">
                               Departemen:
                             </p>
                             <p className="text-yellow-400">
@@ -403,7 +403,7 @@ function OrderListContent({
                             </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="font-medium text-gray-300">
+                            <p className="font-medium text-yellow-300">
                               Dibuat oleh:
                             </p>
                             <p className="text-yellow-400">
@@ -414,11 +414,11 @@ function OrderListContent({
 
                         {order.description && (
                           <div className="space-y-2">
-                            <p className="text-sm font-medium text-gray-300">
+                            <p className="text-sm font-medium text-yellow-300">
                               Deskripsi:
                             </p>
-                            <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-600">
-                              <p className="text-sm text-gray-300">
+                            <div className="bg-yellow-900/10 p-3 rounded-lg border border-yellow-800/30">
+                              <p className="text-sm text-yellow-200">
                                 {order.description}
                               </p>
                             </div>
@@ -426,14 +426,14 @@ function OrderListContent({
                         )}
 
                         <div className="space-y-3">
-                          <p className="text-sm font-medium text-gray-300">
+                          <p className="text-sm font-medium text-yellow-300">
                             Aktivitas & Status:
                           </p>
                           <div className="space-y-3">
                             {order.activities.map((activity) => (
                               <div
                                 key={activity.id}
-                                className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-600 hover:border-yellow-500/50 transition-colors"
+                                className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-yellow-900/10 rounded-lg border border-yellow-800/30 hover:border-yellow-500/50 transition-colors"
                               >
                                 {canUpdateActivity ? (
                                   <Checkbox
@@ -445,21 +445,21 @@ function OrderListContent({
                                         checked as boolean
                                       )
                                     }
-                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-gray-500 mt-0.5 sm:mt-0 flex-shrink-0"
+                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-yellow-600/50 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 ) : (
                                   <Checkbox
                                     checked={activity.isCompleted}
                                     disabled
-                                    className="data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500 border-gray-600 mt-0.5 sm:mt-0 flex-shrink-0"
+                                    className="data-[state=checked]:bg-yellow-600/50 data-[state=checked]:border-yellow-600/50 border-yellow-700/50 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <span
                                     className={
                                       activity.isCompleted
-                                        ? "line-through text-gray-500 text-sm break-words"
-                                        : "text-gray-300 text-sm break-words"
+                                        ? "line-through text-yellow-500/60 text-sm break-words"
+                                        : "text-yellow-200 text-sm break-words"
                                     }
                                   >
                                     <span className="font-medium">
@@ -475,7 +475,7 @@ function OrderListContent({
                                       <span className="hidden sm:inline">Selesai</span>
                                     </span>
                                   ) : (
-                                    <span className="text-gray-500 flex items-center gap-1">
+                                    <span className="text-yellow-400/70 flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       <span className="hidden sm:inline">Belum</span>
                                     </span>

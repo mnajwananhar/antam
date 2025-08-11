@@ -259,7 +259,7 @@ export function KtaKpiInputTable({
                   <TableHead className="w-32 text-center">
                     Ubah Status
                   </TableHead>
-                  <TableHead className="w-20 text-center">Aksi</TableHead>
+                  <TableHead className="w-20 text-center"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

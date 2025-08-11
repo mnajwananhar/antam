@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Save, Loader2, X } from "lucide-react";
 import { notifyDataUpdate } from "@/lib/utils/data-sync";
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import { LoadingState } from "@/components/ui/loading";
+import { shouldRequireApproval, getCategoryTableName, createApprovalRequest } from "@/lib/utils/approval-helper";
 
 interface EditModalProps {
   isOpen: boolean;
@@ -23,7 +25,7 @@ interface EditModalProps {
 interface FieldConfig {
   key: string;
   label: string;
-  type: "text" | "textarea" | "number" | "select";
+  type: "text" | "textarea" | "number" | "select" | "date";
   options?: { value: string; label: string; }[];
   required?: boolean;
   min?: number;
@@ -41,8 +43,8 @@ const FIELD_CONFIGS: Record<string, FieldConfig[]> = {
   ],
   "maintenance-routine": [
     { key: "jobName", label: "Nama Pekerjaan", type: "text", required: true },
-    { key: "startDate", label: "Tanggal Mulai", type: "text", required: true },
-    { key: "endDate", label: "Tanggal Selesai", type: "text", required: false },
+    { key: "startDate", label: "Tanggal Mulai", type: "date", required: true },
+    { key: "endDate", label: "Tanggal Selesai", type: "date", required: false },
     { key: "uniqueNumber", label: "Nomor Unik", type: "text", required: false },
     { key: "type", label: "Tipe", type: "select", required: true,
       options: [
@@ -107,9 +109,11 @@ const DATA_CATEGORIES: Record<string, string> = {
 };
 
 export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: EditModalProps) {
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [data, setData] = useState<Record<string, string | number>>({});
+  const [originalData, setOriginalData] = useState<Record<string, string | number>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Standard feedback system
@@ -119,6 +123,11 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
   const apiEndpoint = API_ENDPOINTS[categoryId];
 
   const loadData = useCallback(async () => {
+    if (!apiEndpoint || !recordId) {
+      setErrors({ general: "Parameter tidak lengkap untuk memuat data" });
+      return;
+    }
+
     setIsLoading(true);
     setErrors({});
     
@@ -126,14 +135,19 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
       const response = await fetch(`/api/${apiEndpoint}/${recordId}`);
       if (response.ok) {
         const result = await response.json();
-        setData(result.data || {});
+        const loadedData = result.data || {};
+        setData(loadedData);
+        setOriginalData(loadedData); // Store original data for approval comparison
+      } else if (response.status === 404) {
+        throw new Error("Data tidak ditemukan");
       } else {
-        throw new Error("Failed to load data");
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error("Failed to load data:", error);
-      feedback.error("Gagal memuat data untuk edit");
-      setErrors({ general: "Gagal memuat data untuk edit" });
+      const errorMessage = error instanceof Error ? error.message : "Gagal memuat data untuk edit";
+      feedback.error(errorMessage);
+      setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -141,10 +155,17 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
 
   // Load data for edit
   useEffect(() => {
-    if (isOpen && recordId && apiEndpoint) {
+    if (isOpen && recordId && apiEndpoint && !errors.general) {
       loadData();
     }
-  }, [isOpen, recordId, apiEndpoint, loadData]);
+    
+    // Reset data when modal closes
+    if (!isOpen) {
+      setData({});
+      setOriginalData({});
+      setErrors({});
+    }
+  }, [isOpen, recordId, apiEndpoint]); // Removed loadData from dependencies to prevent infinite loop
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -165,21 +186,49 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
     }
 
     try {
-      const response = await fetch(`/api/${apiEndpoint}/${recordId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
+      // Check if user requires approval for data changes
+      if (session?.user && shouldRequireApproval(session.user.role)) {
+        // Create approval request instead of direct update
+        const tableName = getCategoryTableName(categoryId);
+        
+        if (!session.user.id) {
+          throw new Error("User ID tidak ditemukan");
+        }
+        
+        const result = await createApprovalRequest({
+          requestType: "data_change",
+          tableName,
+          recordId: recordId as number,
+          oldData: originalData as Record<string, unknown>,
+          newData: data as Record<string, unknown>,
+          requesterId: parseInt(session.user.id),
+        });
 
-      if (response.ok) {
-        // Notify other components about data change
-        notifyDataUpdate(DATA_CATEGORIES[categoryId]);
-        feedback.updated("Data");
-        onSuccess();
-        onClose();
+        if (result.success) {
+          feedback.success("Permintaan perubahan data telah dikirim untuk approval");
+          onSuccess();
+          onClose();
+        } else {
+          throw new Error(result.error || "Gagal membuat permintaan approval");
+        }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Gagal menyimpan data");
+        // Direct update for ADMIN/PLANNER
+        const response = await fetch(`/api/${apiEndpoint}/${recordId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          // Notify other components about data change
+          notifyDataUpdate(DATA_CATEGORIES[categoryId]);
+          feedback.updated("Data");
+          onSuccess();
+          onClose();
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Gagal menyimpan data");
+        }
       }
     } catch (error) {
       console.error("Save error:", error);
@@ -258,6 +307,41 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
               placeholder={`Masukkan ${field.label}`}
               min={field.min}
               max={field.max}
+            />
+            {error && <p className="text-sm text-red-500">{error}</p>}
+          </div>
+        );
+
+      case "date":
+        const formatDateValue = (val: unknown): string => {
+          if (!val) return "";
+          try {
+            const dateStr = String(val);
+            // If already in YYYY-MM-DD format, return as is
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              return dateStr;
+            }
+            // Try to parse and format the date
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+              return "";
+            }
+            return date.toISOString().split('T')[0];
+          } catch {
+            return "";
+          }
+        };
+        
+        return (
+          <div key={field.key} className="space-y-2">
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={field.key}
+              type="date"
+              value={formatDateValue(value)}
+              onChange={(e) => handleFieldChange(field.key, e.target.value)}
             />
             {error && <p className="text-sm text-red-500">{error}</p>}
           </div>

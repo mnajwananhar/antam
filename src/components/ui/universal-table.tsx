@@ -300,7 +300,7 @@ export function UniversalTable<T = Record<string, unknown>>({
                 </TableHead>
               ))}
               {hasActions && (
-                <TableHead className="w-32 text-center">Aksi</TableHead>
+                <TableHead className="w-32 text-center"></TableHead>
               )}
             </TableRow>
           </TableHeader>

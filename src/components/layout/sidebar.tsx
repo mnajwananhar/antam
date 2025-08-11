@@ -76,6 +76,12 @@ const navigationItems: NavItem[] = [
     roles: ["ADMIN", "PLANNER", "INPUTTER"],
   },
   {
+    title: "Persetujuan",
+    href: "/approvals",
+    icon: FileText,
+    roles: ["ADMIN", "PLANNER"],
+  },
+  {
     title: "Laporan",
     icon: FileText,
     children: [
