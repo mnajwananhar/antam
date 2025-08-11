@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import {
   Edit,
   Trash2,
@@ -928,6 +929,17 @@ export function DataCategoryTable({
         );
     }
   };
+
+  if (isLoading) {
+    return (
+      <TableSkeleton
+        columns={6}
+        rows={5}
+        showSearch={true}
+        showPagination={true}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

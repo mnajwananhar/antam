@@ -76,6 +76,7 @@ model User {
   departmentId Int?
   isActive     Boolean    @default(true)
   lastLogin    DateTime?
+  sessionToken String?    @db.Text // Used for single-session enforcement
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

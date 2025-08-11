@@ -153,6 +153,9 @@ export function UserManagementTable({
     return false;
   };
 
+  // Remove the artificial loading since this component receives data as props
+  // The loading should be handled by the parent component (page) that fetches the data
+
   return (
     <div className="space-y-4">
       {/* Filters - Responsive */}

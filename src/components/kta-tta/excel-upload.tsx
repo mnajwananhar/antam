@@ -102,6 +102,22 @@ export function ExcelUpload({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  interface ExistingRecord {
+    id: number;
+    noRegister: string;
+    tanggal: Date | null;
+    keterangan: string | null;
+    picDepartemen: string | null;
+    namaPelapor: string | null;
+    createdAt: Date;
+  }
+
+  const [duplicateChecks, setDuplicateChecks] = useState<Array<{
+    rowIndex: number;
+    isDuplicate: boolean;
+    existingRecord?: ExistingRecord;
+    duplicateReason?: string;
+  }>>([]);
   const [editingCell, setEditingCell] = useState<{
     rowId: string;
     column: string;
@@ -114,9 +130,37 @@ export function ExcelUpload({
   const generateId = () =>
     `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+  // Function to check duplicates in database
+  const checkDatabaseDuplicates = useCallback(async (uniqueRows: ExcelRowData[]) => {
+    try {
+      const response = await fetch("/api/kta-tta/check-duplicates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ data: uniqueRows }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setDuplicateChecks(result.results.checks);
+        
+        if (result.results.totalDuplicates > 0) {
+          showInfo(
+            `${result.results.totalDuplicates} data sudah ada di database. Data duplikat akan diupdate jika diupload.`
+          );
+        }
+      } else {
+        console.error("Failed to check duplicates:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error checking duplicates:", error);
+    }
+  }, [showInfo]);
+
   // Handle file upload
   const handleFileUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
 
@@ -125,7 +169,7 @@ export function ExcelUpload({
       setSuccess(null);
 
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: "array" });
@@ -283,13 +327,40 @@ export function ExcelUpload({
             throw new Error("Tidak ada data valid yang ditemukan dalam file");
           }
 
-          setData(mappedData);
-          onDataChange(mappedData);
+          // Filter out duplicates based on all columns except 'tanggal'
+          const uniqueRows: ExcelRowData[] = [];
+          const existingSignatures = new Set<string>();
+          let duplicateCount = 0;
+
+          for (const row of mappedData) {
+            // Create a signature for the entire row including date for uniqueness check
+            const signature = JSON.stringify(row);
+
+            if (existingSignatures.has(signature)) {
+              duplicateCount++;
+            } else {
+              existingSignatures.add(signature);
+              uniqueRows.push(row);
+            }
+          }
+
+          if (duplicateCount > 0) {
+            showInfo(
+              `${duplicateCount} baris data duplikat dalam file diabaikan.`
+            );
+          }
+
+          setData(uniqueRows);
+          onDataChange(uniqueRows);
+          
+          // Check for duplicates in database
+          await checkDatabaseDuplicates(uniqueRows);
+          
           setSuccess(
-            `Berhasil memuat ${mappedData.length} baris data dari Excel`
+            `Berhasil memuat ${uniqueRows.length} baris data unik dari Excel`
           );
           showSuccess(
-            `Berhasil memuat ${mappedData.length} baris data dari Excel`
+            `Berhasil memuat ${uniqueRows.length} baris data unik dari Excel`
           );
         } catch (err) {
           const errorMessage =
@@ -310,7 +381,7 @@ export function ExcelUpload({
 
       reader.readAsArrayBuffer(file);
     },
-    [onDataChange, showError, showSuccess]
+    [onDataChange, showError, showSuccess, showInfo, checkDatabaseDuplicates]
   );
 
   // Handle cell editing
@@ -373,6 +444,7 @@ export function ExcelUpload({
   // Clear all data
   const clearData = () => {
     setData([]);
+    setDuplicateChecks([]);
     onDataChange([]);
     setError(null);
     setSuccess(null);
@@ -407,6 +479,11 @@ export function ExcelUpload({
       isValid: errors.length === 0,
       errors,
     };
+  };
+
+  // Check if row is duplicate in database
+  const getRowDuplicateStatus = (index: number) => {
+    return duplicateChecks.find(check => check.rowIndex === index);
   };
 
   return (
@@ -542,15 +619,31 @@ export function ExcelUpload({
                 <TableBody>
                   {data.map((row, index) => {
                     const validation = getRowValidation(row);
+                    const duplicateStatus = getRowDuplicateStatus(index);
                     return (
                       <TableRow
                         key={row.id}
                         className={
-                          !validation.isValid ? "bg-destructive/5" : ""
+                          !validation.isValid 
+                            ? "bg-destructive/5" 
+                            : duplicateStatus?.isDuplicate 
+                            ? "bg-yellow-50 border-l-4 border-l-yellow-400" 
+                            : ""
                         }
                       >
                         <TableCell className="text-center font-medium">
-                          {index + 1}
+                          <div className="flex items-center justify-center gap-1">
+                            {index + 1}
+                            {duplicateStatus?.isDuplicate && (
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300"
+                                title={duplicateStatus.duplicateReason}
+                              >
+                                Duplikat
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           {validation.isValid ? (
@@ -682,6 +775,13 @@ export function ExcelUpload({
                     }{" "}
                     error
                   </span>
+                  {duplicateChecks.length > 0 && (
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                      {duplicateChecks.filter(check => check.isDuplicate).length}{" "}
+                      duplikat di database
+                    </span>
+                  )}
                 </div>
                 <span className="text-muted-foreground">
                   Field wajib:{" "}

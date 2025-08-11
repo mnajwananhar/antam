@@ -9,13 +9,36 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
-import { Bell, Plus, Edit, Trash2, Clock, AlertTriangle, AlertCircle, Info, LibrarySquare } from "lucide-react";
+import {
+  Bell,
+  Plus,
+  Edit,
+  Trash2,
+  Clock,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  LibrarySquare,
+} from "lucide-react";
 import { CustomCalendar } from "@/components/ui/custom-calendar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { roleUtils, dateUtils } from "@/lib/utils";
 
 interface Notification {
@@ -107,16 +130,26 @@ export default function NotifikasiPage() {
   );
 }
 
-function NotifikasiContent({ 
-  session, 
-  feedback, 
-  crud 
-}: { 
-  session: { user: { id: string; role: string; departmentId?: number | null; username: string } };
-  feedback: ReturnType<typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback>["feedback"];
-  crud: ReturnType<typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback>["crud"];
+function NotifikasiContent({
+  session,
+  feedback,
+  crud,
+}: {
+  session: {
+    user: {
+      id: string;
+      role: string;
+      departmentId?: number | null;
+      username: string;
+    };
+  };
+  feedback: ReturnType<
+    typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback
+  >["feedback"];
+  crud: ReturnType<
+    typeof import("@/lib/hooks/use-standard-feedback").useStandardFeedback
+  >["crud"];
 }) {
-  
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobLibraries, setJobLibraries] = useState<JobLibrary[]>([]);
@@ -125,12 +158,16 @@ function NotifikasiContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false);
-  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
-  const [selectedNotificationForOrder, setSelectedNotificationForOrder] = useState<Notification | null>(null);
+  const [editingNotification, setEditingNotification] =
+    useState<Notification | null>(null);
+  const [selectedNotificationForOrder, setSelectedNotificationForOrder] =
+    useState<Notification | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PROCESS" | "COMPLETE">("ALL");
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "PROCESS" | "COMPLETE"
+  >("ALL");
   const [librarySearchTerm, setLibrarySearchTerm] = useState("");
-  
+
   const [createForm, setCreateForm] = useState<CreateNotificationForm>({
     departmentId: "",
     reportTime: dateUtils.getCurrentTime(),
@@ -191,7 +228,7 @@ function NotifikasiContent({
       const params = new URLSearchParams();
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter !== "ALL") params.append("status", statusFilter);
-      
+
       const response = await fetch(`/api/notifications?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
@@ -210,16 +247,16 @@ function NotifikasiContent({
     loadNotifications();
   }, [loadNotifications]);
 
-  // Real-time updates - refresh every 30 seconds  
+  // Real-time updates - refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const params = new URLSearchParams();
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter !== "ALL") params.append("status", statusFilter);
-      
+
       fetch(`/api/notifications?${params.toString()}`)
-        .then(response => response.ok ? response.json() : null)
-        .then(data => {
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
           if (data) {
             setNotifications(data.data?.notifications || []);
           }
@@ -278,17 +315,20 @@ function NotifikasiContent({
     if (!editingNotification) return;
 
     try {
-      const response = await fetch(`/api/notifications/${editingNotification.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          departmentId: editingNotification.departmentId,
-          reportTime: editingNotification.reportTime,
-          urgency: editingNotification.urgency,
-          problemDetail: editingNotification.problemDetail,
-          status: editingNotification.status,
-        }),
-      });
+      const response = await fetch(
+        `/api/notifications/${editingNotification.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            departmentId: editingNotification.departmentId,
+            reportTime: editingNotification.reportTime,
+            urgency: editingNotification.urgency,
+            problemDetail: editingNotification.problemDetail,
+            status: editingNotification.status,
+          }),
+        }
+      );
 
       if (response.ok) {
         feedback.updated("Notifikasi");
@@ -364,11 +404,13 @@ function NotifikasiContent({
           startDate: createOrderForm.startDate,
           endDate: createOrderForm.endDate || null,
           description: createOrderForm.description,
-          activities: createOrderForm.activities.filter(a => a.activity && a.object).map(a => ({
-            activity: a.activity,
-            object: a.object,
-            isCompleted: false
-          })),
+          activities: createOrderForm.activities
+            .filter((a) => a.activity && a.object)
+            .map((a) => ({
+              activity: a.activity,
+              object: a.object,
+              isCompleted: false,
+            })),
         }),
       });
 
@@ -399,23 +441,27 @@ function NotifikasiContent({
   const addOrderActivity = () => {
     setCreateOrderForm({
       ...createOrderForm,
-      activities: [...createOrderForm.activities, { activity: "", object: "" }]
+      activities: [...createOrderForm.activities, { activity: "", object: "" }],
     });
   };
 
   const removeOrderActivity = (index: number) => {
     setCreateOrderForm({
       ...createOrderForm,
-      activities: createOrderForm.activities.filter((_, i) => i !== index)
+      activities: createOrderForm.activities.filter((_, i) => i !== index),
     });
   };
 
-  const updateOrderActivity = (index: number, field: keyof CreateOrderForm['activities'][0], value: string) => {
+  const updateOrderActivity = (
+    index: number,
+    field: keyof CreateOrderForm["activities"][0],
+    value: string
+  ) => {
     const newActivities = [...createOrderForm.activities];
     newActivities[index][field] = value;
     setCreateOrderForm({
       ...createOrderForm,
-      activities: newActivities
+      activities: newActivities,
     });
   };
 
@@ -426,14 +472,12 @@ function NotifikasiContent({
       jobName: jobLibrary.jobName,
       description: jobLibrary.description || "",
       selectedJobLibraryId: jobLibrary.id,
-      activities: jobLibrary.activities.map(activity => ({
+      activities: jobLibrary.activities.map((activity) => ({
         activity: activity.activity,
-        object: `${activity.object.materialNumber} - ${activity.object.materialName}`
-      }))
+        object: `${activity.object.materialNumber} - ${activity.object.materialName}`,
+      })),
     });
   };
-
-  
 
   const getUrgencyIcon = (urgency: string) => {
     switch (urgency) {
@@ -458,25 +502,37 @@ function NotifikasiContent({
   };
 
   const getStatusColor = (status: string) => {
-    return status === "COMPLETE" 
-      ? "bg-green-100 text-green-800" 
+    return status === "COMPLETE"
+      ? "bg-green-100 text-green-800"
       : "bg-yellow-100 text-yellow-800";
   };
 
-  const canCreateNotification = session?.user && roleUtils.canModifyData(session.user.role as "ADMIN" | "PLANNER" | "INPUTTER" | "VIEWER");
-  
+  const canCreateNotification =
+    session?.user &&
+    roleUtils.canModifyData(
+      session.user.role as "ADMIN" | "PLANNER" | "INPUTTER" | "VIEWER"
+    );
+
   const filteredNotifications = notifications.filter((notification) => {
-    const matchesSearch = searchTerm === "" || 
-      notification.uniqueNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notification.problemDetail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notification.department.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "ALL" || notification.status === statusFilter;
-    
+    const matchesSearch =
+      searchTerm === "" ||
+      notification.uniqueNumber
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      notification.problemDetail
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      notification.department.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "ALL" || notification.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
-  const availableDepartments = departments.filter(dept => {
+  const availableDepartments = departments.filter((dept) => {
     if (session?.user?.role === "PLANNER") {
       return dept.id === session.user.departmentId;
     }
@@ -485,12 +541,47 @@ function NotifikasiContent({
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Memuat notifikasi...</p>
+      <div className="p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Bell className="h-6 w-6 flex-shrink-0" />
+            <h1 className="text-xl sm:text-2xl font-bold truncate">Notifikasi</h1>
           </div>
+        </div>
+        
+        {/* Loading skeleton for notification cards */}
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="border rounded-lg p-6">
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-5 w-32" />
+                    </div>
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <Skeleton className="h-3 w-32" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -503,9 +594,12 @@ function NotifikasiContent({
           <Bell className="h-6 w-6 flex-shrink-0" />
           <h1 className="text-xl sm:text-2xl font-bold truncate">Notifikasi</h1>
         </div>
-        
+
         {canCreateNotification && (
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
@@ -518,10 +612,14 @@ function NotifikasiContent({
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Departemen *</label>
-                  <Select 
-                    value={createForm.departmentId} 
-                    onValueChange={(value) => setCreateForm({...createForm, departmentId: value})}
+                  <label className="text-sm font-medium mb-2 block">
+                    Departemen *
+                  </label>
+                  <Select
+                    value={createForm.departmentId}
+                    onValueChange={(value) =>
+                      setCreateForm({ ...createForm, departmentId: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih departemen" />
@@ -537,20 +635,29 @@ function NotifikasiContent({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Jam Kejadian *</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Jam Kejadian *
+                  </label>
                   <Input
                     type="time"
                     value={createForm.reportTime}
-                    onChange={(e) => setCreateForm({...createForm, reportTime: e.target.value})}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        reportTime: e.target.value,
+                      })
+                    }
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Tingkat Urgensi *</label>
-                  <Select 
-                    value={createForm.urgency} 
-                    onValueChange={(value: "NORMAL" | "URGENT" | "EMERGENCY") => 
-                      setCreateForm({...createForm, urgency: value})
+                  <label className="text-sm font-medium mb-2 block">
+                    Tingkat Urgensi *
+                  </label>
+                  <Select
+                    value={createForm.urgency}
+                    onValueChange={(value: "NORMAL" | "URGENT" | "EMERGENCY") =>
+                      setCreateForm({ ...createForm, urgency: value })
                     }
                   >
                     <SelectTrigger>
@@ -565,24 +672,28 @@ function NotifikasiContent({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Detail Masalah *</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Detail Masalah *
+                  </label>
                   <Textarea
                     placeholder="Deskripsikan masalah secara detail..."
                     value={createForm.problemDetail}
-                    onChange={(e) => setCreateForm({...createForm, problemDetail: e.target.value})}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        problemDetail: e.target.value,
+                      })
+                    }
                     rows={4}
                   />
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                  <Button 
-                    onClick={handleCreateNotification}
-                    className="flex-1"
-                  >
+                  <Button onClick={handleCreateNotification} className="flex-1">
                     Buat Notifikasi
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
                     className="flex-1"
                   >
@@ -600,17 +711,23 @@ function NotifikasiContent({
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Notifikasi - {editingNotification.uniqueNumber}</DialogTitle>
+              <DialogTitle>
+                Edit Notifikasi - {editingNotification.uniqueNumber}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Departemen *</label>
-                <Select 
-                  value={editingNotification.departmentId.toString()} 
-                  onValueChange={(value) => setEditingNotification({
-                    ...editingNotification, 
-                    departmentId: parseInt(value)
-                  })}
+                <label className="text-sm font-medium mb-2 block">
+                  Departemen *
+                </label>
+                <Select
+                  value={editingNotification.departmentId.toString()}
+                  onValueChange={(value) =>
+                    setEditingNotification({
+                      ...editingNotification,
+                      departmentId: parseInt(value),
+                    })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -626,23 +743,32 @@ function NotifikasiContent({
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Jam Kejadian *</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Jam Kejadian *
+                </label>
                 <Input
                   type="time"
                   value={editingNotification.reportTime}
-                  onChange={(e) => setEditingNotification({
-                    ...editingNotification, 
-                    reportTime: e.target.value
-                  })}
+                  onChange={(e) =>
+                    setEditingNotification({
+                      ...editingNotification,
+                      reportTime: e.target.value,
+                    })
+                  }
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Tingkat Urgensi *</label>
-                <Select 
-                  value={editingNotification.urgency} 
-                  onValueChange={(value: "NORMAL" | "URGENT" | "EMERGENCY") => 
-                    setEditingNotification({...editingNotification, urgency: value})
+                <label className="text-sm font-medium mb-2 block">
+                  Tingkat Urgensi *
+                </label>
+                <Select
+                  value={editingNotification.urgency}
+                  onValueChange={(value: "NORMAL" | "URGENT" | "EMERGENCY") =>
+                    setEditingNotification({
+                      ...editingNotification,
+                      urgency: value,
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -658,10 +784,13 @@ function NotifikasiContent({
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Status</label>
-                <Select 
-                  value={editingNotification.status} 
-                  onValueChange={(value: "PROCESS" | "COMPLETE") => 
-                    setEditingNotification({...editingNotification, status: value})
+                <Select
+                  value={editingNotification.status}
+                  onValueChange={(value: "PROCESS" | "COMPLETE") =>
+                    setEditingNotification({
+                      ...editingNotification,
+                      status: value,
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -675,27 +804,28 @@ function NotifikasiContent({
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Detail Masalah *</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Detail Masalah *
+                </label>
                 <Textarea
                   placeholder="Deskripsikan masalah secara detail..."
                   value={editingNotification.problemDetail}
-                  onChange={(e) => setEditingNotification({
-                    ...editingNotification, 
-                    problemDetail: e.target.value
-                  })}
+                  onChange={(e) =>
+                    setEditingNotification({
+                      ...editingNotification,
+                      problemDetail: e.target.value,
+                    })
+                  }
                   rows={4}
                 />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                <Button 
-                  onClick={handleUpdateNotification}
-                  className="flex-1"
-                >
+                <Button onClick={handleUpdateNotification} className="flex-1">
                   Perbarui Notifikasi
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setIsEditDialogOpen(false);
                     setEditingNotification(null);
@@ -712,14 +842,22 @@ function NotifikasiContent({
 
       {/* Create Order Dialog */}
       {selectedNotificationForOrder && (
-        <Dialog open={isCreateOrderDialogOpen} onOpenChange={setIsCreateOrderDialogOpen}>
+        <Dialog
+          open={isCreateOrderDialogOpen}
+          onOpenChange={setIsCreateOrderDialogOpen}
+        >
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Buat Order dari Notifikasi: {selectedNotificationForOrder.uniqueNumber}</DialogTitle>
+              <DialogTitle>
+                Buat Order dari Notifikasi:{" "}
+                {selectedNotificationForOrder.uniqueNumber}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Nama Pekerjaan *</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Nama Pekerjaan *
+                </label>
                 <div className="space-y-2">
                   <Input
                     placeholder="Ketik nama pekerjaan atau pilih dari library..."
@@ -733,10 +871,10 @@ function NotifikasiContent({
                     }
                     className="w-full"
                   />
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setIsLibraryDialogOpen(true)} 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsLibraryDialogOpen(true)}
                     className="w-full"
                   >
                     <LibrarySquare className="h-4 w-4 mr-2" />
@@ -747,65 +885,107 @@ function NotifikasiContent({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Tanggal Mulai *</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Tanggal Mulai *
+                  </label>
                   <CustomCalendar
                     value={createOrderForm.startDate}
-                    onChange={(value) => setCreateOrderForm({...createOrderForm, startDate: value ? value : ""})}
+                    onChange={(value) =>
+                      setCreateOrderForm({
+                        ...createOrderForm,
+                        startDate: value ? value : "",
+                      })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Tanggal Selesai</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Tanggal Selesai
+                  </label>
                   <CustomCalendar
                     value={createOrderForm.endDate}
-                    onChange={(value) => setCreateOrderForm({...createOrderForm, endDate: value ? value : ""})}
+                    onChange={(value) =>
+                      setCreateOrderForm({
+                        ...createOrderForm,
+                        endDate: value ? value : "",
+                      })
+                    }
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Keterangan</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Keterangan
+                </label>
                 <Textarea
                   placeholder="Deskripsi detail pekerjaan..."
                   value={createOrderForm.description}
-                  onChange={(e) => setCreateOrderForm({...createOrderForm, description: e.target.value})}
+                  onChange={(e) =>
+                    setCreateOrderForm({
+                      ...createOrderForm,
+                      description: e.target.value,
+                    })
+                  }
                   rows={3}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium">Aktivitas & Objek</label>
-                  <Button variant="outline" size="sm" onClick={addOrderActivity}>
+                  <label className="text-sm font-medium">
+                    Aktivitas & Objek
+                  </label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addOrderActivity}
+                  >
                     <Plus className="h-4 w-4 mr-1" />
                     Tambah
                   </Button>
                 </div>
                 <div className="space-y-3">
                   {createOrderForm.activities.map((activity, index) => (
-                    <div key={index} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-center p-3 border rounded-lg">
+                    <div
+                      key={index}
+                      className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-center p-3 border rounded-lg"
+                    >
                       <div className="sm:col-span-5">
-                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">Aktivitas</label>
+                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">
+                          Aktivitas
+                        </label>
                         <Input
                           placeholder="Aktivitas"
                           value={activity.activity}
-                          onChange={(e) => updateOrderActivity(index, 'activity', e.target.value)}
+                          onChange={(e) =>
+                            updateOrderActivity(
+                              index,
+                              "activity",
+                              e.target.value
+                            )
+                          }
                           className="w-full"
                         />
                       </div>
                       <div className="sm:col-span-5">
-                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">Objek</label>
+                        <label className="text-xs text-muted-foreground block sm:hidden mb-1">
+                          Objek
+                        </label>
                         <Input
                           placeholder="Objek"
                           value={activity.object}
-                          onChange={(e) => updateOrderActivity(index, 'object', e.target.value)}
+                          onChange={(e) =>
+                            updateOrderActivity(index, "object", e.target.value)
+                          }
                           className="w-full"
                         />
                       </div>
                       <div className="sm:col-span-2 flex justify-end">
                         {createOrderForm.activities.length > 1 && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => removeOrderActivity(index)}
                             className="text-red-600 w-full sm:w-auto"
                           >
@@ -820,14 +1000,11 @@ function NotifikasiContent({
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                <Button 
-                  onClick={handleSubmitCreateOrder}
-                  className="flex-1"
-                >
+                <Button onClick={handleSubmitCreateOrder} className="flex-1">
                   Buat Order
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setIsCreateOrderDialogOpen(false);
                     setSelectedNotificationForOrder(null);
@@ -858,7 +1035,9 @@ function NotifikasiContent({
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {jobLibraries
                 .filter((job) =>
-                  job.jobName.toLowerCase().includes(librarySearchTerm.toLowerCase())
+                  job.jobName
+                    .toLowerCase()
+                    .includes(librarySearchTerm.toLowerCase())
                 )
                 .map((job) => (
                   <Button
@@ -889,7 +1068,12 @@ function NotifikasiContent({
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Select value={statusFilter} onValueChange={(value: "ALL" | "PROCESS" | "COMPLETE") => setStatusFilter(value)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value: "ALL" | "PROCESS" | "COMPLETE") =>
+                setStatusFilter(value)
+              }
+            >
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -911,16 +1095,18 @@ function NotifikasiContent({
               <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Tidak ada notifikasi</h3>
               <p className="text-muted-foreground">
-                {searchTerm || statusFilter !== "ALL" 
+                {searchTerm || statusFilter !== "ALL"
                   ? "Tidak ditemukan notifikasi yang sesuai dengan filter"
-                  : "Belum ada notifikasi yang dibuat"
-                }
+                  : "Belum ada notifikasi yang dibuat"}
               </p>
             </CardContent>
           </Card>
         ) : (
           filteredNotifications.map((notification) => (
-            <Card key={notification.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={notification.id}
+              className="hover:shadow-md transition-shadow"
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
@@ -930,7 +1116,8 @@ function NotifikasiContent({
                     </CardTitle>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      {dateUtils.formatTime(notification.reportTime)} • {dateUtils.formatDate(notification.createdAt)}
+                      {dateUtils.formatTime(notification.reportTime)} •{" "}
+                      {dateUtils.formatDate(notification.createdAt)}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -938,7 +1125,9 @@ function NotifikasiContent({
                       {notification.urgency}
                     </Badge>
                     <Badge className={getStatusColor(notification.status)}>
-                      {notification.status === "COMPLETE" ? "Selesai" : "Proses"}
+                      {notification.status === "COMPLETE"
+                        ? "Selesai"
+                        : "Proses"}
                     </Badge>
                   </div>
                 </div>
@@ -946,11 +1135,15 @@ function NotifikasiContent({
               <CardContent className="pt-0">
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Departemen:</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Departemen:
+                    </p>
                     <p>{notification.department.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Detail Masalah:</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Detail Masalah:
+                    </p>
                     <p className="text-sm">{notification.problemDetail}</p>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
@@ -958,8 +1151,8 @@ function NotifikasiContent({
                       Dibuat oleh: {notification.createdBy.username}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 flex-wrap">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEditNotification(notification)}
                         className="w-full sm:w-auto"
@@ -967,21 +1160,23 @@ function NotifikasiContent({
                         <Edit className="h-4 w-4 mr-1" />
                         <span>Edit</span>
                       </Button>
-                      
+
                       {notification.status === "PROCESS" && (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           className="text-green-600 hover:text-green-700 w-full sm:w-auto"
-                          onClick={() => handleCloseNotification(notification.id)}
+                          onClick={() =>
+                            handleCloseNotification(notification.id)
+                          }
                         >
                           <Clock className="h-4 w-4 mr-1" />
                           <span>Close</span>
                         </Button>
                       )}
-                      
-                      <Button 
-                        variant="outline" 
+
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="text-blue-600 hover:text-blue-700 w-full sm:w-auto"
                         onClick={() => handleCreateOrder(notification)}
@@ -989,13 +1184,15 @@ function NotifikasiContent({
                         <Plus className="h-4 w-4 mr-1" />
                         <span>Create Order</span>
                       </Button>
-                      
+
                       {notification.orders.length === 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="text-red-600 hover:text-red-700 w-full sm:w-auto"
-                          onClick={() => handleDeleteNotification(notification.id)}
+                          onClick={() =>
+                            handleDeleteNotification(notification.id)
+                          }
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           <span>Hapus</span>

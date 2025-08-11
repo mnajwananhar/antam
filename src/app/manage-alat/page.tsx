@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/tabs";
 
 import { UniversalTable } from "@/components/ui/universal-table";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import {
   createEquipmentColumns,
   createEquipmentActions,
@@ -600,9 +601,13 @@ function ManageAlatContent() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
+            <TableSkeleton 
+              columns={7}
+              rows={6}
+              showSearch={true}
+              showFilters={true}
+              showPagination={true}
+            />
           ) : (
             <>
               <UniversalTable<Equipment>

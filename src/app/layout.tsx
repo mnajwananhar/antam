@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import { APP_CONFIG } from "@/lib/constants";
 import { SessionErrorProvider } from "@/components/providers/session-error-boundary";
+import { SessionValidator } from "@/components/session-validator";
 import { ToastProvider } from "@/components/providers/toast-provider";
 import "./globals.css";
 
@@ -77,13 +78,15 @@ export default async function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ToastProvider>
           <SessionErrorProvider>
-            <SessionProvider 
+            <SessionProvider
               session={session}
               refetchInterval={5 * 60} // Refetch every 5 minutes
               refetchOnWindowFocus={true}
               refetchWhenOffline={false}
             >
-              {children}
+              <SessionValidator>
+                {children}
+              </SessionValidator>
             </SessionProvider>
           </SessionErrorProvider>
         </ToastProvider>

@@ -22,7 +22,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { DataCategoryTable } from "@/components/data-review";
+import { DataCategoryTable } from "./data-category-table";
 
 interface Department {
   id: number;

@@ -143,25 +143,10 @@ export async function seedHistoricalData() {
   for (let i = 0; i < historicalReports.length; i += batchSize) {
     const batch = historicalReports.slice(i, i + batchSize);
     
-    await Promise.all(
-      batch.map(async (reportData) => {
-        const existingReport = await prisma.operationalReport.findUnique({
-          where: { 
-            reportDate_equipmentId: {
-              reportDate: reportData.reportDate,
-              equipmentId: reportData.equipmentId
-            }
-          }
-        });
-
-        if (!existingReport) {
-          return prisma.operationalReport.create({
-            data: reportData,
-          });
-        }
-        return null;
-      })
-    );
+    await prisma.operationalReport.createMany({
+      data: batch,
+      skipDuplicates: true,
+    });
     
     console.log(`✅ Processed batch ${Math.ceil((i + batchSize) / batchSize)} of ${Math.ceil(historicalReports.length / batchSize)}`);
   }

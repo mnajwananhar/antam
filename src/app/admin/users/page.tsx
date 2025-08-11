@@ -1,9 +1,12 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { useSession } from "next-auth/react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { UserManagementTable } from "@/components/admin/user-management-table";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import {
   Card,
   CardContent,
@@ -22,17 +25,126 @@ import {
   Settings,
   AlertTriangle,
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import type { User, Department } from "@prisma/client";
 
-export default async function AdminUsersPage() {
-  const session = await auth();
+interface UserWithDepartment extends User {
+  department: Department | null;
+}
+
+export default function AdminUsersPage() {
+  const { data: session, status } = useSession();
+  const [users, setUsers] = useState<UserWithDepartment[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "loading") return;
+    
+    if (!session) {
+      redirect("/auth/signin");
+      return;
+    }
+
+    if (session.user.role !== "ADMIN") {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch users and departments
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch users
+        const usersResponse = await fetch("/api/admin/users");
+        if (!usersResponse.ok) throw new Error("Failed to fetch users");
+        const usersData = await usersResponse.json();
+        
+        // Fetch departments
+        const departmentsResponse = await fetch("/api/departments");
+        if (!departmentsResponse.ok) throw new Error("Failed to fetch departments");
+        const departmentsData = await departmentsResponse.json();
+        
+        setUsers(usersData.data || []);
+        setDepartments(departmentsData.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [session, status]);
+
+  if (status === "loading" || loading) {
+    return (
+      <AppLayout>
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Manajemen Pengguna
+                </h1>
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  Admin Only
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Kelola akun pengguna sistem, role, dan akses departemen
+              </p>
+            </div>
+          </div>
+          
+          {/* Loading skeleton for stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div className="h-4 bg-muted animate-pulse rounded w-20"></div>
+                  <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-muted animate-pulse rounded w-16 mb-2"></div>
+                  <div className="h-3 bg-muted animate-pulse rounded w-24"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Loading skeleton for table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Pengguna</CardTitle>
+              <CardDescription>
+                Kelola semua akun pengguna sistem beserta role dan akses departemen
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TableSkeleton
+                columns={7}
+                rows={8}
+                showSearch={true}
+                showFilters={true}
+                showPagination={false}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!session) {
     redirect("/auth/signin");
+    return null;
   }
 
   // Check if user is admin
-  if (session.user.role !== UserRole.ADMIN) {
+  if (session.user.role !== "ADMIN") {
     return (
       <AppLayout>
         <div className="space-y-6">
@@ -48,36 +160,31 @@ export default async function AdminUsersPage() {
     );
   }
 
-  // Fetch all users with department info
-  const users = await prisma.user.findMany({
-    include: {
-      department: true,
-    },
-    orderBy: [{ role: "asc" }, { username: "asc" }],
-  });
-
-  // Fetch all departments for create/edit form
-  const departments = await prisma.department.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Error: {error}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </AppLayout>
+    );
+  }
 
   // Calculate user statistics
   const userStats = {
     total: users.length,
-    active: users.filter((u: (typeof users)[0]) => u.isActive).length,
-    inactive: users.filter((u: (typeof users)[0]) => !u.isActive).length,
+    active: users.filter((u) => u.isActive).length,
+    inactive: users.filter((u) => !u.isActive).length,
     byRole: {
-      ADMIN: users.filter((u: (typeof users)[0]) => u.role === UserRole.ADMIN)
-        .length,
-      PLANNER: users.filter(
-        (u: (typeof users)[0]) => u.role === UserRole.PLANNER
-      ).length,
-      INPUTTER: users.filter(
-        (u: (typeof users)[0]) => u.role === UserRole.INPUTTER
-      ).length,
-      VIEWER: users.filter((u: (typeof users)[0]) => u.role === UserRole.VIEWER)
-        .length,
+      ADMIN: users.filter((u) => u.role === "ADMIN").length,
+      PLANNER: users.filter((u) => u.role === "PLANNER").length,
+      INPUTTER: users.filter((u) => u.role === "INPUTTER").length,
+      VIEWER: users.filter((u) => u.role === "VIEWER").length,
     },
   };
 

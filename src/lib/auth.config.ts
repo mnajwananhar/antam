@@ -1,10 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
-import type { JWT } from "next-auth/jwt";
-import type { Session } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { v4 as uuidv4 } from "uuid";
 
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
@@ -22,10 +21,11 @@ export interface ExtendedUser {
   role: UserRole;
   departmentId: number | null;
   departmentName?: string | null;
+  sessionToken?: string;
 }
 
 // Session management rules based on user role
-const SINGLE_SESSION_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.INPUTTER];
+const SINGLE_SESSION_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.INPUTTER, UserRole.PLANNER];
 
 export const authConfig: NextAuthConfig = {
   trustHost: true,
@@ -39,43 +39,32 @@ export const authConfig: NextAuthConfig = {
       },
       async authorize(credentials) {
         try {
-          // Validate input
           const validatedFields = loginSchema.safeParse(credentials);
           if (!validatedFields.success) {
-            return null;
+            throw new Error("Invalid input.");
           }
 
           const { username, password } = validatedFields.data;
 
-          // Find user with department info
           const user = await prisma.user.findUnique({
-            where: {
-              username: username.toLowerCase(),
-              isActive: true,
-            },
-            include: {
-              department: {
-                select: {
-                  name: true,
-                },
-              },
-            },
+            where: { username: username.toLowerCase(), isActive: true },
+            include: { department: { select: { name: true } } },
           });
 
           if (!user) {
-            return null;
+            throw new Error("Username atau password salah.");
           }
 
-          // Verify password
           const isPasswordValid = await bcrypt.compare(password, user.password);
           if (!isPasswordValid) {
-            return null;
+            throw new Error("Username atau password salah.");
           }
 
-          // Update last login
+          // Single Session Logic
+          const sessionToken = uuidv4();
           await prisma.user.update({
             where: { id: user.id },
-            data: { lastLogin: new Date() },
+            data: { lastLogin: new Date(), sessionToken },
           });
 
           return {
@@ -84,10 +73,18 @@ export const authConfig: NextAuthConfig = {
             role: user.role,
             departmentId: user.departmentId,
             departmentName: user.department?.name || null,
+            sessionToken,
           };
         } catch (error) {
+          // Re-throw specific error messages, otherwise log and throw generic
+          if (
+            error instanceof Error &&
+            error.message === "Username atau password salah."
+          ) {
+            throw error;
+          }
           console.error("Auth error:", error);
-          return null;
+          throw new Error("Terjadi kesalahan saat login.");
         }
       },
     }),
@@ -98,59 +95,43 @@ export const authConfig: NextAuthConfig = {
     updateAge: 60 * 60, // Update session every hour
   },
   callbacks: {
-    async jwt({
-      token,
-      user,
-      trigger,
-    }: {
-      token: JWT;
-      user?: ExtendedUser;
-      trigger?: string;
-    }) {
-      // Handle session update gracefully
-      if (trigger === "update" && !user) {
-        // Return existing token if this is just a session update
-        return token;
-      }
+    async jwt({ token, user }) {
+      // Initial sign-in
       if (user) {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
-        token.departmentId = user.departmentId ?? null;
+        token.departmentId = user.departmentId;
         token.departmentName = user.departmentName ?? null;
-
-        // Check for single session enforcement
-        if (SINGLE_SESSION_ROLES.includes(user.role)) {
-          token.enforcesSingleSession = true;
+        if (SINGLE_SESSION_ROLES.includes(user.role as UserRole)) {
+          token.sessionToken = (user as ExtendedUser).sessionToken;
         }
       }
 
-      // Add timestamp for token validation
-      token.iat = Math.floor(Date.now() / 1000);
+      // We'll handle session validation in API routes instead of middleware
+      // to avoid Edge Runtime issues with Prisma
 
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (token) {
-        session.user = {
+    async session({ session, token }) {
+      if (token && session.user) {
+        const userWithCustomFields = {
+          ...session.user, // Keep original fields like email, name
           id: token.id as string,
           username: token.username as string,
           role: token.role as UserRole,
           departmentId: (token.departmentId as number | null) || null,
           departmentName: (token.departmentName as string | null) || null,
+          sessionToken: token.sessionToken as string | undefined,
         };
+        session.user = userWithCustomFields;
       }
       return session;
-    },
-    async signIn() {
-      // Additional sign-in logic can be added here
-      // For example, checking if user is active, rate limiting, etc.
-      return true;
     },
   },
   pages: {
     signIn: "/auth/signin",
-    error: "/auth/error",
+    error: "/auth/error", // You can create a custom error page to display messages
   },
   events: {
     async signIn({ user }) {

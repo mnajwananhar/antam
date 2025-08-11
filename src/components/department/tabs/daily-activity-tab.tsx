@@ -767,14 +767,10 @@ export function DailyActivityTab({
         const data = await response.json();
         setOperationalReport(data.report);
         setSuccess(
-          editId
-            ? "Data berhasil diupdate"
-            : "Laporan berhasil diselesaikan"
+          editId ? "Data berhasil diupdate" : "Laporan berhasil diselesaikan"
         );
         showToast(
-          editId
-            ? "Data berhasil diupdate!"
-            : "Laporan berhasil diselesaikan!",
+          editId ? "Data berhasil diupdate!" : "Laporan berhasil diselesaikan!",
           "success"
         );
         // Notify other tabs about the data change
@@ -1022,15 +1018,6 @@ export function DailyActivityTab({
                 {formatDuration(validation.duration)}
               </Badge>
             )}
-            {!validation.isValid && validation.message && (
-              <Badge
-                variant="destructive"
-                className="text-xs flex items-center gap-1"
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Error
-              </Badge>
-            )}
           </div>
           <Button
             variant="ghost"
@@ -1042,25 +1029,16 @@ export function DailyActivityTab({
           </Button>
         </div>
 
-        {/* Real-time validation alert */}
-        {!validation.isValid && validation.message && (
-          <Alert variant="destructive" className="py-2">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              {validation.message}
-            </AlertDescription>
-          </Alert>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>Tanggal Mulai</Label>
-            <Input
-              type="date"
+            <CustomCalendar
               value={activity.startDate}
-              onChange={(e) =>
-                updateActivity(type, index, "startDate", e.target.value)
+              onChange={(date) =>
+                updateActivity(type, index, "startDate", date)
               }
+              placeholder="Pilih tanggal..."
+              className="w-full"
             />
           </div>
           <div>
@@ -1128,12 +1106,11 @@ export function DailyActivityTab({
           </div>
           <div>
             <Label>Tanggal Selesai</Label>
-            <Input
-              type="date"
+            <CustomCalendar
               value={activity.endDate}
-              onChange={(e) =>
-                updateActivity(type, index, "endDate", e.target.value)
-              }
+              onChange={(date) => updateActivity(type, index, "endDate", date)}
+              placeholder="Pilih tanggal..."
+              className="w-full"
             />
           </div>
           <div>
@@ -1281,21 +1258,25 @@ export function DailyActivityTab({
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
               <CardTitle>
-                {isEditMode ? "Edit Aktivitas Harian" : `Aktivitas Harian - ${department.name}`}
+                {isEditMode
+                  ? "Edit Aktivitas Harian"
+                  : `Aktivitas Harian - ${department.name}`}
               </CardTitle>
             </div>
             {isEditMode && (
-              <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+              <Badge
+                variant="secondary"
+                className="bg-blue-50 text-blue-700 border-blue-200"
+              >
                 <EditIcon className="h-3 w-3 mr-1" />
                 Edit Mode
               </Badge>
             )}
           </div>
           <CardDescription>
-            {editId 
+            {editId
               ? "Perbarui data aktivitas harian peralatan yang dipilih"
-              : "Pencatatan aktivitas harian peralatan dengan sistem kolaboratif antar shift"
-            }
+              : "Pencatatan aktivitas harian peralatan dengan sistem kolaboratif antar shift"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -2029,12 +2010,11 @@ export function DailyActivityTab({
                       <p>
                         {editId
                           ? "Perbarui & Selesaikan memerlukan total"
-                          : "Selesaikan Laporan memerlukan total"
-                        } {targetHours} jam dan detail aktivitas yang sesuai
+                          : "Selesaikan Laporan memerlukan total"}{" "}
+                        {targetHours} jam dan detail aktivitas yang sesuai
                       </p>
                     </div>
                   )}
-
                 </>
               )}
             </>

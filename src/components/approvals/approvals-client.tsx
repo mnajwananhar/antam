@@ -9,13 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import {
   CheckCircle2,
   XCircle,
   Clock,
   AlertTriangle,
   FileText,
-  Loader2,
 } from "lucide-react";
 
 interface ApprovalStats {
@@ -172,13 +172,13 @@ export function ApprovalsClient() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12">
-              <Loader2 className="mx-auto h-12 w-12 text-muted-foreground mb-4 animate-spin" />
-              <h3 className="text-lg font-semibold mb-2">Memuat Data</h3>
-              <p className="text-muted-foreground">
-                Sedang memuat daftar approval requests...
-              </p>
-            </div>
+            <TableSkeleton 
+              columns={5}
+              rows={4}
+              showSearch={true}
+              showFilters={true}
+              showPagination={false}
+            />
           ) : (
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

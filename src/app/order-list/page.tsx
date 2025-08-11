@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToastContext } from "@/lib/hooks";
 import { Wrench, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { roleUtils, dateUtils } from "@/lib/utils";
@@ -207,10 +208,52 @@ function OrderListContent({
   if (loading) {
     return (
       <div className="flex-shrink-0 bg-black px-6 py-4 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-600 border-t-yellow-500 mx-auto mb-4"></div>
-            <p className="text-gray-300">Memuat order list...</p>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="p-2 bg-yellow-500/20 rounded-lg flex-shrink-0">
+                <Wrench className="h-5 w-5 text-yellow-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-400 truncate">
+                  Order List
+                </h1>
+                <p className="text-sm sm:text-base text-gray-300">
+                  Kelola dan pantau work order departemen
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Search skeleton */}
+          <Skeleton className="h-10 w-full" />
+
+          {/* Order cards skeleton */}
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="border border-gray-700 rounded-lg">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <Skeleton className="h-6 w-3/4" />
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0">
+                      <div className="text-right">
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-3 w-20 mt-1" />
+                      </div>
+                      <Skeleton className="h-6 w-6 rounded-full" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-2 w-full rounded-full mt-4" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
