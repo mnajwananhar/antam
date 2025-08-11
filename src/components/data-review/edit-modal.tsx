@@ -165,7 +165,7 @@ export function EditModal({ isOpen, onClose, categoryId, recordId, onSuccess }: 
       setOriginalData({});
       setErrors({});
     }
-  }, [isOpen, recordId, apiEndpoint]); // Removed loadData from dependencies to prevent infinite loop
+  }, [isOpen, recordId, apiEndpoint, errors.general, loadData]);
 
   const handleSave = async () => {
     setIsSaving(true);

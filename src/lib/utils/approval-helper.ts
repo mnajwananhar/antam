@@ -1,5 +1,3 @@
-import { ApprovalManager } from "@/lib/approval-manager";
-
 interface CreateApprovalRequestParams {
   requestType: "data_change" | "data_deletion";
   tableName: string;
@@ -18,7 +16,6 @@ export async function createApprovalRequest({
   recordId,
   oldData,
   newData,
-  requesterId,
 }: CreateApprovalRequestParams) {
   try {
     const response = await fetch("/api/approvals", {
