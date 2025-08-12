@@ -24,10 +24,10 @@ export function AppLayout({ children, className }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       <Header session={session} onToggleSidebar={handleToggleSidebar} />
 
-      <div className="flex pt-16">
+      <div className="flex pt-16 h-full">
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:top-16">
           <Sidebar session={session} />
@@ -53,7 +53,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         {/* Main Content */}
         <main
           className={cn(
-            "flex-1",
+            "flex-1 h-full overflow-hidden",
             "md:ml-64", // Add left margin on desktop to account for fixed sidebar
             className
           )}
@@ -61,7 +61,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
           {className?.includes("!p-0") ? (
             children
           ) : (
-            <div className="container mx-auto px-4 pb-8">{children}</div>
+            <div className="h-full overflow-y-auto">{children}</div>
           )}
         </main>
       </div>

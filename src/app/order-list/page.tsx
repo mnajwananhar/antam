@@ -433,7 +433,7 @@ function OrderListContent({
                             {order.activities.map((activity) => (
                               <div
                                 key={activity.id}
-                                className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-yellow-900/10 rounded-lg border border-yellow-800/30 hover:border-yellow-500/50 transition-colors"
+                                className="flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-600 hover:border-yellow-500/50 transition-colors"
                               >
                                 {canUpdateActivity ? (
                                   <Checkbox
@@ -445,21 +445,21 @@ function OrderListContent({
                                         checked as boolean
                                       )
                                     }
-                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-yellow-600/50 mt-0.5 sm:mt-0 flex-shrink-0"
+                                    className="data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500 border-gray-500 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 ) : (
                                   <Checkbox
                                     checked={activity.isCompleted}
                                     disabled
-                                    className="data-[state=checked]:bg-yellow-600/50 data-[state=checked]:border-yellow-600/50 border-yellow-700/50 mt-0.5 sm:mt-0 flex-shrink-0"
+                                    className="data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500 border-gray-600 mt-0.5 sm:mt-0 flex-shrink-0"
                                   />
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <span
                                     className={
                                       activity.isCompleted
-                                        ? "line-through text-yellow-500/60 text-sm break-words"
-                                        : "text-yellow-200 text-sm break-words"
+                                        ? "line-through text-gray-500 text-sm break-words"
+                                        : "text-gray-300 text-sm break-words"
                                     }
                                   >
                                     <span className="font-medium">
@@ -475,7 +475,7 @@ function OrderListContent({
                                       <span className="hidden sm:inline">Selesai</span>
                                     </span>
                                   ) : (
-                                    <span className="text-yellow-400/70 flex items-center gap-1">
+                                    <span className="text-gray-500 flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       <span className="hidden sm:inline">Belum</span>
                                     </span>

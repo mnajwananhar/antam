@@ -18,7 +18,7 @@ import {
   useToastContext,
   useApiToast,
 } from "@/components/providers/toast-provider";
-import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+// ...existing code...
 import {
   Plus,
   Battery,
@@ -148,7 +148,6 @@ export function EnergyConsumptionTab({
     // Reload data
     loadEnergyConsumption();
     // Notify other tabs about the data change
-    notifyDataUpdate(DATA_CATEGORIES.ENERGY_CONSUMPTION);
     setIsSubmitting(false);
   };
 

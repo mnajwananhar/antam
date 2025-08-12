@@ -46,7 +46,7 @@ import {
   SHIFT_TYPES,
   ShiftType,
 } from "@/types/daily-activity";
-import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+// ...existing code...
 
 // Custom Toast Component
 const Toast = ({
@@ -709,7 +709,6 @@ export function DailyActivityTab({
           "success"
         );
         // Notify other tabs about the data change
-        notifyDataUpdate(DATA_CATEGORIES.OPERATIONAL_REPORTS);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to save progress");
@@ -774,7 +773,6 @@ export function DailyActivityTab({
           "success"
         );
         // Notify other tabs about the data change
-        notifyDataUpdate(DATA_CATEGORIES.OPERATIONAL_REPORTS);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to finalize report");

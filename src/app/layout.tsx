@@ -80,8 +80,8 @@ export default async function RootLayout({
           <SessionErrorProvider>
             <SessionProvider
               session={session}
-              refetchInterval={5 * 60} // Refetch every 5 minutes
-              refetchOnWindowFocus={true}
+              refetchInterval={0} // Disable auto-refresh to prevent excessive polling
+              refetchOnWindowFocus={false}
               refetchWhenOffline={false}
             >
               <SessionValidator>

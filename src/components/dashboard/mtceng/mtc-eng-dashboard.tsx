@@ -1,0 +1,519 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Calendar, TrendingUp } from "lucide-react";
+import { KpiSummaryChart } from "./kpi-summary-chart";
+import { StatusTindakLanjutChart } from "./status-tindak-lanjut-chart";
+import { SafetyIncidentsChart } from "./safety-incidents-chart";
+import { EnergyIkesChart } from "./energy-ikes-chart";
+import { EnergyEmissionChart } from "./energy-emission-chart";
+import { EnergyConsumptionChart } from "./energy-consumption-chart";
+import { CriticalIssuesTable } from "./critical-issues-table";
+import {
+  KpiFilters,
+  StatusFilters,
+  SafetyFilters,
+  EnergyFilters,
+  ConsumptionFilters,
+  CriticalIssuesFilters,
+  type KpiFilterState,
+  type StatusFilterState,
+  type SafetyFilterState,
+  type EnergyFilterState,
+  type ConsumptionFilterState,
+  type CriticalIssuesFilterState,
+} from "@/components/dashboard/filters";
+
+interface DashboardData {
+  kpiSummary: {
+    actual: number;
+    target: number;
+    percentage: number;
+  };
+  statusTindakLanjut: {
+    open: number;
+    close: number;
+  };
+  safetyIncidents: Array<{
+    month: string;
+    nearmiss: number;
+    kecAlat: number;
+    kecKecil: number;
+    kecRingan: number;
+    kecBerat: number;
+    fatality: number;
+  }>;
+  energyIkes: Array<{
+    month: string;
+    ikesTarget: number | null;
+    ikesRealization: number | null;
+  }>;
+  energyEmission: Array<{
+    month: string;
+    emissionTarget: number | null;
+    emissionRealization: number | null;
+  }>;
+  energyConsumption: Array<{
+    month: string;
+    pln: number;
+    tambang: number;
+    pabrik: number;
+    supporting: number;
+    total: number;
+  }>;
+  criticalIssues: Array<{
+    id: number;
+    issueName: string;
+    department: string;
+    status: string;
+    description: string;
+    createdAt: string;
+  }>;
+  year: number;
+  month: number;
+}
+
+export function MtcEngDashboard(): React.JSX.Element {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  // Filter States
+  const [kpiFilters, setKpiFilters] = useState<KpiFilterState>({
+    year: currentYear,
+    month: null,
+    department: "MTC&ENG Bureau",
+  });
+
+  const [statusFilters, setStatusFilters] = useState<StatusFilterState>({
+    dateRange: "all",
+    statusTypes: { open: true, close: true },
+    departments: ["MTC&ENG Bureau"],
+    year: currentYear,
+  });
+
+  const [safetyFilters, setSafetyFilters] = useState<SafetyFilterState>({
+    year: currentYear,
+    monthRange: { start: 1, end: 12 },
+    incidentTypes: {
+      nearmiss: true,
+      kecAlat: true,
+      kecKecil: true,
+      kecRingan: true,
+      kecBerat: true,
+      fatality: true,
+    },
+    chartType: "stacked",
+  });
+
+  const [energyFilters, setEnergyFilters] = useState<EnergyFilterState>({
+    year: currentYear,
+    monthRange: { start: 1, end: 12 },
+    showTarget: true,
+    showRealization: true,
+    comparisonMode: "target_vs_real",
+    smoothLine: false,
+  });
+
+  const [consumptionFilters, setConsumptionFilters] = useState<ConsumptionFilterState>({
+    year: currentYear,
+    monthRange: { start: 1, end: 12 },
+    areas: {
+      pln: true,
+      tambang: true,
+      pabrik: true,
+      supporting: true,
+    },
+    showTotal: true,
+    chartType: "combined",
+    showTable: true,
+    showAverage: true,
+  });
+
+  const [criticalFilters, setCriticalFilters] = useState<CriticalIssuesFilterState>({
+    search: "",
+    departments: [],
+    statuses: { WORKING: true, STANDBY: true, BREAKDOWN: true },
+    dateRange: "all",
+    sortBy: "newest",
+    sortOrder: "desc",
+    pageSize: 10,
+  });
+
+  const buildQueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("year", kpiFilters.year.toString());
+    if (kpiFilters.month) {
+      params.set("month", kpiFilters.month.toString());
+    }
+    return params.toString();
+  }, [kpiFilters]);
+
+  const fetchDashboardData = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const queryParams = buildQueryParams();
+      const response = await fetch(`/api/dashboard/mtceng?${queryParams}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard data");
+      }
+
+      const dashboardData = await response.json();
+      setData(dashboardData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setError(error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildQueryParams]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const handleRefresh = (): void => {
+    fetchDashboardData();
+  };
+
+  // Filter data based on current filters
+  const getFilteredSafetyData = useCallback(() => {
+    if (!data) return [];
+    
+    return data.safetyIncidents.filter((item, index) => {
+      const monthNum = index + 1;
+      return monthNum >= safetyFilters.monthRange.start && monthNum <= safetyFilters.monthRange.end;
+    }).map((item) => ({
+      ...item,
+      nearmiss: safetyFilters.incidentTypes.nearmiss ? item.nearmiss : 0,
+      kecAlat: safetyFilters.incidentTypes.kecAlat ? item.kecAlat : 0,
+      kecKecil: safetyFilters.incidentTypes.kecKecil ? item.kecKecil : 0,
+      kecRingan: safetyFilters.incidentTypes.kecRingan ? item.kecRingan : 0,
+      kecBerat: safetyFilters.incidentTypes.kecBerat ? item.kecBerat : 0,
+      fatality: safetyFilters.incidentTypes.fatality ? item.fatality : 0,
+    }));
+  }, [data, safetyFilters]);
+
+  const getFilteredEnergyData = useCallback((type: "ikes" | "emission") => {
+    if (!data) return [];
+    
+    const sourceData = type === "ikes" ? data.energyIkes : data.energyEmission;
+    
+    return sourceData.filter((_, index) => {
+      const monthNum = index + 1;
+      return monthNum >= energyFilters.monthRange.start && monthNum <= energyFilters.monthRange.end;
+    }).map((item) => {
+      if (type === "ikes") {
+        return {
+          ...item,
+          ikesTarget: energyFilters.showTarget ? item.ikesTarget : null,
+          ikesRealization: energyFilters.showRealization ? (item as any).ikesRealization : null,
+        };
+      } else {
+        return {
+          ...item,
+          emissionTarget: energyFilters.showTarget ? (item as any).emissionTarget : null,
+          emissionRealization: energyFilters.showRealization ? (item as any).emissionRealization : null,
+        };
+      }
+    });
+  }, [data, energyFilters]);
+
+  const getFilteredConsumptionData = useCallback(() => {
+    if (!data) return [];
+    
+    return data.energyConsumption.filter((_, index) => {
+      const monthNum = index + 1;
+      return monthNum >= consumptionFilters.monthRange.start && monthNum <= consumptionFilters.monthRange.end;
+    }).map((item) => ({
+      ...item,
+      pln: consumptionFilters.areas.pln ? item.pln : 0,
+      tambang: consumptionFilters.areas.tambang ? item.tambang : 0,
+      pabrik: consumptionFilters.areas.pabrik ? item.pabrik : 0,
+      supporting: consumptionFilters.areas.supporting ? item.supporting : 0,
+      total: consumptionFilters.showTotal ? item.total : 0,
+    }));
+  }, [data, consumptionFilters]);
+
+  const getFilteredCriticalIssues = useCallback(() => {
+    if (!data) return [];
+    
+    let filtered = data.criticalIssues;
+    
+    // Search filter
+    if (criticalFilters.search) {
+      const searchLower = criticalFilters.search.toLowerCase();
+      filtered = filtered.filter((issue) =>
+        issue.issueName.toLowerCase().includes(searchLower) ||
+        issue.description.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Department filter
+    if (criticalFilters.departments.length > 0) {
+      filtered = filtered.filter((issue) =>
+        criticalFilters.departments.includes(issue.department)
+      );
+    }
+    
+    // Status filter
+    const enabledStatuses = Object.entries(criticalFilters.statuses)
+      .filter(([_, enabled]) => enabled)
+      .map(([status]) => status);
+    
+    if (enabledStatuses.length < 3) {
+      filtered = filtered.filter((issue) =>
+        enabledStatuses.includes(issue.status)
+      );
+    }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (criticalFilters.sortBy) {
+        case "newest":
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          break;
+        case "oldest":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case "department":
+          comparison = a.department.localeCompare(b.department);
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case "priority":
+          // Simple priority: BREAKDOWN > STANDBY > WORKING
+          const priorityOrder = { BREAKDOWN: 3, STANDBY: 2, WORKING: 1 };
+          comparison = (priorityOrder[b.status as keyof typeof priorityOrder] || 0) - 
+                      (priorityOrder[a.status as keyof typeof priorityOrder] || 0);
+          break;
+      }
+      
+      return criticalFilters.sortOrder === "desc" ? comparison : -comparison;
+    });
+    
+    // Pagination
+    return filtered.slice(0, criticalFilters.pageSize);
+  }, [data, criticalFilters]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+              <TrendingUp className="h-6 w-6" />
+              Dashboard MTC&ENG Bureau
+            </h1>
+            <p className="text-gray-400">Loading dashboard data...</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Card key={index} className="bg-gray-800/50 border-gray-700">
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded w-1/3 mb-4"></div>
+                  <div className="h-32 bg-gray-700 rounded"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+              <TrendingUp className="h-6 w-6" />
+              Dashboard MTC&ENG Bureau
+            </h1>
+            <p className="text-gray-400">Error loading dashboard</p>
+          </div>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+        
+        <Card className="bg-red-900/20 border-red-600/30">
+          <CardContent className="p-6 text-center">
+            <p className="text-red-400">
+              Error: {error}
+            </p>
+            <p className="text-gray-400 mt-2">
+              Please try refreshing the page or contact support if the problem persists.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+              <TrendingUp className="h-6 w-6" />
+              Dashboard MTC&ENG Bureau
+            </h1>
+            <p className="text-gray-400">No data available</p>
+          </div>
+        </div>
+        
+        <Card className="bg-gray-800/50 border-gray-700">
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-400">
+              No dashboard data available
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const filteredSafetyData = getFilteredSafetyData();
+  const filteredEnergyIkesData = getFilteredEnergyData("ikes");
+  const filteredEnergyEmissionData = getFilteredEnergyData("emission");
+  const filteredConsumptionData = getFilteredConsumptionData();
+  const filteredCriticalIssues = getFilteredCriticalIssues();
+
+  return (
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+            <TrendingUp className="h-6 w-6" />
+            Dashboard MTC&ENG Bureau
+          </h1>
+          <p className="text-gray-400 flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Period: {new Date().toLocaleDateString("id-ID", { 
+              month: "long", 
+              year: "numeric" 
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-gray-500">
+            Last updated: {lastUpdated.toLocaleTimeString("id-ID")}
+          </p>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Dashboard Grid */}
+      <div className="space-y-6">
+        {/* Top Row - KPI and Status Charts with Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <KpiFilters 
+              currentFilters={kpiFilters}
+              onFilterChange={setKpiFilters}
+            />
+            <KpiSummaryChart data={data.kpiSummary} />
+          </div>
+          
+          <div className="space-y-4">
+            <StatusFilters 
+              currentFilters={statusFilters}
+              onFilterChange={setStatusFilters}
+            />
+            <StatusTindakLanjutChart data={data.statusTindakLanjut} />
+          </div>
+        </div>
+
+        {/* Safety Incidents Chart with Filter */}
+        <div className="space-y-4">
+          <SafetyFilters 
+            currentFilters={safetyFilters}
+            onFilterChange={setSafetyFilters}
+          />
+          <SafetyIncidentsChart 
+            data={filteredSafetyData} 
+            chartType={safetyFilters.chartType}
+          />
+        </div>
+
+        {/* Energy Charts Row with Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <EnergyFilters 
+              currentFilters={energyFilters}
+              onFilterChange={setEnergyFilters}
+              chartType="ikes"
+            />
+            <EnergyIkesChart 
+              data={filteredEnergyIkesData as any} 
+              smoothLine={energyFilters.smoothLine}
+              comparisonMode={energyFilters.comparisonMode}
+            />
+          </div>
+          
+          <div className="space-y-4">
+            <EnergyFilters 
+              currentFilters={energyFilters}
+              onFilterChange={setEnergyFilters}
+              chartType="emission"
+            />
+            <EnergyEmissionChart 
+              data={filteredEnergyEmissionData as any} 
+              smoothLine={energyFilters.smoothLine}
+              comparisonMode={energyFilters.comparisonMode}
+            />
+          </div>
+        </div>
+
+        {/* Energy Consumption Chart with Filter */}
+        <div className="space-y-4">
+          <ConsumptionFilters 
+            currentFilters={consumptionFilters}
+            onFilterChange={setConsumptionFilters}
+          />
+          <EnergyConsumptionChart 
+            data={filteredConsumptionData} 
+            chartType={consumptionFilters.chartType}
+            showTable={consumptionFilters.showTable}
+            showAverage={consumptionFilters.showAverage}
+          />
+        </div>
+
+        {/* Critical Issues Table with Filter */}
+        <div className="space-y-4">
+          <CriticalIssuesFilters 
+            currentFilters={criticalFilters}
+            onFilterChange={setCriticalFilters}
+            totalCount={data.criticalIssues.length}
+            filteredCount={filteredCriticalIssues.length}
+          />
+          <CriticalIssuesTable data={filteredCriticalIssues} />
+        </div>
+      </div>
+    </div>
+  );
+}

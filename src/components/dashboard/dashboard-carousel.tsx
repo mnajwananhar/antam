@@ -24,7 +24,7 @@ interface DashboardCarouselProps {
 }
 
 export function DashboardCarousel({ 
-  autoRotate = true, 
+  autoRotate = false, 
   rotateInterval = 5000 
 }: DashboardCarouselProps) {
   const slides: CarouselSlide[] = [
@@ -119,7 +119,7 @@ export function DashboardCarousel({
       {/* Main Carousel */}
       <Card className="relative overflow-hidden bg-gradient-to-br from-background to-muted/30 border-2 border-primary/10 shadow-lg">
         <CardContent className="p-0">
-          <div className="relative h-full">
+          <div className="relative h-96 md:h-[28rem] lg:h-[32rem]">
             {/* Background with gradient */}
             <div className={cn(
               "absolute inset-0 bg-gradient-to-br transition-all duration-700 ease-in-out",

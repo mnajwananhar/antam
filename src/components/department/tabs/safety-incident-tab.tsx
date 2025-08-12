@@ -18,7 +18,7 @@ import {
   useToastContext,
   useApiToast,
 } from "@/components/providers/toast-provider";
-import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+// ...existing code...
 import { Plus, Shield, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 
 interface SafetyIncidentTabProps {
@@ -121,8 +121,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
 
       // Reload data
       loadSafetyIncidents();
-      // Notify other tabs about the data change
-      notifyDataUpdate(DATA_CATEGORIES.SAFETY_INCIDENTS);
     }
 
     setIsSubmitting(false);

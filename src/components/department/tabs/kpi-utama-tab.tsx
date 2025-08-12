@@ -16,7 +16,7 @@ import {
   type KtaKpiItem,
 } from "@/components/kta-tta";
 import { useToastContext } from "@/lib/hooks";
-import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+// ...existing code...
 
 interface KpiUtamaTabProps {
   department: Department;
@@ -46,7 +46,7 @@ export function KpiUtamaTab({
         "Loading KTA & KPI data - MTC&ENG Bureau unrestricted access"
       );
       const response = await fetch(`/api/kta-tta`);
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log(
@@ -116,9 +116,8 @@ export function KpiUtamaTab({
         setUploadedData([]);
         setActiveTab("data");
         await loadExistingData();
-        
+
         // Notify other tabs about the data change
-        notifyDataUpdate(DATA_CATEGORIES.KTA_TTA);
       } else {
         throw new Error(result.error || "Failed to save data");
       }
@@ -148,7 +147,6 @@ export function KpiUtamaTab({
         showSuccess(`Status berhasil diubah menjadi ${newStatus}`);
 
         // Notify other tabs about the data change
-        notifyDataUpdate(DATA_CATEGORIES.KTA_TTA);
 
         // Update status in local state without API call
         setExistingData((prevData) =>
@@ -207,7 +205,6 @@ export function KpiUtamaTab({
     );
   }
 
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -216,8 +213,10 @@ export function KpiUtamaTab({
         <AlertDescription>
           <strong>Excel Upload Center - MTC&ENG Bureau</strong>
           <br />
-          Sebagai MTC&ENG Bureau, Anda dapat upload data Excel untuk <strong>KPI Utama</strong> dan <strong>KTA & TTA</strong> dari semua departemen.
-          Fitur upload Excel telah dipindahkan ke sini dari tab-tab departemen lain.
+          Sebagai MTC&ENG Bureau, Anda dapat upload data Excel untuk{" "}
+          <strong>KPI Utama</strong> dan <strong>KTA & TTA</strong> dari semua
+          departemen. Fitur upload Excel telah dipindahkan ke sini dari tab-tab
+          departemen lain.
         </AlertDescription>
       </Alert>
 
@@ -246,8 +245,9 @@ export function KpiUtamaTab({
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground text-sm mb-4">
-                Upload data KTA (Key Task Analysis), TTA (Task Task Analysis), dan KPI Utama untuk semua departemen.
-                Semua data akan disimpan dalam satu sistem terpadu.
+                Upload data KTA (Key Task Analysis), TTA (Task Task Analysis),
+                dan KPI Utama untuk semua departemen. Semua data akan disimpan
+                dalam satu sistem terpadu.
               </p>
               <ExcelUpload
                 onDataChange={handleDataChange}
@@ -288,8 +288,9 @@ export function KpiUtamaTab({
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground text-sm mb-4">
-                Menampilkan semua data KTA/TTA dan KPI Utama dari semua departemen.
-                MTC&ENG Bureau dapat melihat dan mengelola semua data tanpa batasan.
+                Menampilkan semua data KTA/TTA dan KPI Utama dari semua
+                departemen. MTC&ENG Bureau dapat melihat dan mengelola semua
+                data tanpa batasan.
               </p>
             </CardContent>
           </Card>

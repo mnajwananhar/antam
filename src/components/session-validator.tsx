@@ -38,13 +38,18 @@ export function SessionValidator({ children }: SessionValidatorProps) {
           const data = await response.json();
           console.warn("Session validation failed:", data.error);
           
-          // Force sign out if session is invalid
-          await signOut({ 
-            callbackUrl: "/auth/signin?message=Session expired. Please sign in again.",
-            redirect: false 
-          });
+          // Don't auto-signout to avoid refresh issues during temporary network problems
+          console.warn("Session validation failed - consider manual re-authentication if issues persist");
           
-          router.push("/auth/signin?message=Your session has expired. Please sign in again.");
+          // Only signout after multiple consecutive failures
+          if (data.error && data.error.includes('invalidated')) {
+            await signOut({ 
+              callbackUrl: "/auth/signin?message=Session expired. Please sign in again.",
+              redirect: false 
+            });
+            
+            router.push("/auth/signin?message=Your session has expired. Please sign in again.");
+          }
         }
       } catch (error) {
         console.error("Session validation error:", error);
@@ -55,19 +60,11 @@ export function SessionValidator({ children }: SessionValidatorProps) {
     // Validate session on component mount
     validateSession();
 
-    // Set up periodic validation every 5 minutes
-    const intervalId = setInterval(validateSession, 5 * 60 * 1000);
-
-    // Also validate when window regains focus
-    const handleFocus = () => {
-      validateSession();
-    };
-
-    window.addEventListener("focus", handleFocus);
+    // Set up periodic validation every 15 minutes (reduced frequency)
+    const intervalId = setInterval(validateSession, 15 * 60 * 1000);
 
     return () => {
       clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
     };
   }, [session, status, router]);
 

@@ -1,51 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { AppLayout } from "@/components/layout/app-layout";
 import { DashboardCarousel } from "@/components/dashboard/dashboard-carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DEPARTMENTS } from "@/lib/constants";
-import { departmentUtils } from "@/lib/utils";
-import { Activity } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function DashboardPage() {
+export default function DashboardPage(): React.JSX.Element {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   if (!session) {
     redirect("/auth/signin");
   }
 
-  return (
-    <AppLayout className="!p-0">
-      <DashboardContent />
-    </AppLayout>
-  );
+  return <DashboardContent />;
 }
 
-function DashboardContent() {
-  const [currentDeptIndex, setCurrentDeptIndex] = useState(0);
+function DashboardContent(): React.JSX.Element {
+  const [currentDeptIndex, setCurrentDeptIndex] = useState<number>(0);
   const departmentsPerPage = 5;
+  const maxIndex = Math.ceil(DEPARTMENTS.length / departmentsPerPage) - 1;
 
-  // Auto-rotate department cards every 8 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDeptIndex((prev) => {
-        const maxIndex = Math.ceil(DEPARTMENTS.length / departmentsPerPage) - 1;
-        return prev >= maxIndex ? 0 : prev + 1;
-      });
-    }, 8000);
+  const handlePrevious = (): void => {
+    setCurrentDeptIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+  };
 
-    return () => clearInterval(interval);
-  }, []);
+  const handleNext = (): void => {
+    setCurrentDeptIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+  };
 
   const currentDepartments = DEPARTMENTS.slice(
     currentDeptIndex * departmentsPerPage,
@@ -53,50 +48,89 @@ function DashboardContent() {
   );
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
-      {/* Dashboard Carousel - Mengambil sebagian besar ruang */}
-      <div className="flex-1 p-6 pb-2">
-        <DashboardCarousel autoRotate={true} rotateInterval={5000} />
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-secondary-800 dark:text-primary">
+          Dashboard Operasional ANTAM
+        </h1>
+        <p className="text-secondary-600 dark:text-secondary-300 max-w-2xl mx-auto">
+          Monitoring dan pengelolaan sistem informasi operasional pertambangan
+        </p>
       </div>
 
-      {/* Department Cards - Compact di bagian bawah */}
-      <div className="flex-shrink-0 bg-black px-6 py-4">
-        <div className="grid grid-cols-5 gap-3">
+      {/* Dashboard Carousel */}
+      <div className="w-full">
+        <DashboardCarousel autoRotate={true} rotateInterval={8000} />
+      </div>
+
+      {/* Department Navigation */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrevious}
+              disabled={maxIndex === 0}
+              className="h-8 w-8 p-0 border-primary text-primary hover:bg-primary hover:text-secondary"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-secondary-500 dark:text-secondary-400 min-w-[60px] text-center">
+              {currentDeptIndex + 1} / {maxIndex + 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNext}
+              disabled={maxIndex === 0}
+              className="h-8 w-8 p-0 border-primary text-primary hover:bg-primary hover:text-secondary"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Department Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
           {currentDepartments.map((department) => (
             <Card
               key={`${currentDeptIndex}-${department.id}`}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 hover:border-yellow-500/50 transition-all duration-300 hover:scale-105 h-32"
+              className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-secondary-50 dark:bg-secondary-800 border-primary/20 dark:border-primary/30 hover:border-primary/50 dark:hover:border-primary/60"
             >
-              <CardHeader className="pb-1 px-3 pt-3">
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <CardTitle className="text-sm font-bold text-yellow-400 truncate">
+                  <CardTitle className="text-base font-bold text-secondary-800 dark:text-primary truncate">
                     {department.code}
                   </CardTitle>
-                  <div className="h-5 w-5 rounded-lg bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-                    <Activity className="h-3 w-3 text-yellow-400" />
+                  <div className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/30 transition-colors">
+                    <Activity className="h-3 w-3 text-primary" />
                   </div>
                 </div>
                 <Badge
                   variant="outline"
-                  className="text-xs w-fit border-gray-600 text-gray-300 bg-gray-800/50 px-1 py-0"
+                  className="w-fit text-xs border-primary/30 text-primary bg-primary/10"
                 >
                   {department.code === "MTCENG" ? "Bureau" : "Dept."}
                 </Badge>
               </CardHeader>
 
-              <CardContent className="px-3 pb-3 flex flex-col justify-between flex-1">
-                <div className="text-xs text-gray-500 font-medium mb-2 line-clamp-2">
-                  Equipment management
+              <CardContent className="space-y-3">
+                <div className="text-xs text-secondary-700 dark:text-secondary-300">
+                  {department.name}
+                </div>
+                <div className="text-xs text-secondary-500 dark:text-secondary-400">
+                  Equipment Management System
                 </div>
 
                 <Link
-                  href={`/dashboard/${departmentUtils.nameToSlug(
-                    department.name
-                  )}`}
+                  href={`/dashboard/${department.code.toLowerCase()}`}
+                  className="block"
                 >
                   <Button
+                    className="w-full bg-primary hover:bg-primary/90 text-secondary font-medium transition-all duration-300 shadow-md hover:shadow-lg"
                     size="sm"
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition-all duration-300 text-xs h-7"
                   >
                     Detail
                   </Button>
@@ -105,6 +139,24 @@ function DashboardContent() {
             </Card>
           ))}
         </div>
+
+        {/* Pagination Dots */}
+        {maxIndex > 0 && (
+          <div className="flex justify-center gap-2 mt-6">
+            {Array.from({ length: maxIndex + 1 }, (_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentDeptIndex(index)}
+                className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                  index === currentDeptIndex
+                    ? "bg-primary w-6"
+                    : "bg-secondary-300 dark:bg-secondary-600 hover:bg-secondary-400 dark:hover:bg-secondary-500"
+                }`}
+                aria-label={`Go to page ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Database,
-  Eye,
   Users,
   ChevronDown,
   ChevronRight,
@@ -21,7 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { roleUtils } from "@/lib/utils";
 import type { Session } from "next-auth";
 
 interface SidebarProps {
@@ -59,11 +57,6 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    title: "Review Data",
-    href: "/data-review",
-    icon: Eye,
-  },
-  {
     title: "Notifikasi",
     href: "/notifikasi",
     icon: Bell,
@@ -75,6 +68,7 @@ const navigationItems: NavItem[] = [
     icon: Wrench,
     roles: ["ADMIN", "PLANNER", "INPUTTER"],
   },
+
   {
     title: "Persetujuan",
     href: "/approvals",
@@ -260,7 +254,7 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
               </p>
               <div className="flex items-center gap-1 overflow-hidden">
                 <Badge variant="outline" className="text-xs flex-shrink-0">
-                  {roleUtils.getRoleDisplayName(session.user.role)}
+                  {session.user.role}
                 </Badge>
                 {session.user.departmentName && (
                   <span className="text-xs text-muted-foreground truncate flex-shrink">

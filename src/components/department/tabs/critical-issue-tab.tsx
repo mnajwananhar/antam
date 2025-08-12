@@ -19,7 +19,7 @@ import {
   useToastContext,
   useApiToast,
 } from "@/components/providers/toast-provider";
-import { notifyDataUpdate, DATA_CATEGORIES } from "@/lib/utils/data-sync";
+// ...existing code...
 import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import {
   Plus,
@@ -234,9 +234,8 @@ export function CriticalIssueTab({
 
           // Reload data
           loadCriticalIssues();
-          
+
           // Notify other tabs about the data change
-          notifyDataUpdate(DATA_CATEGORIES.CRITICAL_ISSUES);
         },
         onError: (error) => {
           // Handle validation errors
@@ -261,13 +260,13 @@ export function CriticalIssueTab({
 
   const handleDelete = async (issueId: number): Promise<void> => {
     await crud.delete(
-      () => fetch(`/api/critical-issue/${issueId}`, {
-        method: "DELETE",
-      }),
+      () =>
+        fetch(`/api/critical-issue/${issueId}`, {
+          method: "DELETE",
+        }),
       "critical issue",
       () => {
         loadCriticalIssues();
-        notifyDataUpdate(DATA_CATEGORIES.CRITICAL_ISSUES);
       }
     );
   };
@@ -530,7 +529,7 @@ export function CriticalIssueTab({
           )}
         </CardContent>
       </Card>
-      
+
       {/* Confirmation Dialog */}
       {ConfirmationComponent}
     </div>

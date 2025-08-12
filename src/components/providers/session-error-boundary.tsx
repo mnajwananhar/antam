@@ -82,10 +82,8 @@ export class SessionErrorBoundary extends Component<Props, State> {
       this.retryCount++;
       this.setState({ hasError: false, error: undefined, errorInfo: undefined });
       
-      // Force a page refresh if we've retried multiple times
-      if (this.retryCount >= 2 && typeof window !== 'undefined') {
-        window.location.reload();
-      }
+      // Don't auto-reload to avoid constant refreshes
+      // window.location.reload() removed to prevent refresh issues
     } else {
       // Max retries reached, redirect to login
       if (typeof window !== 'undefined') {
