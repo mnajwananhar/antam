@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/app-layout";
-import { DataReviewClient } from "@/components/data-review/data-review-client";
+import { DataReviewClient } from "@/components/data-review";
 import { Database } from "lucide-react";
 
 async function getInitialData() {

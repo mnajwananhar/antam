@@ -22,7 +22,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { DataCategoryTable } from "./data-category-table";
+import { DataCategoryTable } from "@/components/data-review";
 
 interface Department {
   id: number;
@@ -202,16 +202,16 @@ export function DataReviewClient({
           </TabsList>
         </div>
         
-        {/* Desktop: Use flex layout */}
+        {/* Desktop: Use grid layout */}
         <div className="hidden md:block">
-          <TabsList className="flex w-full flex-wrap justify-start gap-1 p-1 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1">
             {visibleCategories.map((category) => {
               const IconComponent = getIconComponent(category.icon);
               return (
                 <TabsTrigger
                   key={category.id}
                   value={category.id}
-                  className="flex flex-col items-center gap-1 text-xs p-2 h-auto min-w-[100px] flex-1"
+                  className="flex flex-col items-center gap-1 text-xs p-2 h-auto"
                 >
                   <IconComponent className="h-4 w-4" />
                   <span className="text-xs leading-tight text-center">{category.name}</span>
