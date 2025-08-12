@@ -8,8 +8,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer, 
-  Legend 
+  ResponsiveContainer
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -33,12 +32,20 @@ export function EnergyConsumptionChart({
   showTable = true, 
   showAverage = true 
 }: EnergyConsumptionChartProps): React.JSX.Element {
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg min-w-[200px]">
           <p className="text-yellow-400 font-semibold mb-2">{label} 2024</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.dataKey === "pln" && "PLN (2025) MWh: "}
               {entry.dataKey === "tambang" && "Tambang: "}
@@ -54,7 +61,7 @@ export function EnergyConsumptionChart({
     return null;
   };
 
-  const CustomLegend = ({ payload }: any) => {
+  const CustomLegend = () => {
     const legendItems = [
       { value: "pln", color: "#fbbf24", label: "PLN (2025) MWh" },
       { value: "tambang", color: "#84cc16", label: "Tambang" },
@@ -90,7 +97,7 @@ export function EnergyConsumptionChart({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader className="text-center">
         <div className="flex items-center justify-center gap-4 mb-2">
           <div className="h-8 w-8 bg-yellow-400 rounded-full flex items-center justify-center">

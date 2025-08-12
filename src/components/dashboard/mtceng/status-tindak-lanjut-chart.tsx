@@ -23,12 +23,20 @@ export function StatusTindakLanjutChart({ data }: StatusTindakLanjutChartProps):
   const total = data.open + data.close;
   const percentage = total > 0 ? Math.round((data.close / total) * 100) : 0;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg">
           <p className="text-yellow-400 font-semibold">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.dataKey === "open" ? "Sum of Open" : "Sum of Close"}: {entry.value}
             </p>
@@ -40,7 +48,7 @@ export function StatusTindakLanjutChart({ data }: StatusTindakLanjutChartProps):
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg font-semibold text-yellow-400">
           Status Tindak Lanjut ANTAM
@@ -121,7 +129,7 @@ export function StatusTindakLanjutChart({ data }: StatusTindakLanjutChartProps):
         {/* Footer note */}
         <div className="mt-2 text-right">
           <p className="text-xs text-gray-500">
-            Series "Sum of Close" Point "MTC ENG" Value: {data.close}
+            Series &quot;Sum of Close&quot; Point &quot;MTC ENG&quot; Value: {data.close}
           </p>
         </div>
       </CardContent>

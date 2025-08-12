@@ -1,6 +1,6 @@
 "use client";
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface EnergyIkesChartProps {
@@ -18,12 +18,20 @@ export function EnergyIkesChart({
   smoothLine = false, 
   comparisonMode = "target_vs_real" 
 }: EnergyIkesChartProps): React.JSX.Element {
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number | null;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg">
           <p className="text-yellow-400 font-semibold mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => {
+          {payload.map((entry, index: number) => {
             // Skip null or invalid values
             if (entry.value === null || entry.value === undefined || entry.value < 0 || entry.value > 10000) {
               return null;
@@ -42,7 +50,7 @@ export function EnergyIkesChart({
     return null;
   };
 
-  const CustomLegend = ({ payload }: any) => {
+  const CustomLegend = () => {
     return (
       <div className="flex justify-center gap-6 mt-4">
         {(comparisonMode === "target_only" || comparisonMode === "target_vs_real") && (
@@ -62,7 +70,7 @@ export function EnergyIkesChart({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-yellow-400 text-center">
           Intensitas Energi Listrik (kWh/wmt) 2025 vs Baseline

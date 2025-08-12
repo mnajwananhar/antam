@@ -47,7 +47,7 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 bg-yellow-400 rounded-full flex items-center justify-center">
@@ -64,11 +64,11 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
       <CardContent>
         {data.length === 0 ? (
           <div className="text-center py-12">
-            <AlertTriangle className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-400 mb-2">
+            <AlertTriangle className="mx-auto h-12 w-12 text-secondary-500 mb-4" />
+            <h3 className="text-lg font-semibold text-secondary-400 mb-2">
               No Critical Issues
             </h3>
-            <p className="text-gray-500">
+            <p className="text-secondary-400">
               There are currently no critical issues reported.
             </p>
           </div>
@@ -76,7 +76,7 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
+                <tr className="border-b border-secondary-600">
                   <th className="text-left py-3 px-2 text-sm font-semibold text-yellow-400">
                     Issue
                   </th>
@@ -95,14 +95,14 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
                 {data.map((issue) => (
                   <tr 
                     key={issue.id} 
-                    className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
+                    className="border-b border-secondary-700 hover:bg-secondary-800/50 transition-colors"
                   >
                     <td className="py-3 px-2">
                       <div>
-                        <p className="font-medium text-gray-200 text-sm">
+                        <p className="font-medium text-secondary-200 text-sm">
                           {issue.issueName}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-secondary-400 mt-1">
                           {formatDistanceToNow(new Date(issue.createdAt), {
                             addSuffix: true,
                             locale: id,
@@ -119,7 +119,7 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
                       </Badge>
                     </td>
                     <td className="py-3 px-2">
-                      <p className="text-sm text-gray-300 line-clamp-2 max-w-xs">
+                      <p className="text-sm text-secondary-300 line-clamp-2 max-w-xs">
                         {issue.description}
                       </p>
                     </td>
@@ -138,8 +138,8 @@ export function CriticalIssuesTable({ data }: CriticalIssuesTableProps): React.J
         )}
         
         {data.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="mt-4 pt-4 border-t border-secondary-600">
+            <p className="text-xs text-secondary-400 text-center">
               Showing {data.length} most recent critical issues
             </p>
           </div>

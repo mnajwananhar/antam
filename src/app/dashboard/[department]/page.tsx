@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Construction, BarChart3 } from "lucide-react";
+import { ArrowLeft, Construction } from "lucide-react";
 import { DEPARTMENTS } from "@/lib/constants";
 import { MtcEngDashboard } from "@/components/dashboard/mtceng/mtc-eng-dashboard";
 
@@ -45,7 +45,7 @@ export default function DepartmentDetailPage(): React.JSX.Element {
   // Show MTCENG specific dashboard
   if (department.code === "MTCENG") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900">
+      <div className="min-h-screen bg-gradient-to-br from-secondary-900 to-secondary-800">
         <div className="container mx-auto px-4 py-6">
           <MtcEngDashboard />
         </div>

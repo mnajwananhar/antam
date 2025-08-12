@@ -35,7 +35,7 @@ export function KtaTtaDashboard(): React.JSX.Element {
     status: "on-track"
   });
 
-  const loadKtaTtaData = async (): Promise<void> => {
+  const loadKtaTtaData = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
       
@@ -76,11 +76,11 @@ export function KtaTtaDashboard(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedMonth, stats.targetRencana]);
 
   useEffect(() => {
     loadKtaTtaData();
-  }, [selectedMonth]);
+  }, [selectedMonth, loadKtaTtaData]);
 
   const getStatusColor = (status: string): string => {
     switch (status) {

@@ -82,7 +82,6 @@ export function MtcEngDashboard(): React.JSX.Element {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
 
   // Filter States
   const [kpiFilters, setKpiFilters] = useState<KpiFilterState>({
@@ -204,29 +203,30 @@ export function MtcEngDashboard(): React.JSX.Element {
     }));
   }, [data, safetyFilters]);
 
-  const getFilteredEnergyData = useCallback((type: "ikes" | "emission") => {
+  const getFilteredEnergyIkesData = useCallback(() => {
     if (!data) return [];
     
-    const sourceData = type === "ikes" ? data.energyIkes : data.energyEmission;
-    
-    return sourceData.filter((_, index) => {
+    return data.energyIkes.filter((_, index) => {
       const monthNum = index + 1;
       return monthNum >= energyFilters.monthRange.start && monthNum <= energyFilters.monthRange.end;
-    }).map((item) => {
-      if (type === "ikes") {
-        return {
-          ...item,
-          ikesTarget: energyFilters.showTarget ? item.ikesTarget : null,
-          ikesRealization: energyFilters.showRealization ? (item as any).ikesRealization : null,
-        };
-      } else {
-        return {
-          ...item,
-          emissionTarget: energyFilters.showTarget ? (item as any).emissionTarget : null,
-          emissionRealization: energyFilters.showRealization ? (item as any).emissionRealization : null,
-        };
-      }
-    });
+    }).map((item) => ({
+      ...item,
+      ikesTarget: energyFilters.showTarget ? item.ikesTarget : null,
+      ikesRealization: energyFilters.showRealization ? item.ikesRealization : null,
+    }));
+  }, [data, energyFilters]);
+
+  const getFilteredEnergyEmissionData = useCallback(() => {
+    if (!data) return [];
+    
+    return data.energyEmission.filter((_, index) => {
+      const monthNum = index + 1;
+      return monthNum >= energyFilters.monthRange.start && monthNum <= energyFilters.monthRange.end;
+    }).map((item) => ({
+      ...item,
+      emissionTarget: energyFilters.showTarget ? item.emissionTarget : null,
+      emissionRealization: energyFilters.showRealization ? item.emissionRealization : null,
+    }));
   }, [data, energyFilters]);
 
   const getFilteredConsumptionData = useCallback(() => {
@@ -268,7 +268,7 @@ export function MtcEngDashboard(): React.JSX.Element {
     
     // Status filter
     const enabledStatuses = Object.entries(criticalFilters.statuses)
-      .filter(([_, enabled]) => enabled)
+      .filter(([, enabled]) => enabled)
       .map(([status]) => status);
     
     if (enabledStatuses.length < 3) {
@@ -318,17 +318,17 @@ export function MtcEngDashboard(): React.JSX.Element {
               <TrendingUp className="h-6 w-6" />
               Dashboard MTC&ENG Bureau
             </h1>
-            <p className="text-gray-400">Loading dashboard data...</p>
+            <p className="text-secondary-400">Loading dashboard data...</p>
           </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="bg-gray-800/50 border-gray-700">
+            <Card key={index} className="bg-secondary-800/50 border-primary-600/30">
               <CardContent className="p-6">
                 <div className="animate-pulse">
-                  <div className="h-4 bg-gray-700 rounded w-1/3 mb-4"></div>
-                  <div className="h-32 bg-gray-700 rounded"></div>
+                  <div className="h-4 bg-secondary-700 rounded w-1/3 mb-4"></div>
+                  <div className="h-32 bg-secondary-700 rounded"></div>
                 </div>
               </CardContent>
             </Card>
@@ -347,7 +347,7 @@ export function MtcEngDashboard(): React.JSX.Element {
               <TrendingUp className="h-6 w-6" />
               Dashboard MTC&ENG Bureau
             </h1>
-            <p className="text-gray-400">Error loading dashboard</p>
+            <p className="text-secondary-400">Error loading dashboard</p>
           </div>
           <Button onClick={handleRefresh} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -360,7 +360,7 @@ export function MtcEngDashboard(): React.JSX.Element {
             <p className="text-red-400">
               Error: {error}
             </p>
-            <p className="text-gray-400 mt-2">
+            <p className="text-secondary-400 mt-2">
               Please try refreshing the page or contact support if the problem persists.
             </p>
           </CardContent>
@@ -378,13 +378,13 @@ export function MtcEngDashboard(): React.JSX.Element {
               <TrendingUp className="h-6 w-6" />
               Dashboard MTC&ENG Bureau
             </h1>
-            <p className="text-gray-400">No data available</p>
+            <p className="text-secondary-400">No data available</p>
           </div>
         </div>
         
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-secondary-800/50 border-primary-600/30">
           <CardContent className="p-6 text-center">
-            <p className="text-gray-400">
+            <p className="text-secondary-400">
               No dashboard data available
             </p>
           </CardContent>
@@ -394,8 +394,8 @@ export function MtcEngDashboard(): React.JSX.Element {
   }
 
   const filteredSafetyData = getFilteredSafetyData();
-  const filteredEnergyIkesData = getFilteredEnergyData("ikes");
-  const filteredEnergyEmissionData = getFilteredEnergyData("emission");
+  const filteredEnergyIkesData = getFilteredEnergyIkesData();
+  const filteredEnergyEmissionData = getFilteredEnergyEmissionData();
   const filteredConsumptionData = getFilteredConsumptionData();
   const filteredCriticalIssues = getFilteredCriticalIssues();
 
@@ -408,7 +408,7 @@ export function MtcEngDashboard(): React.JSX.Element {
             <TrendingUp className="h-6 w-6" />
             Dashboard MTC&ENG Bureau
           </h1>
-          <p className="text-gray-400 flex items-center gap-2">
+          <p className="text-secondary-400 flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Period: {new Date().toLocaleDateString("id-ID", { 
               month: "long", 
@@ -469,7 +469,7 @@ export function MtcEngDashboard(): React.JSX.Element {
               chartType="ikes"
             />
             <EnergyIkesChart 
-              data={filteredEnergyIkesData as any} 
+              data={filteredEnergyIkesData} 
               smoothLine={energyFilters.smoothLine}
               comparisonMode={energyFilters.comparisonMode}
             />
@@ -482,7 +482,7 @@ export function MtcEngDashboard(): React.JSX.Element {
               chartType="emission"
             />
             <EnergyEmissionChart 
-              data={filteredEnergyEmissionData as any} 
+              data={filteredEnergyEmissionData} 
               smoothLine={energyFilters.smoothLine}
               comparisonMode={energyFilters.comparisonMode}
             />

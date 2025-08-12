@@ -21,12 +21,20 @@ export function KpiSummaryChart({ data }: KpiSummaryChartProps): React.JSX.Eleme
     },
   ];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg">
           <p className="text-yellow-400 font-semibold">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.dataKey === "rencana" ? "Sum of Rencana" : "Sum of Actual"}: {entry.value}
             </p>
@@ -38,7 +46,7 @@ export function KpiSummaryChart({ data }: KpiSummaryChartProps): React.JSX.Eleme
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg font-semibold text-yellow-400">
           Pelaporan KPI Utama ANTAM

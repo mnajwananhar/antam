@@ -9,8 +9,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer, 
-  Legend 
+  ResponsiveContainer 
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -28,13 +27,21 @@ interface SafetyIncidentsChartProps {
 }
 
 export function SafetyIncidentsChart({ data, chartType = "stacked" }: SafetyIncidentsChartProps): React.JSX.Element {
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
-      const total = payload.reduce((sum: number, entry: any) => sum + entry.value, 0);
+      const total = payload.reduce((sum: number, entry) => sum + entry.value, 0);
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg">
           <p className="text-yellow-400 font-semibold mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.dataKey === "nearmiss" && "Nearmiss: "}
               {entry.dataKey === "kecAlat" && "Kec. Alat: "}
@@ -54,7 +61,7 @@ export function SafetyIncidentsChart({ data, chartType = "stacked" }: SafetyInci
     return null;
   };
 
-  const CustomLegend = ({ payload }: any) => {
+  const CustomLegend = () => {
     const legendItems = [
       { value: "nearmiss", color: "#3b82f6", label: "Nearmiss" },
       { value: "kecAlat", color: "#dc2626", label: "Kec Alat" },
@@ -166,7 +173,7 @@ export function SafetyIncidentsChart({ data, chartType = "stacked" }: SafetyInci
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-yellow-400/20">
+    <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-yellow-400 text-center">
           Safety Incidents Monthly Report ({chartType === "stacked" ? "Stacked" : chartType === "grouped" ? "Grouped" : "Line"} View)
