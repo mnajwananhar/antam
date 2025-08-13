@@ -8,17 +8,21 @@ import { Filter, RotateCcw } from "lucide-react";
 interface KpiFiltersProps {
   onFilterChange: (filters: KpiFilterState) => void;
   currentFilters: KpiFilterState;
+  availableYears?: number[];
 }
 
 export interface KpiFilterState {
   year: number;
   month: number | null;
   department: string;
+  chartOrientation?: "vertical" | "horizontal";
 }
 
-export function KpiFilters({ onFilterChange, currentFilters }: KpiFiltersProps): React.JSX.Element {
+export function KpiFilters({ onFilterChange, currentFilters, availableYears }: KpiFiltersProps): React.JSX.Element {
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const years = availableYears && availableYears.length > 0 
+    ? availableYears 
+    : Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
   const months = [
     { value: 1, label: "Januari" },
     { value: 2, label: "Februari" },
@@ -43,11 +47,19 @@ export function KpiFilters({ onFilterChange, currentFilters }: KpiFiltersProps):
     onFilterChange({ ...currentFilters, month: monthValue });
   };
 
+  const handleOrientationChange = (orientation: string): void => {
+    onFilterChange({ 
+      ...currentFilters, 
+      chartOrientation: orientation as "vertical" | "horizontal" 
+    });
+  };
+
   const resetFilters = (): void => {
     onFilterChange({
       year: currentYear,
       month: null,
       department: "MTC&ENG Bureau",
+      chartOrientation: "vertical",
     });
   };
 
@@ -85,6 +97,19 @@ export function KpiFilters({ onFilterChange, currentFilters }: KpiFiltersProps):
               {month.label}
             </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      <Select 
+        value={currentFilters.chartOrientation || "vertical"} 
+        onValueChange={handleOrientationChange}
+      >
+        <SelectTrigger className="w-28">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="vertical">Vertikal</SelectItem>
+          <SelectItem value="horizontal">Horizontal</SelectItem>
         </SelectContent>
       </Select>
 

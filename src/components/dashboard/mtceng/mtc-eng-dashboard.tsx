@@ -4,38 +4,30 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Calendar, TrendingUp } from "lucide-react";
-import { KpiSummaryChart } from "./kpi-summary-chart";
-import { StatusTindakLanjutChart } from "./status-tindak-lanjut-chart";
+
 import { SafetyIncidentsChart } from "./safety-incidents-chart";
 import { EnergyIkesChart } from "./energy-ikes-chart";
 import { EnergyEmissionChart } from "./energy-emission-chart";
 import { EnergyConsumptionChart } from "./energy-consumption-chart";
 import { CriticalIssuesTable } from "./critical-issues-table";
+import { KpiUtamaChart } from "./kpi-utama-chart";
+import { StatusTindakLanjutChart } from "./status-tindak-lanjut-chart";
 import {
-  KpiFilters,
-  StatusFilters,
   SafetyFilters,
   EnergyFilters,
   ConsumptionFilters,
   CriticalIssuesFilters,
-  type KpiFilterState,
-  type StatusFilterState,
+  KpiFilters,
+  StatusFilters,
   type SafetyFilterState,
   type EnergyFilterState,
   type ConsumptionFilterState,
   type CriticalIssuesFilterState,
+  type KpiFilterState,
+  type StatusFilterState,
 } from "@/components/dashboard/filters";
 
 interface DashboardData {
-  kpiSummary: {
-    actual: number;
-    target: number;
-    percentage: number;
-  };
-  statusTindakLanjut: {
-    open: number;
-    close: number;
-  };
   safetyIncidents: Array<{
     month: string;
     nearmiss: number;
@@ -70,6 +62,17 @@ interface DashboardData {
     description: string;
     createdAt: string;
   }>;
+  kpiUtama: Array<{
+    month: string;
+    rencana: number;
+    aktual: number;
+  }>;
+  statusTindakLanjut: Array<{
+    month: string;
+    open: number;
+    close: number;
+  }>;
+  availableYears: number[];
   year: number;
   month: number;
 }
@@ -82,20 +85,7 @@ export function MtcEngDashboard(): React.JSX.Element {
 
   const currentYear = new Date().getFullYear();
 
-  // Filter States
-  const [kpiFilters, setKpiFilters] = useState<KpiFilterState>({
-    year: currentYear,
-    month: null,
-    department: "MTC&ENG Bureau",
-  });
-
-  const [statusFilters, setStatusFilters] = useState<StatusFilterState>({
-    dateRange: "all",
-    statusTypes: { open: true, close: true },
-    departments: ["MTC&ENG Bureau"],
-    year: currentYear,
-  });
-
+  // Client-side filters for charts that need them
   const [safetyFilters, setSafetyFilters] = useState<SafetyFilterState>({
     year: currentYear,
     monthRange: { start: 1, end: 12 },
@@ -143,22 +133,30 @@ export function MtcEngDashboard(): React.JSX.Element {
     pageSize: 10,
   });
 
-  const buildQueryParams = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set("year", kpiFilters.year.toString());
-    if (kpiFilters.month) {
-      params.set("month", kpiFilters.month.toString());
-    }
-    return params.toString();
-  }, [kpiFilters]);
+  const [kpiFilters, setKpiFilters] = useState<KpiFilterState>({
+    year: currentYear,
+    month: null,
+    department: "MTC&ENG Bureau",
+    chartOrientation: "vertical",
+  });
 
+  const [statusFilters, setStatusFilters] = useState<KpiFilterState>({
+    year: currentYear,
+    month: null,
+    department: "MTC&ENG Bureau",
+    chartOrientation: "vertical",
+  });
+
+  // API fetch with year dependency from filters
   const fetchDashboardData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
 
-      const queryParams = buildQueryParams();
-      const response = await fetch(`/api/dashboard/mtceng?${queryParams}`);
+      const params = new URLSearchParams();
+      params.set("year", kpiFilters.year.toString());
+      
+      const response = await fetch(`/api/dashboard/mtceng?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch dashboard data");
@@ -173,7 +171,7 @@ export function MtcEngDashboard(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [buildQueryParams]);
+  }, [kpiFilters.year]); // Depend on kpiFilters.year
 
   useEffect(() => {
     fetchDashboardData();
@@ -241,6 +239,36 @@ export function MtcEngDashboard(): React.JSX.Element {
       total: consumptionFilters.showTotal ? item.total : 0,
     }));
   }, [data, consumptionFilters]);
+
+  const getFilteredKpiData = useCallback(() => {
+    if (!data) return [];
+    
+    let filtered = data.kpiUtama;
+    
+    // Month filter
+    if (kpiFilters.month) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const targetMonth = monthNames[kpiFilters.month - 1];
+      filtered = filtered.filter(item => item.month === targetMonth);
+    }
+    
+    return filtered;
+  }, [data, kpiFilters]);
+
+  const getFilteredStatusData = useCallback(() => {
+    if (!data) return [];
+    
+    let filtered = data.statusTindakLanjut;
+    
+    // Month filter
+    if (statusFilters.month) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const targetMonth = monthNames[statusFilters.month - 1];
+      filtered = filtered.filter(item => item.month === targetMonth);
+    }
+    
+    return filtered;
+  }, [data, statusFilters]);
 
   const getFilteredCriticalIssues = useCallback(() => {
     if (!data) return [];
@@ -395,6 +423,8 @@ export function MtcEngDashboard(): React.JSX.Element {
   const filteredEnergyEmissionData = getFilteredEnergyEmissionData();
   const filteredConsumptionData = getFilteredConsumptionData();
   const filteredCriticalIssues = getFilteredCriticalIssues();
+  const filteredKpiData = getFilteredKpiData();
+  const filteredStatusData = getFilteredStatusData();
 
   return (
     <div className="space-y-6">
@@ -426,22 +456,29 @@ export function MtcEngDashboard(): React.JSX.Element {
 
       {/* Dashboard Grid */}
       <div className="space-y-6">
-        {/* Top Row - KPI and Status Charts with Filters */}
+        {/* New KPI Charts Row - At the top */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             <KpiFilters 
               currentFilters={kpiFilters}
               onFilterChange={setKpiFilters}
+              availableYears={data.availableYears}
             />
-            <KpiSummaryChart data={data.kpiSummary} />
+            <KpiUtamaChart 
+              data={filteredKpiData} 
+              chartOrientation={kpiFilters.chartOrientation}
+            />
           </div>
-          
           <div className="space-y-4">
-            <StatusFilters 
+            <KpiFilters 
               currentFilters={statusFilters}
               onFilterChange={setStatusFilters}
+              availableYears={data.availableYears}
             />
-            <StatusTindakLanjutChart data={data.statusTindakLanjut} />
+            <StatusTindakLanjutChart 
+              data={filteredStatusData}
+              chartOrientation={statusFilters.chartOrientation}
+            />
           </div>
         </div>
 

@@ -25,43 +25,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const currentYear = queryParams.year ? parseInt(queryParams.year) : new Date().getFullYear();
     const currentMonth = queryParams.month ? parseInt(queryParams.month) : new Date().getMonth() + 1;
 
-    // Get KPI Utama data (equivalent to KTA/TTA for MTCENG)
-    const kpiData = await prisma.ktaKpiData.findMany({
+    // Get available years from KTA KPI data
+    const availableYearsFromKta = await prisma.ktaKpiData.findMany({
       where: {
         tanggal: {
-          gte: new Date(currentYear, 0, 1),
-          lte: new Date(currentYear, 11, 31),
+          not: null,
         },
       },
       select: {
-        id: true,
         tanggal: true,
-        statusTindakLanjut: true,
       },
     });
 
-    // Count actual KPI data for current month
-    const actualKpiCount = kpiData.filter((item) => {
-      if (!item.tanggal) return false;
-      const itemDate = new Date(item.tanggal);
-      return (
-        itemDate.getFullYear() === currentYear &&
-        itemDate.getMonth() + 1 === currentMonth
-      );
-    }).length;
+    const uniqueYears = [...new Set(
+      availableYearsFromKta
+        .filter(item => item.tanggal)
+        .map(item => new Date(item.tanggal!).getFullYear())
+    )].sort((a, b) => b - a); // Sort descending
 
-    // KPI Summary with target 186
-    const kpiSummary = {
-      actual: actualKpiCount,
-      target: 186,
-      percentage: actualKpiCount > 0 ? Math.round((actualKpiCount / 186) * 100) : 0,
-    };
 
-    // Status Tindak Lanjut data
-    const statusTindakLanjut = {
-      open: kpiData.filter((item) => item.statusTindakLanjut === "OPEN").length,
-      close: kpiData.filter((item) => item.statusTindakLanjut === "CLOSE").length,
-    };
 
     // Safety incidents data
     const safetyIncidents = await prisma.safetyIncident.findMany({
@@ -123,6 +105,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       take: 10,
     });
 
+    // KTA KPI Data for KPI Utama and Status Tindak Lanjut
+    const ktaKpiData = await prisma.ktaKpiData.findMany({
+      where: {
+        tanggal: {
+          gte: new Date(currentYear, 0, 1), // Start of year
+          lt: new Date(currentYear + 1, 0, 1), // Start of next year
+        },
+      },
+      orderBy: {
+        tanggal: "asc",
+      },
+    });
+
     // Prepare monthly data arrays
     const months = [
       "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -177,9 +172,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
     });
 
+    // KPI Utama data (Rencana = 186 for all months, Aktual = count of KTA KPI entries per month)
+    const kpiUtamaData = months.map((month, index) => {
+      const monthData = ktaKpiData.filter((item) => {
+        if (!item.tanggal) return false;
+        return new Date(item.tanggal).getMonth() === index;
+      });
+      
+      return {
+        month,
+        rencana: 186, // Static value as requested
+        aktual: monthData.length,
+      };
+    });
+
+    // Status Tindak Lanjut data (Open and Close status per month)
+    const statusTindakLanjutData = months.map((month, index) => {
+      const monthData = ktaKpiData.filter((item) => {
+        if (!item.tanggal) return false;
+        return new Date(item.tanggal).getMonth() === index;
+      });
+      
+      const openCount = monthData.filter((item) => item.statusTindakLanjut === "OPEN").length;
+      const closeCount = monthData.filter((item) => item.statusTindakLanjut === "CLOSE").length;
+      
+      return {
+        month,
+        open: openCount,
+        close: closeCount,
+      };
+    });
+
     return NextResponse.json({
-      kpiSummary,
-      statusTindakLanjut,
       safetyIncidents: safetyIncidentsData,
       energyIkes: energyIkesData,
       energyEmission: energyEmissionData,
@@ -192,6 +216,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         description: issue.description,
         createdAt: issue.createdAt,
       })),
+      kpiUtama: kpiUtamaData,
+      statusTindakLanjut: statusTindakLanjutData,
+      availableYears: uniqueYears,
       year: currentYear,
       month: currentMonth,
     });

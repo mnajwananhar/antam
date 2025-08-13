@@ -11,16 +11,16 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface StatusTindakLanjutChartProps {
+interface KpiUtamaChartProps {
   data: Array<{
     month: string;
-    open: number;
-    close: number;
+    rencana: number;
+    aktual: number;
   }>;
   chartOrientation?: "vertical" | "horizontal";
 }
 
-export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }: StatusTindakLanjutChartProps): React.JSX.Element {
+export function KpiUtamaChart({ data, chartOrientation = "vertical" }: KpiUtamaChartProps): React.JSX.Element {
   const CustomTooltip = ({ active, payload, label }: {
     active?: boolean;
     payload?: Array<{
@@ -31,20 +31,23 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
     label?: string;
   }) => {
     if (active && payload && payload.length) {
-      const total = payload.reduce((sum: number, entry) => sum + entry.value, 0);
       return (
         <div className="bg-gray-900 border border-yellow-400 rounded p-3 shadow-lg">
           <p className="text-yellow-400 font-semibold mb-2">{label}</p>
           {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
-              {entry.dataKey === "open" && "Open: "}
-              {entry.dataKey === "close" && "Close: "}
+              {entry.dataKey === "rencana" && "Rencana: "}
+              {entry.dataKey === "aktual" && "Aktual: "}
               {entry.value}
             </p>
           ))}
-          <div className="border-t border-gray-600 mt-2 pt-2">
-            <p className="text-yellow-400 text-sm font-semibold">Total: {total}</p>
-          </div>
+          {payload.length === 2 && (
+            <div className="border-t border-gray-600 mt-2 pt-2">
+              <p className="text-yellow-400 text-sm font-semibold">
+                Pencapaian: {((payload[1].value / payload[0].value) * 100).toFixed(1)}%
+              </p>
+            </div>
+          )}
         </div>
       );
     }
@@ -53,8 +56,8 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
 
   const CustomLegend = () => {
     const legendItems = [
-      { value: "open", color: "#dc2626", label: "Open" },
-      { value: "close", color: "#10b981", label: "Close" },
+      { value: "rencana", color: "#3b82f6", label: "Rencana" },
+      { value: "aktual", color: "#10b981", label: "Aktual" },
     ];
 
     return (
@@ -74,19 +77,18 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
 
   // Calculate stats - show actual values for single month, average for multiple months
   const isAllMonths = data.length > 1;
-  const totalOpen = data.reduce((sum, month) => sum + month.open, 0);
-  const totalClose = data.reduce((sum, month) => sum + month.close, 0);
+  const totalRencana = data.reduce((sum, month) => sum + month.rencana, 0);
+  const totalAktual = data.reduce((sum, month) => sum + month.aktual, 0);
   
-  const displayOpen = isAllMonths ? totalOpen / data.length : totalOpen;
-  const displayClose = isAllMonths ? totalClose / data.length : totalClose;
-  const totalIssues = displayOpen + displayClose;
-  const closeRate = totalIssues > 0 ? (displayClose / totalIssues) * 100 : 0;
+  const displayRencana = isAllMonths ? totalRencana / data.length : totalRencana;
+  const displayAktual = isAllMonths ? totalAktual / data.length : totalAktual;
+  const overallPerformance = displayRencana > 0 ? (displayAktual / displayRencana) * 100 : 0;
 
   return (
     <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 border-primary-400/30">
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-yellow-400 text-center">
-          Status Tindak Lanjut - Open vs Close
+          KPI Utama - Rencana vs Aktual
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -109,7 +111,7 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
                     type="number"
                     stroke="#fbbf24"
                     fontSize={12}
-                    domain={[0, 'dataMax + 20']}
+                    domain={[0, 'dataMax + 50']}
                   />
                   <YAxis 
                     type="category"
@@ -132,7 +134,7 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
                   <YAxis 
                     stroke="#fbbf24"
                     fontSize={12}
-                    domain={[0, 'dataMax + 20']}
+                    domain={[0, 'dataMax + 50']}
                     label={{ 
                       value: 'JUMLAH', 
                       angle: -90, 
@@ -144,14 +146,14 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
               )}
               <Tooltip content={<CustomTooltip />} />
               <Bar 
-                dataKey="open" 
-                fill="#dc2626"
-                name="Open"
+                dataKey="rencana" 
+                fill="#3b82f6"
+                name="Rencana"
               />
               <Bar 
-                dataKey="close" 
+                dataKey="aktual" 
                 fill="#10b981"
-                name="Close"
+                name="Aktual"
               />
             </BarChart>
           </ResponsiveContainer>
@@ -162,26 +164,26 @@ export function StatusTindakLanjutChart({ data, chartOrientation = "vertical" }:
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-gray-700">
           <div className="text-center">
-            <p className="text-xl font-bold text-red-400">
-              {displayOpen.toFixed(0)}
+            <p className="text-xl font-bold text-blue-400">
+              {displayRencana.toFixed(0)}
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wide">
-              {isAllMonths ? "Rata-rata Open" : "Open"}
+              {isAllMonths ? "Rata-rata Rencana" : "Rencana"}
             </p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold text-green-400">
-              {displayClose.toFixed(0)}
+              {displayAktual.toFixed(0)}
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wide">
-              {isAllMonths ? "Rata-rata Close" : "Close"}
+              {isAllMonths ? "Rata-rata Aktual" : "Aktual"}
             </p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold text-yellow-400">
-              {closeRate.toFixed(1)}%
+              {overallPerformance.toFixed(1)}%
             </p>
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Close Rate</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Pencapaian</p>
           </div>
         </div>
       </CardContent>

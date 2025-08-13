@@ -1,6 +1,4 @@
 // Dashboard Components Exports
-export { KtaTtaDashboard } from "./kta-tta-dashboard";
-export { StatusTindakLanjutDashboard } from "./status-tindak-lanjut-dashboard";
 
 // Future dashboard components can be exported here
 // export { EquipmentDashboard } from "./equipment-dashboard";
