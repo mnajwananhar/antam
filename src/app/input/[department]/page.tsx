@@ -101,16 +101,40 @@ export default async function DepartmentInputPage({
   ] || []) as readonly string[];
   const isMtcEngBureau = departmentUtils.isMtcEngBureau(department.name);
 
-  // Get all equipment with current status
+  // Get equipment for this department with current status using mapping table
   const equipment = await prisma.equipment.findMany({
-    where: { isActive: true },
+    where: { 
+      isActive: true,
+      equipmentDepartments: {
+        some: {
+          departmentId: department.id,
+          isActive: true,
+        },
+      },
+    },
     include: {
       category: true,
+      equipmentDepartments: {
+        where: { 
+          departmentId: department.id,
+          isActive: true 
+        },
+        include: {
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
+      },
       equipmentStatusHistory: {
         take: 1,
         orderBy: { changedAt: "desc" },
       },
     },
+    orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
   });
 
   // Get equipment with current status

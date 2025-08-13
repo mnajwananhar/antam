@@ -176,7 +176,7 @@ async function main() {
   console.log("⚙️ Creating equipment with categories...");
 
   const equipmentData = [
-    // Processing Equipment
+    // Equipment tanpa department mapping di sini
     { name: "Ball Mill 1", code: "Ball Mill 1", categoryId: ballMillCat.id },
     { name: "Ball Mill 2", code: "Ball Mill 2", categoryId: ballMillCat.id },
     { name: "Crushing", code: "Crushing", categoryId: crushingCat.id },
@@ -234,6 +234,81 @@ async function main() {
   );
 
   console.log(`✅ Created ${equipment.length} equipment`);
+
+  // Create Equipment Department Mappings (simple mapping berdasarkan nama equipment)
+  console.log("🔗 Creating equipment department mappings...");
+  
+  const equipmentMappings = [
+    // Ball Mill -> PMTC
+    { equipmentCode: "Ball Mill 1", departmentCode: "PMTC" },
+    { equipmentCode: "Ball Mill 2", departmentCode: "PMTC" },
+    { equipmentCode: "Crushing", departmentCode: "PMTC" },
+    { equipmentCode: "Backfill Plant 1", departmentCode: "PMTC" },
+    { equipmentCode: "Backfill Plant 2", departmentCode: "PMTC" },
+    { equipmentCode: "Back Fill Dam", departmentCode: "PMTC" },
+    
+    // Jumbo Drill -> MMTC
+    { equipmentCode: "08DR001", departmentCode: "MMTC" },
+    { equipmentCode: "08DR002", departmentCode: "MMTC" },
+    { equipmentCode: "08DR003", departmentCode: "MMTC" },
+    { equipmentCode: "08DR004", departmentCode: "MMTC" },
+    { equipmentCode: "08DR005", departmentCode: "MMTC" },
+    { equipmentCode: "08DR006", departmentCode: "MMTC" },
+    { equipmentCode: "08DR007", departmentCode: "MMTC" },
+    
+    // LHD -> MMTC
+    { equipmentCode: "08LH001", departmentCode: "MMTC" },
+    { equipmentCode: "08LH003", departmentCode: "MMTC" },
+    { equipmentCode: "08LH004", departmentCode: "MMTC" },
+    { equipmentCode: "08LH006", departmentCode: "MMTC" },
+    { equipmentCode: "08LH007", departmentCode: "MMTC" },
+    { equipmentCode: "08LH008", departmentCode: "MMTC" },
+    { equipmentCode: "08LH009", departmentCode: "MMTC" },
+    
+    // Mine Truck -> MMTC
+    { equipmentCode: "08MT001", departmentCode: "MMTC" },
+    { equipmentCode: "08MT002", departmentCode: "MMTC" },
+    { equipmentCode: "08MT003", departmentCode: "MMTC" },
+    
+    // Shortcrete -> ECDC (moved for temporary assignment)
+    { equipmentCode: "08SC002", departmentCode: "ECDC" },
+    
+    // Mixer Truck -> Split between MMTC and ECDC
+    { equipmentCode: "08MIX001", departmentCode: "ECDC" },
+    { equipmentCode: "08MIX002", departmentCode: "MMTC" },
+    
+    // Trolley Locomotive -> HETU
+    { equipmentCode: "08TL002", departmentCode: "HETU" },
+    { equipmentCode: "08TL003", departmentCode: "HETU" },
+    { equipmentCode: "08TL004", departmentCode: "HETU" },
+    { equipmentCode: "08TL005", departmentCode: "HETU" },
+    { equipmentCode: "08TL006", departmentCode: "HETU" },
+    { equipmentCode: "08TL007", departmentCode: "HETU" },
+    
+  ];
+
+  for (const mapping of equipmentMappings) {
+    const eq = equipment.find(e => e.code === mapping.equipmentCode);
+    const dept = departments.find(d => d.code === mapping.departmentCode);
+    
+    if (eq && dept) {
+      await prisma.equipmentDepartment.upsert({
+        where: {
+          equipmentId_departmentId: {
+            equipmentId: eq.id,
+            departmentId: dept.id,
+          }
+        },
+        update: {},
+        create: {
+          equipmentId: eq.id,
+          departmentId: dept.id,
+        }
+      });
+    }
+  }
+
+  console.log(`✅ Created ${equipmentMappings.length} equipment department mappings`);
 
   // Create Department PIC Mappings
   console.log("🗂️ Creating department PIC mappings...");

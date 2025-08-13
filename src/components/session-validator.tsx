@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ExtendedUser } from "@/lib/auth.config";
@@ -12,6 +12,7 @@ interface SessionValidatorProps {
 export function SessionValidator({ children }: SessionValidatorProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isValidatingRef = useRef(false);
 
   useEffect(() => {
     if (status === "loading" || !session?.user) return;
@@ -20,6 +21,13 @@ export function SessionValidator({ children }: SessionValidatorProps) {
     if (session.user.role === "VIEWER") return;
 
     const validateSession = async (): Promise<void> => {
+      // Prevent concurrent validation calls
+      if (isValidatingRef.current) {
+        return;
+      }
+      
+      isValidatingRef.current = true;
+      
       try {
         // Get sessionToken from the JWT token if available
         const sessionToken =
@@ -48,27 +56,47 @@ export function SessionValidator({ children }: SessionValidatorProps) {
           const data = await response.json();
           console.warn("Session validation failed:", data.error);
 
-          // Don't auto-signout to avoid refresh issues during temporary network problems
-          console.warn(
-            "Session validation failed - consider manual re-authentication if issues persist"
-          );
-
-          // Only signout after multiple consecutive failures
-          if (data.error && data.error.includes("invalidated")) {
-            await signOut({
-              callbackUrl:
-                "/auth/signin?message=Session expired. Please sign in again.",
-              redirect: false,
-            });
-
-            router.push(
-              "/auth/signin?message=Your session has expired. Please sign in again."
-            );
+          // Handle session invalidation (user logged in from another device)
+          if (response.status === 401 && data.error && 
+              (data.error.includes("invalidated") || data.error.includes("No active session"))) {
+            console.log("Session has been invalidated by another login - signing out");
+            
+            try {
+              // Sign out without redirect to avoid race conditions
+              await signOut({ 
+                redirect: false,
+                callbackUrl: "/auth/signin?message=Another device has logged in with your account."
+              });
+              
+              // Use replace instead of push to avoid navigation issues
+              window.location.replace("/auth/signin?message=Another device has logged in with your account.");
+            } catch (signOutError) {
+              console.error("Error during signout:", signOutError);
+              // Force redirect even if signout fails
+              window.location.replace("/auth/signin?message=Session expired. Please sign in again.");
+            }
+            
+            return; // Exit early to prevent further execution
           }
+          
+          // For other errors, just log but don't force logout
+          console.warn("Session validation failed - consider manual re-authentication if issues persist");
         }
       } catch (error) {
         console.error("Session validation error:", error);
-        // Don't force logout on network errors, just log
+        
+        // If it's a network error or fetch failed completely, 
+        // don't force logout as this could be temporary
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          console.warn("Network error during session validation - will retry on next interval");
+          return;
+        }
+        
+        // For other errors that might indicate session issues,
+        // log them but don't auto-logout to prevent false positives
+        console.warn("Unexpected session validation error - manual re-authentication may be needed");
+      } finally {
+        isValidatingRef.current = false;
       }
     };
 

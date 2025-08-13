@@ -60,12 +60,26 @@ export const authConfig: NextAuthConfig = {
             throw new Error("Username atau password salah.");
           }
 
-          // Single Session Logic
-          const sessionToken = uuidv4();
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { lastLogin: new Date(), sessionToken },
-          });
+          // Single Session Logic for specific roles
+          let sessionToken: string | undefined;
+          
+          if (SINGLE_SESSION_ROLES.includes(user.role)) {
+            sessionToken = uuidv4();
+            // Update user with new session token (this invalidates previous sessions)
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { 
+                lastLogin: new Date(), 
+                sessionToken 
+              },
+            });
+          } else {
+            // For VIEWER role, just update last login without session token
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lastLogin: new Date() },
+            });
+          }
 
           return {
             id: user.id.toString(),
@@ -105,6 +119,9 @@ export const authConfig: NextAuthConfig = {
         token.departmentName = user.departmentName ?? null;
         if (SINGLE_SESSION_ROLES.includes(user.role as UserRole)) {
           token.sessionToken = (user as ExtendedUser).sessionToken;
+        } else {
+          // Ensure no sessionToken for VIEWER role
+          token.sessionToken = undefined;
         }
       }
 

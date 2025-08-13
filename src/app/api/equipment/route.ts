@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       isActive: true,
     };
 
-    // If departmentId is provided, filter by department
+    // If departmentId is provided, filter by department using mapping table
     if (departmentId) {
       const deptId = parseInt(departmentId);
 
@@ -34,7 +34,12 @@ export async function GET(request: NextRequest) {
 
       whereClause = {
         ...whereClause,
-        departmentId: deptId,
+        equipmentDepartments: {
+          some: {
+            departmentId: deptId,
+            isActive: true,
+          },
+        },
       };
     } else {
       // If no departmentId provided, get equipment from accessible departments
@@ -45,8 +50,13 @@ export async function GET(request: NextRequest) {
       const departmentIds = accessibleDepartments.map((dept) => dept.id);
       whereClause = {
         ...whereClause,
-        departmentId: {
-          in: departmentIds,
+        equipmentDepartments: {
+          some: {
+            departmentId: {
+              in: departmentIds,
+            },
+            isActive: true,
+          },
         },
       };
     }
@@ -58,6 +68,18 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+          },
+        },
+        equipmentDepartments: {
+          where: { isActive: true },
+          include: {
+            department: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
           },
         },
       },

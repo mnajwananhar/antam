@@ -63,6 +63,7 @@ model Department {
   notifications      Notification[]
   maintenanceRoutine MaintenanceRoutine[]
   criticalIssues     CriticalIssue[]
+  equipmentDepartments EquipmentDepartment[]
 
   @@map("departments")
 }
@@ -127,6 +128,7 @@ model Equipment {
   operationalReports     OperationalReport[]
   equipmentStatusHistory EquipmentStatusHistory[]
   activityDetails        ActivityDetail[]
+  equipmentDepartments   EquipmentDepartment[]
 
   @@index([code])
   @@index([categoryId])
@@ -514,4 +516,23 @@ model JobObject {
   @@index([materialNumber])
   @@index([materialName])
   @@map("job_objects")
+}
+
+// Equipment Department Mapping Table
+model EquipmentDepartment {
+  id           Int        @id @default(autoincrement())
+  equipmentId  Int
+  departmentId Int
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  equipment    Equipment  @relation(fields: [equipmentId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([equipmentId, departmentId])
+  @@index([equipmentId])
+  @@index([departmentId])
+  @@map("equipment_departments")
 }

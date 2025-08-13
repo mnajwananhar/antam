@@ -22,8 +22,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       month: searchParams.get("month"),
     });
 
-    const currentYear = queryParams.year ? parseInt(queryParams.year) : new Date().getFullYear();
-    const currentMonth = queryParams.month ? parseInt(queryParams.month) : new Date().getMonth() + 1;
+    const currentYear = queryParams.year
+      ? parseInt(queryParams.year)
+      : new Date().getFullYear();
+    const currentMonth = queryParams.month
+      ? parseInt(queryParams.month)
+      : new Date().getMonth() + 1;
 
     // Get available years from KTA KPI data
     const availableYearsFromKta = await prisma.ktaKpiData.findMany({
@@ -37,13 +41,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const uniqueYears = [...new Set(
-      availableYearsFromKta
-        .filter(item => item.tanggal)
-        .map(item => new Date(item.tanggal!).getFullYear())
-    )].sort((a, b) => b - a); // Sort descending
-
-
+    const uniqueYears = [
+      ...new Set(
+        availableYearsFromKta
+          .filter((item) => item.tanggal)
+          .map((item) => new Date(item.tanggal!).getFullYear())
+      ),
+    ].sort((a, b) => b - a); // Sort descending
 
     // Safety incidents data
     const safetyIncidents = await prisma.safetyIncident.findMany({
@@ -105,27 +109,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       take: 10,
     });
 
-    // KTA KPI Data for KPI Utama and Status Tindak Lanjut
-    const ktaKpiData = await prisma.ktaKpiData.findMany({
-      where: {
-        tanggal: {
-          gte: new Date(currentYear, 0, 1), // Start of year
-          lt: new Date(currentYear + 1, 0, 1), // Start of next year
-        },
-      },
-      orderBy: {
-        tanggal: "asc",
-      },
-    });
-
     // Prepare monthly data arrays
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
 
     const safetyIncidentsData = months.map((month, index) => {
-      const monthData = safetyIncidents.find((item) => item.month === index + 1);
+      const monthData = safetyIncidents.find(
+        (item) => item.month === index + 1
+      );
       return {
         month,
         nearmiss: monthData?.nearmiss || 0,
@@ -139,7 +142,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const energyIkesData = months.map((month, index) => {
       const targetData = energyTargets.find((item) => item.month === index + 1);
-      const realizationData = energyRealizations.find((item) => item.month === index + 1);
+      const realizationData = energyRealizations.find(
+        (item) => item.month === index + 1
+      );
       return {
         month,
         ikesTarget: targetData?.ikesTarget ?? null,
@@ -149,7 +154,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const energyEmissionData = months.map((month, index) => {
       const targetData = energyTargets.find((item) => item.month === index + 1);
-      const realizationData = energyRealizations.find((item) => item.month === index + 1);
+      const realizationData = energyRealizations.find(
+        (item) => item.month === index + 1
+      );
       return {
         month,
         emissionTarget: targetData?.emissionTarget ?? null,
@@ -158,7 +165,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     const energyConsumptionData = months.map((month, index) => {
-      const consumptionData = energyConsumption.find((item) => item.month === index + 1);
+      const consumptionData = energyConsumption.find(
+        (item) => item.month === index + 1
+      );
       return {
         month,
         tambang: consumptionData?.tambangConsumption || 0,
@@ -169,37 +178,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             consumptionData.pabrikConsumption +
             consumptionData.supportingConsumption
           : 0,
-      };
-    });
-
-    // KPI Utama data (Rencana = 186 for all months, Aktual = count of KTA KPI entries per month)
-    const kpiUtamaData = months.map((month, index) => {
-      const monthData = ktaKpiData.filter((item) => {
-        if (!item.tanggal) return false;
-        return new Date(item.tanggal).getMonth() === index;
-      });
-      
-      return {
-        month,
-        rencana: 186, // Static value as requested
-        aktual: monthData.length,
-      };
-    });
-
-    // Status Tindak Lanjut data (Open and Close status per month)
-    const statusTindakLanjutData = months.map((month, index) => {
-      const monthData = ktaKpiData.filter((item) => {
-        if (!item.tanggal) return false;
-        return new Date(item.tanggal).getMonth() === index;
-      });
-      
-      const openCount = monthData.filter((item) => item.statusTindakLanjut === "OPEN").length;
-      const closeCount = monthData.filter((item) => item.statusTindakLanjut === "CLOSE").length;
-      
-      return {
-        month,
-        open: openCount,
-        close: closeCount,
       };
     });
 
@@ -216,8 +194,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         description: issue.description,
         createdAt: issue.createdAt,
       })),
-      kpiUtama: kpiUtamaData,
-      statusTindakLanjut: statusTindakLanjutData,
+
       availableYears: uniqueYears,
       year: currentYear,
       month: currentMonth,

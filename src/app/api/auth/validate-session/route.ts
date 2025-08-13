@@ -53,7 +53,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!isValid) {
       return NextResponse.json(
-        { valid: false, error: "Session has been invalidated" },
+        { valid: false, error: "Session has been invalidated by another login" },
         { status: 401 }
       );
     }

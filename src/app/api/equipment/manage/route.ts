@@ -7,6 +7,7 @@ const equipmentSchema = z.object({
   name: z.string().min(1, "Nama equipment harus diisi"),
   code: z.string().min(1, "Kode equipment harus diisi"),
   categoryId: z.number().positive("Category ID harus valid"),
+  departmentId: z.number().positive("Department ID harus valid").optional(),
 });
 
 
@@ -93,6 +94,18 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           category: true,
+          equipmentDepartments: {
+            where: { isActive: true },
+            include: {
+              department: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
+            },
+          },
           equipmentStatusHistory: {
             orderBy: { changedAt: "desc" },
             take: 1,
@@ -178,6 +191,18 @@ export async function POST(request: NextRequest) {
       data: validatedData,
       include: {
         category: true,
+        equipmentDepartments: {
+          where: { isActive: true },
+          include: {
+            department: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
       },
     });
 

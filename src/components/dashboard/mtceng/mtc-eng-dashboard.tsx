@@ -10,21 +10,16 @@ import { EnergyIkesChart } from "./energy-ikes-chart";
 import { EnergyEmissionChart } from "./energy-emission-chart";
 import { EnergyConsumptionChart } from "./energy-consumption-chart";
 import { CriticalIssuesTable } from "./critical-issues-table";
-import { KpiUtamaChart } from "./kpi-utama-chart";
-import { StatusTindakLanjutChart } from "./status-tindak-lanjut-chart";
+
 import {
   SafetyFilters,
   EnergyFilters,
   ConsumptionFilters,
   CriticalIssuesFilters,
-  KpiFilters,
-  StatusFilters,
   type SafetyFilterState,
   type EnergyFilterState,
   type ConsumptionFilterState,
   type CriticalIssuesFilterState,
-  type KpiFilterState,
-  type StatusFilterState,
 } from "@/components/dashboard/filters";
 
 interface DashboardData {
@@ -61,16 +56,6 @@ interface DashboardData {
     status: string;
     description: string;
     createdAt: string;
-  }>;
-  kpiUtama: Array<{
-    month: string;
-    rencana: number;
-    aktual: number;
-  }>;
-  statusTindakLanjut: Array<{
-    month: string;
-    open: number;
-    close: number;
   }>;
   availableYears: number[];
   year: number;
@@ -109,43 +94,31 @@ export function MtcEngDashboard(): React.JSX.Element {
     smoothLine: false,
   });
 
-  const [consumptionFilters, setConsumptionFilters] = useState<ConsumptionFilterState>({
-    year: currentYear,
-    monthRange: { start: 1, end: 12 },
-    areas: {
-      tambang: true,
-      pabrik: true,
-      supporting: true,
-    },
-    showTotal: true,
-    chartType: "combined",
-    showTable: true,
-    showAverage: true,
-  });
+  const [consumptionFilters, setConsumptionFilters] =
+    useState<ConsumptionFilterState>({
+      year: currentYear,
+      monthRange: { start: 1, end: 12 },
+      areas: {
+        tambang: true,
+        pabrik: true,
+        supporting: true,
+      },
+      showTotal: true,
+      chartType: "combined",
+      showTable: true,
+      showAverage: true,
+    });
 
-  const [criticalFilters, setCriticalFilters] = useState<CriticalIssuesFilterState>({
-    search: "",
-    departments: [],
-    statuses: { WORKING: true, STANDBY: true, BREAKDOWN: true },
-    dateRange: "all",
-    sortBy: "newest",
-    sortOrder: "desc",
-    pageSize: 10,
-  });
-
-  const [kpiFilters, setKpiFilters] = useState<KpiFilterState>({
-    year: currentYear,
-    month: null,
-    department: "MTC&ENG Bureau",
-    chartOrientation: "vertical",
-  });
-
-  const [statusFilters, setStatusFilters] = useState<KpiFilterState>({
-    year: currentYear,
-    month: null,
-    department: "MTC&ENG Bureau",
-    chartOrientation: "vertical",
-  });
+  const [criticalFilters, setCriticalFilters] =
+    useState<CriticalIssuesFilterState>({
+      search: "",
+      departments: [],
+      statuses: { WORKING: true, STANDBY: true, BREAKDOWN: true },
+      dateRange: "all",
+      sortBy: "newest",
+      sortOrder: "desc",
+      pageSize: 10,
+    });
 
   // API fetch with year dependency from filters
   const fetchDashboardData = useCallback(async (): Promise<void> => {
@@ -154,9 +127,11 @@ export function MtcEngDashboard(): React.JSX.Element {
       setError(null);
 
       const params = new URLSearchParams();
-      params.set("year", kpiFilters.year.toString());
-      
-      const response = await fetch(`/api/dashboard/mtceng?${params.toString()}`);
+      params.set("year", currentYear.toString());
+
+      const response = await fetch(
+        `/api/dashboard/mtceng?${params.toString()}`
+      );
 
       if (!response.ok) {
         throw new Error("Failed to fetch dashboard data");
@@ -171,7 +146,7 @@ export function MtcEngDashboard(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [kpiFilters.year]); // Depend on kpiFilters.year
+  }, [currentYear]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -184,134 +159,131 @@ export function MtcEngDashboard(): React.JSX.Element {
   // Filter data based on current filters
   const getFilteredSafetyData = useCallback(() => {
     if (!data) return [];
-    
-    return data.safetyIncidents.filter((item, index) => {
-      const monthNum = index + 1;
-      return monthNum >= safetyFilters.monthRange.start && monthNum <= safetyFilters.monthRange.end;
-    }).map((item) => ({
-      ...item,
-      nearmiss: safetyFilters.incidentTypes.nearmiss ? item.nearmiss : 0,
-      kecAlat: safetyFilters.incidentTypes.kecAlat ? item.kecAlat : 0,
-      kecKecil: safetyFilters.incidentTypes.kecKecil ? item.kecKecil : 0,
-      kecRingan: safetyFilters.incidentTypes.kecRingan ? item.kecRingan : 0,
-      kecBerat: safetyFilters.incidentTypes.kecBerat ? item.kecBerat : 0,
-      fatality: safetyFilters.incidentTypes.fatality ? item.fatality : 0,
-    }));
+
+    return data.safetyIncidents
+      .filter((item, index) => {
+        const monthNum = index + 1;
+        return (
+          monthNum >= safetyFilters.monthRange.start &&
+          monthNum <= safetyFilters.monthRange.end
+        );
+      })
+      .map((item) => ({
+        ...item,
+        nearmiss: safetyFilters.incidentTypes.nearmiss ? item.nearmiss : 0,
+        kecAlat: safetyFilters.incidentTypes.kecAlat ? item.kecAlat : 0,
+        kecKecil: safetyFilters.incidentTypes.kecKecil ? item.kecKecil : 0,
+        kecRingan: safetyFilters.incidentTypes.kecRingan ? item.kecRingan : 0,
+        kecBerat: safetyFilters.incidentTypes.kecBerat ? item.kecBerat : 0,
+        fatality: safetyFilters.incidentTypes.fatality ? item.fatality : 0,
+      }));
   }, [data, safetyFilters]);
 
   const getFilteredEnergyIkesData = useCallback(() => {
     if (!data) return [];
-    
-    return data.energyIkes.filter((_, index) => {
-      const monthNum = index + 1;
-      return monthNum >= energyFilters.monthRange.start && monthNum <= energyFilters.monthRange.end;
-    }).map((item) => ({
-      ...item,
-      ikesTarget: energyFilters.showTarget ? item.ikesTarget : null,
-      ikesRealization: energyFilters.showRealization ? item.ikesRealization : null,
-    }));
+
+    return data.energyIkes
+      .filter((_, index) => {
+        const monthNum = index + 1;
+        return (
+          monthNum >= energyFilters.monthRange.start &&
+          monthNum <= energyFilters.monthRange.end
+        );
+      })
+      .map((item) => ({
+        ...item,
+        ikesTarget: energyFilters.showTarget ? item.ikesTarget : null,
+        ikesRealization: energyFilters.showRealization
+          ? item.ikesRealization
+          : null,
+      }));
   }, [data, energyFilters]);
 
   const getFilteredEnergyEmissionData = useCallback(() => {
     if (!data) return [];
-    
-    return data.energyEmission.filter((_, index) => {
-      const monthNum = index + 1;
-      return monthNum >= energyFilters.monthRange.start && monthNum <= energyFilters.monthRange.end;
-    }).map((item) => ({
-      ...item,
-      emissionTarget: energyFilters.showTarget ? item.emissionTarget : null,
-      emissionRealization: energyFilters.showRealization ? item.emissionRealization : null,
-    }));
+
+    return data.energyEmission
+      .filter((_, index) => {
+        const monthNum = index + 1;
+        return (
+          monthNum >= energyFilters.monthRange.start &&
+          monthNum <= energyFilters.monthRange.end
+        );
+      })
+      .map((item) => ({
+        ...item,
+        emissionTarget: energyFilters.showTarget ? item.emissionTarget : null,
+        emissionRealization: energyFilters.showRealization
+          ? item.emissionRealization
+          : null,
+      }));
   }, [data, energyFilters]);
 
   const getFilteredConsumptionData = useCallback(() => {
     if (!data) return [];
-    
-    return data.energyConsumption.filter((_, index) => {
-      const monthNum = index + 1;
-      return monthNum >= consumptionFilters.monthRange.start && monthNum <= consumptionFilters.monthRange.end;
-    }).map((item) => ({
-      ...item,
-      tambang: consumptionFilters.areas.tambang ? item.tambang : 0,
-      pabrik: consumptionFilters.areas.pabrik ? item.pabrik : 0,
-      supporting: consumptionFilters.areas.supporting ? item.supporting : 0,
-      total: consumptionFilters.showTotal ? item.total : 0,
-    }));
+
+    return data.energyConsumption
+      .filter((_, index) => {
+        const monthNum = index + 1;
+        return (
+          monthNum >= consumptionFilters.monthRange.start &&
+          monthNum <= consumptionFilters.monthRange.end
+        );
+      })
+      .map((item) => ({
+        ...item,
+        tambang: consumptionFilters.areas.tambang ? item.tambang : 0,
+        pabrik: consumptionFilters.areas.pabrik ? item.pabrik : 0,
+        supporting: consumptionFilters.areas.supporting ? item.supporting : 0,
+        total: consumptionFilters.showTotal ? item.total : 0,
+      }));
   }, [data, consumptionFilters]);
-
-  const getFilteredKpiData = useCallback(() => {
-    if (!data) return [];
-    
-    let filtered = data.kpiUtama;
-    
-    // Month filter
-    if (kpiFilters.month) {
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const targetMonth = monthNames[kpiFilters.month - 1];
-      filtered = filtered.filter(item => item.month === targetMonth);
-    }
-    
-    return filtered;
-  }, [data, kpiFilters]);
-
-  const getFilteredStatusData = useCallback(() => {
-    if (!data) return [];
-    
-    let filtered = data.statusTindakLanjut;
-    
-    // Month filter
-    if (statusFilters.month) {
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const targetMonth = monthNames[statusFilters.month - 1];
-      filtered = filtered.filter(item => item.month === targetMonth);
-    }
-    
-    return filtered;
-  }, [data, statusFilters]);
 
   const getFilteredCriticalIssues = useCallback(() => {
     if (!data) return [];
-    
+
     let filtered = data.criticalIssues;
-    
+
     // Search filter
     if (criticalFilters.search) {
       const searchLower = criticalFilters.search.toLowerCase();
-      filtered = filtered.filter((issue) =>
-        issue.issueName.toLowerCase().includes(searchLower) ||
-        issue.description.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        (issue) =>
+          issue.issueName.toLowerCase().includes(searchLower) ||
+          issue.description.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Department filter
     if (criticalFilters.departments.length > 0) {
       filtered = filtered.filter((issue) =>
         criticalFilters.departments.includes(issue.department)
       );
     }
-    
+
     // Status filter
     const enabledStatuses = Object.entries(criticalFilters.statuses)
       .filter(([, enabled]) => enabled)
       .map(([status]) => status);
-    
+
     if (enabledStatuses.length < 3) {
       filtered = filtered.filter((issue) =>
         enabledStatuses.includes(issue.status)
       );
     }
-    
+
     // Sort
     filtered.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (criticalFilters.sortBy) {
         case "newest":
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          comparison =
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
           break;
         case "oldest":
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          comparison =
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           break;
         case "department":
           comparison = a.department.localeCompare(b.department);
@@ -322,14 +294,15 @@ export function MtcEngDashboard(): React.JSX.Element {
         case "priority":
           // Simple priority: BREAKDOWN > STANDBY > WORKING
           const priorityOrder = { BREAKDOWN: 3, STANDBY: 2, WORKING: 1 };
-          comparison = (priorityOrder[b.status as keyof typeof priorityOrder] || 0) - 
-                      (priorityOrder[a.status as keyof typeof priorityOrder] || 0);
+          comparison =
+            (priorityOrder[b.status as keyof typeof priorityOrder] || 0) -
+            (priorityOrder[a.status as keyof typeof priorityOrder] || 0);
           break;
       }
-      
+
       return criticalFilters.sortOrder === "desc" ? comparison : -comparison;
     });
-    
+
     // Pagination
     return filtered.slice(0, criticalFilters.pageSize);
   }, [data, criticalFilters]);
@@ -346,10 +319,13 @@ export function MtcEngDashboard(): React.JSX.Element {
             <p className="text-secondary-400">Loading dashboard data...</p>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="bg-secondary-800/50 border-primary-600/30">
+            <Card
+              key={index}
+              className="bg-secondary-800/50 border-primary-600/30"
+            >
               <CardContent className="p-6">
                 <div className="animate-pulse">
                   <div className="h-4 bg-secondary-700 rounded w-1/3 mb-4"></div>
@@ -379,14 +355,13 @@ export function MtcEngDashboard(): React.JSX.Element {
             Retry
           </Button>
         </div>
-        
+
         <Card className="bg-red-900/20 border-red-600/30">
           <CardContent className="p-6 text-center">
-            <p className="text-red-400">
-              Error: {error}
-            </p>
+            <p className="text-red-400">Error: {error}</p>
             <p className="text-secondary-400 mt-2">
-              Please try refreshing the page or contact support if the problem persists.
+              Please try refreshing the page or contact support if the problem
+              persists.
             </p>
           </CardContent>
         </Card>
@@ -406,12 +381,10 @@ export function MtcEngDashboard(): React.JSX.Element {
             <p className="text-secondary-400">No data available</p>
           </div>
         </div>
-        
+
         <Card className="bg-secondary-800/50 border-primary-600/30">
           <CardContent className="p-6 text-center">
-            <p className="text-secondary-400">
-              No dashboard data available
-            </p>
+            <p className="text-secondary-400">No dashboard data available</p>
           </CardContent>
         </Card>
       </div>
@@ -423,8 +396,6 @@ export function MtcEngDashboard(): React.JSX.Element {
   const filteredEnergyEmissionData = getFilteredEnergyEmissionData();
   const filteredConsumptionData = getFilteredConsumptionData();
   const filteredCriticalIssues = getFilteredCriticalIssues();
-  const filteredKpiData = getFilteredKpiData();
-  const filteredStatusData = getFilteredStatusData();
 
   return (
     <div className="space-y-6">
@@ -437,9 +408,10 @@ export function MtcEngDashboard(): React.JSX.Element {
           </h1>
           <p className="text-secondary-400 flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Period: {new Date().toLocaleDateString("id-ID", { 
-              month: "long", 
-              year: "numeric" 
+            Period:{" "}
+            {new Date().toLocaleDateString("id-ID", {
+              month: "long",
+              year: "numeric",
             })}
           </p>
         </div>
@@ -456,40 +428,16 @@ export function MtcEngDashboard(): React.JSX.Element {
 
       {/* Dashboard Grid */}
       <div className="space-y-6">
-        {/* New KPI Charts Row - At the top */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <KpiFilters 
-              currentFilters={kpiFilters}
-              onFilterChange={setKpiFilters}
-              availableYears={data.availableYears}
-            />
-            <KpiUtamaChart 
-              data={filteredKpiData} 
-              chartOrientation={kpiFilters.chartOrientation}
-            />
-          </div>
-          <div className="space-y-4">
-            <KpiFilters 
-              currentFilters={statusFilters}
-              onFilterChange={setStatusFilters}
-              availableYears={data.availableYears}
-            />
-            <StatusTindakLanjutChart 
-              data={filteredStatusData}
-              chartOrientation={statusFilters.chartOrientation}
-            />
-          </div>
-        </div>
+        {/* KPI Utama Dashboard */}
 
         {/* Safety Incidents Chart with Filter */}
         <div className="space-y-4">
-          <SafetyFilters 
+          <SafetyFilters
             currentFilters={safetyFilters}
             onFilterChange={setSafetyFilters}
           />
-          <SafetyIncidentsChart 
-            data={filteredSafetyData} 
+          <SafetyIncidentsChart
+            data={filteredSafetyData}
             chartType={safetyFilters.chartType}
           />
         </div>
@@ -497,26 +445,26 @@ export function MtcEngDashboard(): React.JSX.Element {
         {/* Energy Charts Row with Filters */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <EnergyFilters 
+            <EnergyFilters
               currentFilters={energyFilters}
               onFilterChange={setEnergyFilters}
               chartType="ikes"
             />
-            <EnergyIkesChart 
-              data={filteredEnergyIkesData} 
+            <EnergyIkesChart
+              data={filteredEnergyIkesData}
               smoothLine={energyFilters.smoothLine}
               comparisonMode={energyFilters.comparisonMode}
             />
           </div>
-          
+
           <div className="space-y-4">
-            <EnergyFilters 
+            <EnergyFilters
               currentFilters={energyFilters}
               onFilterChange={setEnergyFilters}
               chartType="emission"
             />
-            <EnergyEmissionChart 
-              data={filteredEnergyEmissionData} 
+            <EnergyEmissionChart
+              data={filteredEnergyEmissionData}
               smoothLine={energyFilters.smoothLine}
               comparisonMode={energyFilters.comparisonMode}
             />
@@ -525,12 +473,12 @@ export function MtcEngDashboard(): React.JSX.Element {
 
         {/* Energy Consumption Chart with Filter */}
         <div className="space-y-4">
-          <ConsumptionFilters 
+          <ConsumptionFilters
             currentFilters={consumptionFilters}
             onFilterChange={setConsumptionFilters}
           />
-          <EnergyConsumptionChart 
-            data={filteredConsumptionData} 
+          <EnergyConsumptionChart
+            data={filteredConsumptionData}
             chartType={consumptionFilters.chartType}
             showTable={consumptionFilters.showTable}
             showAverage={consumptionFilters.showAverage}
@@ -539,7 +487,7 @@ export function MtcEngDashboard(): React.JSX.Element {
 
         {/* Critical Issues Table with Filter */}
         <div className="space-y-4">
-          <CriticalIssuesFilters 
+          <CriticalIssuesFilters
             currentFilters={criticalFilters}
             onFilterChange={setCriticalFilters}
             totalCount={data.criticalIssues.length}
