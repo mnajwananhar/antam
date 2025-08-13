@@ -470,7 +470,6 @@ async function main() {
       create: {
         year: currentYear,
         month,
-        plnConsumption: 1000 + Math.random() * 500,
         tambangConsumption: 800 + Math.random() * 400,
         pabrikConsumption: 1200 + Math.random() * 600,
         supportingConsumption: 400 + Math.random() * 200,

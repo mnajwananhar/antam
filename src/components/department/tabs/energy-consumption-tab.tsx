@@ -40,13 +40,11 @@ interface EnergyConsumption {
   id: number;
   year: number;
   month: number;
-  plnConsumption: number;
   tambangConsumption: number;
   pabrikConsumption: number;
   supportingConsumption: number;
   totalConsumption: number;
   breakdown: {
-    plnPercentage: number;
     tambangPercentage: number;
     pabrikPercentage: number;
     supportingPercentage: number;
@@ -74,7 +72,6 @@ export function EnergyConsumptionTab({
   const [newConsumption, setNewConsumption] = useState({
     month: currentMonth,
     year: currentYear,
-    plnConsumption: "",
     tambangConsumption: "",
     pabrikConsumption: "",
     supportingConsumption: "",
@@ -116,7 +113,6 @@ export function EnergyConsumptionTab({
     const submitData = {
       month: newConsumption.month,
       year: newConsumption.year,
-      plnConsumption: parseFloat(newConsumption.plnConsumption) || 0,
       tambangConsumption: parseFloat(newConsumption.tambangConsumption) || 0,
       pabrikConsumption: parseFloat(newConsumption.pabrikConsumption) || 0,
       supportingConsumption:
@@ -139,7 +135,6 @@ export function EnergyConsumptionTab({
     setNewConsumption({
       month: currentMonth,
       year: currentYear,
-      plnConsumption: "",
       tambangConsumption: "",
       pabrikConsumption: "",
       supportingConsumption: "",
@@ -176,8 +171,7 @@ export function EnergyConsumptionTab({
   const getTotalConsumption = (data: EnergyConsumption) => {
     return (
       data.totalConsumption ||
-      data.plnConsumption +
-        data.tambangConsumption +
+      data.tambangConsumption +
         data.pabrikConsumption +
         data.supportingConsumption
     );
@@ -254,25 +248,7 @@ export function EnergyConsumptionTab({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Battery className="h-4 w-4" />
-                  PLN Consumption (MWh)
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newConsumption.plnConsumption}
-                  onChange={(e) =>
-                    handleNumberChange("plnConsumption", e.target.value)
-                  }
-                  min={0}
-                  placeholder="Konsumsi PLN"
-                  disabled={isSubmitting}
-                />
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Pickaxe className="h-4 w-4" />
@@ -371,18 +347,7 @@ export function EnergyConsumptionTab({
                   <h4 className="font-medium mb-3">
                     {monthNames[data.month - 1]} {data.year}
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">PLN</span>
-                      <span className="font-medium text-blue-600">
-                        {data.plnConsumption.toFixed(2)} MWh
-                      </span>
-                      {data.breakdown && (
-                        <span className="text-xs text-muted-foreground">
-                          ({data.breakdown.plnPercentage.toFixed(1)}%)
-                        </span>
-                      )}
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground">Tambang</span>
                       <span className="font-medium text-amber-600">

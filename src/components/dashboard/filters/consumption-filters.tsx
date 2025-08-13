@@ -13,7 +13,6 @@ export interface ConsumptionFilterState {
   year: number;
   monthRange: { start: number; end: number };
   areas: {
-    pln: boolean;
     tambang: boolean;
     pabrik: boolean;
     supporting: boolean;
@@ -50,7 +49,6 @@ export function ConsumptionFilters({ onFilterChange, currentFilters }: Consumpti
       year: currentYear,
       monthRange: { start: 1, end: 12 },
       areas: {
-        pln: true,
         tambang: true,
         pabrik: true,
         supporting: true,

@@ -433,7 +433,6 @@ model EnergyConsumption {
   id           Int      @id @default(autoincrement())
   year         Int
   month        Int      // 1-12
-  plnConsumption Float  @default(0) // PLN (2025) MWh
   tambangConsumption Float @default(0) // Tambang
   pabrikConsumption Float @default(0) // Pabrik
   supportingConsumption Float @default(0) // Supporting

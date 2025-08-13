@@ -166,13 +166,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const consumptionData = energyConsumption.find((item) => item.month === index + 1);
       return {
         month,
-        pln: consumptionData?.plnConsumption || 0,
         tambang: consumptionData?.tambangConsumption || 0,
         pabrik: consumptionData?.pabrikConsumption || 0,
         supporting: consumptionData?.supportingConsumption || 0,
         total: consumptionData
-          ? consumptionData.plnConsumption +
-            consumptionData.tambangConsumption +
+          ? consumptionData.tambangConsumption +
             consumptionData.pabrikConsumption +
             consumptionData.supportingConsumption
           : 0,

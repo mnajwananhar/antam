@@ -7,7 +7,6 @@ import type { Session } from "next-auth";
 const updateEnergyConsumptionSchema = z.object({
   month: z.number().int().min(1).max(12).optional(),
   year: z.number().int().min(2020).max(2030).optional(),
-  plnConsumption: z.number().min(0).optional(),
   tambangConsumption: z.number().min(0).optional(),
   pabrikConsumption: z.number().min(0).optional(),
   supportingConsumption: z.number().min(0).optional(),

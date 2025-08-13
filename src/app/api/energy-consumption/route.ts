@@ -8,7 +8,6 @@ import { Prisma } from "@prisma/client";
 const energyConsumptionSchema = z.object({
   year: z.number().int().min(2020).max(2030),
   month: z.number().int().min(1).max(12),
-  plnConsumption: z.number().min(0).default(0),
   tambangConsumption: z.number().min(0).default(0),
   pabrikConsumption: z.number().min(0).default(0),
   supportingConsumption: z.number().min(0).default(0),
@@ -73,13 +72,11 @@ export async function GET(request: NextRequest) {
     // Calculate totals and additional statistics
     const enrichedData = consumptionData.map((data) => {
       const total =
-        data.plnConsumption +
         data.tambangConsumption +
         data.pabrikConsumption +
         data.supportingConsumption;
 
       const breakdown = {
-        plnPercentage: total > 0 ? (data.plnConsumption / total) * 100 : 0,
         tambangPercentage:
           total > 0 ? (data.tambangConsumption / total) * 100 : 0,
         pabrikPercentage:
@@ -100,14 +97,12 @@ export async function GET(request: NextRequest) {
     if (enrichedData.length > 1) {
       const totals = enrichedData.reduce(
         (acc, curr) => ({
-          totalPln: acc.totalPln + curr.plnConsumption,
           totalTambang: acc.totalTambang + curr.tambangConsumption,
           totalPabrik: acc.totalPabrik + curr.pabrikConsumption,
           totalSupporting: acc.totalSupporting + curr.supportingConsumption,
           grandTotal: acc.grandTotal + curr.totalConsumption,
         }),
         {
-          totalPln: 0,
           totalTambang: 0,
           totalPabrik: 0,
           totalSupporting: 0,
@@ -177,7 +172,6 @@ export async function POST(request: NextRequest) {
       result = await prisma.energyConsumption.update({
         where: { id: existingConsumption.id },
         data: {
-          plnConsumption: validatedData.plnConsumption,
           tambangConsumption: validatedData.tambangConsumption,
           pabrikConsumption: validatedData.pabrikConsumption,
           supportingConsumption: validatedData.supportingConsumption,
@@ -193,7 +187,6 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals for response
     const totalConsumption =
-      result.plnConsumption +
       result.tambangConsumption +
       result.pabrikConsumption +
       result.supportingConsumption;
@@ -202,10 +195,6 @@ export async function POST(request: NextRequest) {
       ...result,
       totalConsumption,
       breakdown: {
-        plnPercentage:
-          totalConsumption > 0
-            ? (result.plnConsumption / totalConsumption) * 100
-            : 0,
         tambangPercentage:
           totalConsumption > 0
             ? (result.tambangConsumption / totalConsumption) * 100

@@ -57,7 +57,6 @@ interface DashboardData {
   }>;
   energyConsumption: Array<{
     month: string;
-    pln: number;
     tambang: number;
     pabrik: number;
     supporting: number;
@@ -124,7 +123,6 @@ export function MtcEngDashboard(): React.JSX.Element {
     year: currentYear,
     monthRange: { start: 1, end: 12 },
     areas: {
-      pln: true,
       tambang: true,
       pabrik: true,
       supporting: true,
@@ -237,7 +235,6 @@ export function MtcEngDashboard(): React.JSX.Element {
       return monthNum >= consumptionFilters.monthRange.start && monthNum <= consumptionFilters.monthRange.end;
     }).map((item) => ({
       ...item,
-      pln: consumptionFilters.areas.pln ? item.pln : 0,
       tambang: consumptionFilters.areas.tambang ? item.tambang : 0,
       pabrik: consumptionFilters.areas.pabrik ? item.pabrik : 0,
       supporting: consumptionFilters.areas.supporting ? item.supporting : 0,

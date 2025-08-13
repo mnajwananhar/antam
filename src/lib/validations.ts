@@ -219,7 +219,6 @@ export const energyRealizationSchema = z.object({
 export const energyConsumptionSchema = z.object({
   year: z.number().min(2020).max(2030),
   month: z.number().min(1).max(12),
-  plnConsumption: z.number().min(0),
   tambangConsumption: z.number().min(0),
   pabrikConsumption: z.number().min(0),
   supportingConsumption: z.number().min(0),

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { departmentUtils } from "@/lib/utils";
 import { UserRole } from "@prisma/client";
 
@@ -9,9 +9,12 @@ const protectedRoutes = ["/dashboard", "/input", "/admin", "/api/protected", "/n
 // Routes that are only accessible to admins
 const adminOnlyRoutes = ["/admin"];
 
-export default auth((req) => {
+export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;
-  const isLoggedIn = !!req.auth;
+  
+  // Get token from JWT (Edge Runtime compatible)
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const isLoggedIn = !!token;
 
   // Check if route is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
@@ -48,7 +51,7 @@ export default auth((req) => {
 
   // Check admin-only routes
   if (isAdminRoute && isLoggedIn) {
-    const userRole = req.auth?.user?.role;
+    const userRole = token?.role;
     if (userRole !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL("/dashboard", nextUrl.origin));
     }
@@ -56,7 +59,7 @@ export default auth((req) => {
 
   // Role-based access control for specific input routes
   if (nextUrl.pathname.startsWith("/input/") && isLoggedIn) {
-    const userRole = req.auth?.user?.role;
+    const userRole = token?.role;
 
     // Extract department from URL
     const pathSegments = nextUrl.pathname.split("/");
@@ -64,7 +67,7 @@ export default auth((req) => {
 
     // Planner access control - only to their department
     if (userRole === UserRole.PLANNER && routeDepartmentSlug) {
-      const userDepartmentName = req.auth?.user?.departmentName;
+      const userDepartmentName = token?.departmentName;
       const routeDepartmentName =
         departmentUtils.slugToName(routeDepartmentSlug);
 
@@ -75,7 +78,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [

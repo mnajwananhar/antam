@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface EnergyConsumptionChartProps {
   data: Array<{
     month: string;
-    pln: number;
     tambang: number;
     pabrik: number;
     supporting: number;
@@ -47,11 +46,10 @@ export function EnergyConsumptionChart({
           <p className="text-yellow-400 font-semibold mb-2">{label} 2024</p>
           {payload.map((entry, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
-              {entry.dataKey === "pln" && "PLN (2025) MWh: "}
               {entry.dataKey === "tambang" && "Tambang: "}
               {entry.dataKey === "pabrik" && "Pabrik: "}
               {entry.dataKey === "supporting" && "Supporting: "}
-              {entry.dataKey === "total" && "Total MWh (2025): "}
+              {entry.dataKey === "total" && "Total MWh: "}
               {entry.value?.toFixed(1) || "0.0"}
             </p>
           ))}
@@ -63,7 +61,6 @@ export function EnergyConsumptionChart({
 
   const CustomLegend = () => {
     const legendItems = [
-      { value: "pln", color: "#fbbf24", label: "PLN (2025) MWh" },
       { value: "tambang", color: "#84cc16", label: "Tambang" },
       { value: "pabrik", color: "#f59e0b", label: "Pabrik" },
       { value: "supporting", color: "#8b5cf6", label: "Supporting" },
@@ -156,12 +153,6 @@ export function EnergyConsumptionChart({
               {/* Bar charts for individual consumption */}
               <Bar 
                 yAxisId="left" 
-                dataKey="pln" 
-                stackId={chartType === "stacked" ? "consumption" : "pln"} 
-                fill="#fbbf24" 
-              />
-              <Bar 
-                yAxisId="left" 
                 dataKey="tambang" 
                 stackId={chartType === "stacked" ? "consumption" : "tambang"} 
                 fill="#84cc16" 
@@ -206,7 +197,7 @@ export function EnergyConsumptionChart({
               <table className="w-full text-xs border border-gray-700">
                 <thead className="bg-gray-800">
                   <tr>
-                    <th className="border border-gray-700 p-2 text-gray-300">PLN (2025) MWh</th>
+                    <th className="border border-gray-700 p-2 text-gray-300">Kategori</th>
                     {data.slice(0, 12).map((item) => (
                       <th key={item.month} className="border border-gray-700 p-1 text-gray-300 min-w-[60px]">
                         {item.month}
@@ -218,19 +209,6 @@ export function EnergyConsumptionChart({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="border border-gray-700 p-2 font-semibold text-yellow-400">PLN</td>
-                    {data.slice(0, 12).map((item, index) => (
-                      <td key={index} className="border border-gray-700 p-1 text-center text-yellow-300">
-                        {item.pln.toFixed(0)}
-                      </td>
-                    ))}
-                    {showAverage && (
-                      <td className="border border-gray-700 p-2 text-center text-yellow-400 font-semibold">
-                        {(data.reduce((sum, item) => sum + item.pln, 0) / 12).toFixed(0)}
-                      </td>
-                    )}
-                  </tr>
                   <tr>
                     <td className="border border-gray-700 p-2 font-semibold text-green-400">Tambang</td>
                     {data.slice(0, 12).map((item, index) => (
