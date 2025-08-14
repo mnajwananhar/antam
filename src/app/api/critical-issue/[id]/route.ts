@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const updateCriticalIssueSchema = z.object({
   issueName: z.string().min(1, "Nama issue wajib diisi").optional(),
-  status: z.enum(["WORKING", "STANDBY", "BREAKDOWN"]).optional(),
+  status: z.enum(["INVESTIGASI", "PROSES", "SELESAI"]).optional(),
   description: z.string().min(10, "Deskripsi minimal 10 karakter").optional(),
 });
 

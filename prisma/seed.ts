@@ -734,21 +734,21 @@ async function main() {
     {
       issueName: "Kerusakan Major pada Crushing Plant",
       departmentId: pmtcDept.id,
-      status: EquipmentStatus.BREAKDOWN,
+      status: "INVESTIGASI" as any,
       description: "Jaw crusher mengalami kerusakan pada main bearing, produksi terhenti total",
       createdById: inputterUser.id,
     },
     {
       issueName: "Shortage Spare Parts untuk LHD",
       departmentId: mmtcDept.id,
-      status: EquipmentStatus.STANDBY,
+      status: "PROSES" as any,
       description: "Stok spare parts untuk LHD habis, beberapa unit tidak dapat beroperasi optimal",
       createdById: plannerMmtc.id,
     },
     {
       issueName: "Gangguan Sistem Kelistrikan Utama",
       departmentId: ecdcDept.id,
-      status: EquipmentStatus.WORKING,
+      status: "SELESAI" as any,
       description: "Fluktuasi tegangan pada sistem distribusi utama, perlu monitoring ketat",
       createdById: users.find((u) => u.username === "planner_ecdc")!.id,
     }

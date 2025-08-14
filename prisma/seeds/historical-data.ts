@@ -17,11 +17,8 @@ export async function seedHistoricalData() {
   const inputterShift2 = users.find((u) => u.username === 'inputter_shift2')!;
   const inputterShift3 = users.find((u) => u.username === 'inputter_shift3')!;
 
-  const ballMill1 = equipment.find((eq) => eq.code === 'Ball Mill 1')!;
-  const ballMill2 = equipment.find((eq) => eq.code === 'Ball Mill 2')!;
-  const lhd003 = equipment.find((eq) => eq.code === '08LH003')!;
-  const lhd006 = equipment.find((eq) => eq.code === '08LH006')!;
-  const jumboDrill001 = equipment.find((eq) => eq.code === '08DR001')!;
+  // Get ALL equipment for comprehensive data generation
+  const allActiveEquipment = equipment.filter(eq => eq.isActive);;
 
   // Create historical operational reports for last 30 days
   console.log('📊 Creating historical operational reports...');
@@ -29,109 +26,81 @@ export async function seedHistoricalData() {
   const today = new Date();
   const historicalReports = [];
 
-  // Generate data for last 30 days
-  for (let daysBack = 2; daysBack <= 30; daysBack++) {
+  // Helper function to get equipment department
+  const getEquipmentDepartment = async (equipmentId: number) => {
+    const equipmentDept = await prisma.equipmentDepartment.findFirst({
+      where: { equipmentId, isActive: true },
+      include: { department: true }
+    });
+    return equipmentDept?.department || pmtcDept; // Default to PMTC if not found
+  };
+
+  // Helper function to generate operational patterns based on equipment type
+  const getOperationalPattern = (equipmentCode: string) => {
+    if (equipmentCode.includes('Ball Mill')) {
+      return { baseWorking: 20, variability: 4, breakdownChance: 0.2, operatesWeekend: true };
+    } else if (equipmentCode.includes('Crushing')) {
+      return { baseWorking: 22, variability: 2, breakdownChance: 0.15, operatesWeekend: true };
+    } else if (equipmentCode.includes('Backfill')) {
+      return { baseWorking: 16, variability: 6, breakdownChance: 0.25, operatesWeekend: false };
+    } else if (equipmentCode.includes('LH')) { // LHD
+      return { baseWorking: 16, variability: 6, breakdownChance: 0.3, operatesWeekend: true };
+    } else if (equipmentCode.includes('DR')) { // Jumbo Drill
+      return { baseWorking: 12, variability: 4, breakdownChance: 0.25, operatesWeekend: false };
+    } else if (equipmentCode.includes('MT')) { // Mine Truck
+      return { baseWorking: 18, variability: 4, breakdownChance: 0.3, operatesWeekend: true };
+    } else if (equipmentCode.includes('SC')) { // Shortcrete
+      return { baseWorking: 8, variability: 4, breakdownChance: 0.35, operatesWeekend: false };
+    } else if (equipmentCode.includes('MIX')) { // Mixer Truck
+      return { baseWorking: 10, variability: 6, breakdownChance: 0.4, operatesWeekend: false };
+    } else if (equipmentCode.includes('TL')) { // Trolley Locomotive
+      return { baseWorking: 14, variability: 4, breakdownChance: 0.25, operatesWeekend: true };
+    }
+    return { baseWorking: 16, variability: 4, breakdownChance: 0.25, operatesWeekend: true }; // Default
+  };
+
+  // Generate data untuk 3 tahun terakhir untuk SEMUA equipment (untuk visualisasi yearly yang lebih baik)
+  console.log(`Generating operational data for ${allActiveEquipment.length} equipment over 3 years...`);
+  
+  const totalDays = 365 * 3; // 3 tahun
+  for (let daysBack = 2; daysBack <= totalDays; daysBack++) {
     const reportDate = new Date(today);
     reportDate.setDate(reportDate.getDate() - daysBack);
-
-    // Skip weekends for some equipment (simulate maintenance schedule)
     const isWeekend = reportDate.getDay() === 0 || reportDate.getDay() === 6;
 
-    // Ball Mill 1 - mostly operational
-    if (!isWeekend || daysBack % 7 === 0) {
-      const workingHours = 20 + Math.floor(Math.random() * 4);
-      const breakdownHours = Math.floor(Math.random() * 3);
-      const standbyHours = 24 - workingHours - breakdownHours;
+    // Generate data for ALL equipment
+    for (const eq of allActiveEquipment) {
+      const pattern = getOperationalPattern(eq.code);
+      
+      // Skip if equipment doesn't operate on weekends and it's weekend
+      if (isWeekend && !pattern.operatesWeekend && Math.random() > 0.3) {
+        continue;
+      }
+
+      // Get department for this equipment
+      const equipmentDept = await getEquipmentDepartment(eq.id);
+
+      const workingHours = Math.max(0, pattern.baseWorking + Math.floor(Math.random() * pattern.variability) - Math.floor(pattern.variability/2));
+      const breakdownHours = Math.random() < pattern.breakdownChance ? Math.floor(Math.random() * 4) : 0;
+      const standbyHours = Math.max(0, 24 - workingHours - breakdownHours);
+
+      const notes = breakdownHours > 2 ? 
+        `Major maintenance - ${eq.code}` : 
+        breakdownHours > 0 ? 
+        `Minor maintenance - ${eq.code}` : 
+        `Normal operation - ${eq.code}`;
 
       historicalReports.push({
         reportDate: reportDate,
-        equipmentId: ballMill1.id,
-        departmentId: pmtcDept.id,
+        equipmentId: eq.id,
+        departmentId: equipmentDept.id,
         createdById: [inputterUser.id, inputterShift2.id, inputterShift3.id][Math.floor(Math.random() * 3)],
         totalWorking: workingHours,
         totalStandby: standbyHours,
         totalBreakdown: breakdownHours,
         shiftType: ['Shift 1', 'Shift 2', 'Shift 3'][Math.floor(Math.random() * 3)],
         isComplete: true,
-        notes: breakdownHours > 0 ? 'Ada minor maintenance' : 'Operasi normal',
-      });
-    }
-
-    // Ball Mill 2 - similar pattern but different values
-    if (!isWeekend || daysBack % 5 === 0) {
-      const workingHours = 18 + Math.floor(Math.random() * 5);
-      const breakdownHours = Math.floor(Math.random() * 4);
-      const standbyHours = 24 - workingHours - breakdownHours;
-
-      historicalReports.push({
-        reportDate: reportDate,
-        equipmentId: ballMill2.id,
-        departmentId: pmtcDept.id,
-        createdById: [inputterUser.id, inputterShift2.id, inputterShift3.id][Math.floor(Math.random() * 3)],
-        totalWorking: workingHours,
-        totalStandby: standbyHours,
-        totalBreakdown: breakdownHours,
-        shiftType: ['Shift 1', 'Shift 2', 'Shift 3'][Math.floor(Math.random() * 3)],
-        isComplete: true,
-        notes: breakdownHours > 2 ? 'Maintenance terjadwal' : 'Operasi normal',
-      });
-    }
-
-    // LHD 003 - mobile equipment, more variable
-    const lhdWorkingHours = 14 + Math.floor(Math.random() * 8);
-    const lhdBreakdownHours = Math.floor(Math.random() * 5);
-    const lhdStandbyHours = 24 - lhdWorkingHours - lhdBreakdownHours;
-
-    historicalReports.push({
-      reportDate: reportDate,
-      equipmentId: lhd003.id,
-      departmentId: mmtcDept.id,
-      createdById: [inputterUser.id, inputterShift2.id, inputterShift3.id][Math.floor(Math.random() * 3)],
-      totalWorking: lhdWorkingHours,
-      totalStandby: lhdStandbyHours,
-      totalBreakdown: lhdBreakdownHours,
-      shiftType: ['Shift 1', 'Shift 2', 'Shift 3'][Math.floor(Math.random() * 3)],
-      isComplete: true,
-      notes: lhdBreakdownHours > 3 ? 'Trouble hydraulic system' : 'Loading hauling normal',
-    });
-
-    // LHD 006 - Different pattern
-    if (daysBack < 25) { // Simulate this equipment being newer/better maintained
-      const lhd6WorkingHours = 16 + Math.floor(Math.random() * 6);
-      const lhd6BreakdownHours = Math.floor(Math.random() * 3);
-      const lhd6StandbyHours = 24 - lhd6WorkingHours - lhd6BreakdownHours;
-
-      historicalReports.push({
-        reportDate: reportDate,
-        equipmentId: lhd006.id,
-        departmentId: mmtcDept.id,
-        createdById: [inputterUser.id, inputterShift2.id, inputterShift3.id][Math.floor(Math.random() * 3)],
-        totalWorking: lhd6WorkingHours,
-        totalStandby: lhd6StandbyHours,
-        totalBreakdown: lhd6BreakdownHours,
-        shiftType: ['Shift 1', 'Shift 2', 'Shift 3'][Math.floor(Math.random() * 3)],
-        isComplete: true,
-        notes: lhd6BreakdownHours > 1 ? 'Minor adjustment' : 'Operasi optimal',
-      });
-    }
-
-    // Jumbo Drill - weekdays only operation
-    if (!isWeekend) {
-      const drillWorkingHours = 12 + Math.floor(Math.random() * 6);
-      const drillBreakdownHours = Math.floor(Math.random() * 2);
-      const drillStandbyHours = 24 - drillWorkingHours - drillBreakdownHours;
-
-      historicalReports.push({
-        reportDate: reportDate,
-        equipmentId: jumboDrill001.id,
-        departmentId: mmtcDept.id,
-        createdById: [inputterUser.id, inputterShift2.id][Math.floor(Math.random() * 2)], // Only day shifts
-        totalWorking: drillWorkingHours,
-        totalStandby: drillStandbyHours,
-        totalBreakdown: drillBreakdownHours,
-        shiftType: ['Shift 1', 'Shift 2'][Math.floor(Math.random() * 2)],
-        isComplete: true,
-        notes: drillBreakdownHours > 0 ? 'Bit change required' : 'Drilling progress normal',
+        notes: notes,
       });
     }
   }
@@ -157,7 +126,7 @@ export async function seedHistoricalData() {
   console.log('🔄 Creating historical equipment status changes...');
   
   const statusChanges = [];
-  const equipmentList = [ballMill1, ballMill2, lhd003, lhd006, jumboDrill001];
+  const equipmentList = allActiveEquipment;
   
   for (let daysBack = 3; daysBack <= 15; daysBack += 3) {
     const changeDate = new Date(today);

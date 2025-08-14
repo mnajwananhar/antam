@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UserRole, EquipmentStatus } from "@prisma/client";
+import { UserRole, EquipmentStatus, CriticalIssueStatus } from "@prisma/client";
 
 // Auth schemas
 export const loginSchema = z.object({
@@ -182,7 +182,7 @@ export const maintenanceRoutineSchema = z.object({
 export const criticalIssueSchema = z.object({
   issueName: z.string().min(1, "Nama masalah wajib diisi"),
   departmentId: z.number(),
-  status: z.nativeEnum(EquipmentStatus),
+  status: z.nativeEnum(CriticalIssueStatus),
   description: z
     .string()
     .min(5, "Deskripsi minimal 5 karakter")

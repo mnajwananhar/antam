@@ -30,7 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { departmentUtils } from "@/lib/utils";
-import { EquipmentStatus } from "@prisma/client";
+import { CriticalIssueStatus } from "@prisma/client";
 
 interface CriticalIssueTabProps {
   department: Department;
@@ -47,7 +47,7 @@ interface AccessibleDepartment {
 interface CriticalIssue {
   id: number;
   issueName: string;
-  status: EquipmentStatus;
+  status: CriticalIssueStatus;
   description: string;
   createdAt: string;
   department: {
@@ -85,7 +85,7 @@ export function CriticalIssueTab({
 
   const [newIssue, setNewIssue] = useState({
     issueName: "",
-    status: EquipmentStatus.BREAKDOWN as EquipmentStatus,
+    status: CriticalIssueStatus.INVESTIGASI as CriticalIssueStatus,
     description: "",
   });
 
@@ -227,7 +227,7 @@ export function CriticalIssueTab({
           // Reset form and errors on success
           setNewIssue({
             issueName: "",
-            status: EquipmentStatus.BREAKDOWN as EquipmentStatus,
+            status: CriticalIssueStatus.INVESTIGASI as CriticalIssueStatus,
             description: "",
           });
           setFormErrors({});
@@ -298,17 +298,17 @@ export function CriticalIssueTab({
     return false;
   };
 
-  const getStatusBadge = (status: EquipmentStatus) => {
+  const getStatusBadge = (status: CriticalIssueStatus) => {
     const variants = {
-      [EquipmentStatus.WORKING]: "default",
-      [EquipmentStatus.STANDBY]: "secondary",
-      [EquipmentStatus.BREAKDOWN]: "destructive",
+      [CriticalIssueStatus.SELESAI]: "default",
+      [CriticalIssueStatus.PROSES]: "secondary",
+      [CriticalIssueStatus.INVESTIGASI]: "destructive",
     } as const;
 
     const icons = {
-      [EquipmentStatus.WORKING]: <CheckCircle2 className="h-3 w-3" />,
-      [EquipmentStatus.STANDBY]: <AlertTriangle className="h-3 w-3" />,
-      [EquipmentStatus.BREAKDOWN]: <XCircle className="h-3 w-3" />,
+      [CriticalIssueStatus.SELESAI]: <CheckCircle2 className="h-3 w-3" />,
+      [CriticalIssueStatus.PROSES]: <AlertTriangle className="h-3 w-3" />,
+      [CriticalIssueStatus.INVESTIGASI]: <XCircle className="h-3 w-3" />,
     };
 
     return (
@@ -387,7 +387,7 @@ export function CriticalIssueTab({
                 <label className="text-sm font-medium">Status</label>
                 <Select
                   value={newIssue.status}
-                  onValueChange={(value: EquipmentStatus) =>
+                  onValueChange={(value: CriticalIssueStatus) =>
                     setNewIssue((prev) => ({ ...prev, status: value }))
                   }
                   disabled={isSubmitting}
@@ -396,14 +396,14 @@ export function CriticalIssueTab({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={EquipmentStatus.BREAKDOWN}>
-                      Breakdown
+                    <SelectItem value={CriticalIssueStatus.INVESTIGASI}>
+                      Investigasi
                     </SelectItem>
-                    <SelectItem value={EquipmentStatus.STANDBY}>
-                      Standby
+                    <SelectItem value={CriticalIssueStatus.PROSES}>
+                      Proses
                     </SelectItem>
-                    <SelectItem value={EquipmentStatus.WORKING}>
-                      Working
+                    <SelectItem value={CriticalIssueStatus.SELESAI}>
+                      Selesai
                     </SelectItem>
                   </SelectContent>
                 </Select>

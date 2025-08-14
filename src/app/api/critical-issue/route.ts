@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { EquipmentStatus, Prisma } from "@prisma/client";
+import { CriticalIssueStatus, Prisma } from "@prisma/client";
 import { criticalIssueSchema } from "@/lib/validations";
 import { z } from "zod";
 
@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
       whereClause.departmentId = parseInt(departmentId);
     }
 
-    if (status && ["WORKING", "STANDBY", "BREAKDOWN"].includes(status)) {
-      whereClause.status = status as EquipmentStatus;
+    if (status && ["INVESTIGASI", "PROSES", "SELESAI"].includes(status)) {
+      whereClause.status = status as CriticalIssueStatus;
     }
 
     // Get total count

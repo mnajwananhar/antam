@@ -20,8 +20,8 @@ export async function seedOperationalData() {
   const plannerMtcEng = users.find((u) => u.username === "planner_mtceng")!;
   const inputterUser = users.find((u) => u.username === "inputter_shift1")!;
 
-  const ballMill1 = equipment.find((eq) => eq.code === "Ball Mill 1")!;
-  const lhd003 = equipment.find((eq) => eq.code === "08LH003")!;
+  // Get ALL active equipment for comprehensive operational reports
+  const allActiveEquipment = equipment.filter(eq => eq.isActive);;
 
   // Create sample orders ONLY from existing notifications
   console.log("📋 Creating sample orders from notifications...");
@@ -239,117 +239,111 @@ export async function seedOperationalData() {
     `✅ Created ${maintenanceCreated} maintenance routines with activities`
   );
 
-  // Create sample operational reports with activity details
-  console.log("📊 Creating sample operational reports...");
+  // Create more comprehensive operational reports with detailed activities for last 7 days
+  console.log("📊 Creating comprehensive operational reports for the last week...");
 
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const operationalReportsData = [];
 
-  const operationalReportsData = [
-    {
-      reportDate: yesterday,
-      equipmentId: ballMill1.id,
-      departmentId: pmtcDept.id,
-      createdById: inputterUser.id,
-      totalWorking: 20,
-      totalStandby: 2,
-      totalBreakdown: 2,
-      shiftType: "Shift 1",
-      isComplete: true,
-      notes: "Operasi normal, ada minor stop untuk adjustment",
-      activities: [
-        {
-          equipmentId: ballMill1.id,
-          startDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T06:00:00`
-          ),
-          endDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T18:00:00`
-          ),
-          maintenanceType: "Operational",
-          description: "Operasi normal grinding",
-          object: "Ball Mill 1",
-          status: EquipmentStatus.WORKING,
-          createdById: inputterUser.id,
-        },
-        {
-          equipmentId: ballMill1.id,
-          startDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T18:00:00`
-          ),
-          endDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T20:00:00`
-          ),
-          maintenanceType: "Adjustment",
-          description: "Penyesuaian feed rate",
-          object: "Feed System",
-          status: EquipmentStatus.STANDBY,
-          createdById: inputterUser.id,
-        },
-        {
-          equipmentId: ballMill1.id,
-          startDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T20:00:00`
-          ),
-          endDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T22:00:00`
-          ),
-          maintenanceType: "Corrective",
-          description: "Penggantian liner yang aus",
-          object: "Mill Liner",
-          cause: "Keausan normal",
-          effect: "Efisiensi grinding menurun",
-          status: EquipmentStatus.BREAKDOWN,
-          createdById: inputterUser.id,
-        },
-      ],
-    },
-    {
-      reportDate: yesterday,
-      equipmentId: lhd003.id,
-      departmentId: mmtcDept.id,
-      createdById: inputterUser.id,
-      totalWorking: 16,
-      totalStandby: 4,
-      totalBreakdown: 4,
-      shiftType: "Shift 2",
-      isComplete: true,
-      notes: "Ada trouble pada sistem hidraulik",
-      activities: [
-        {
-          equipmentId: lhd003.id,
-          startDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T14:00:00`
-          ),
-          endDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T18:00:00`
-          ),
-          maintenanceType: "Operational",
-          description: "Loading dan hauling normal",
-          object: "LHD 08LH003",
-          status: EquipmentStatus.WORKING,
-          createdById: inputterUser.id,
-        },
-        {
-          equipmentId: lhd003.id,
-          startDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T18:00:00`
-          ),
-          endDateTime: new Date(
-            `${yesterday.toISOString().split("T")[0]}T22:00:00`
-          ),
-          maintenanceType: "Corrective",
-          description: "Perbaikan kebocoran hidraulik",
-          object: "Hydraulic System",
-          cause: "Seal rusak",
-          effect: "Performa bucket menurun",
-          status: EquipmentStatus.BREAKDOWN,
-          createdById: inputterUser.id,
-        },
-      ],
-    },
-  ];
+  // Helper function to create safe datetime strings
+  const createSafeDateTime = (date: Date, hour: number): Date => {
+    const safeHour = Math.min(23, Math.max(0, hour));
+    return new Date(`${date.toISOString().split("T")[0]}T${String(safeHour).padStart(2, '0')}:00:00`);
+  };
+
+  // Helper function to get equipment department
+  const getEquipmentDepartment = async (equipmentId: number) => {
+    const equipmentDept = await prisma.equipmentDepartment.findFirst({
+      where: { equipmentId, isActive: true },
+      include: { department: true }
+    });
+    return equipmentDept?.department || pmtcDept; // Default to PMTC if not found
+  };
+
+  // Helper function to generate operational patterns based on equipment type
+  const getOperationalPattern = (equipmentCode: string) => {
+    if (equipmentCode.includes('Ball Mill')) {
+      return { baseWorking: 18, variability: 4, breakdownChance: 0.2, operatesWeekend: true, description: "Grinding operation" };
+    } else if (equipmentCode.includes('Crushing')) {
+      return { baseWorking: 20, variability: 3, breakdownChance: 0.15, operatesWeekend: true, description: "Crushing operation" };
+    } else if (equipmentCode.includes('Backfill')) {
+      return { baseWorking: 14, variability: 6, breakdownChance: 0.25, operatesWeekend: false, description: "Backfill operation" };
+    } else if (equipmentCode.includes('LH')) { // LHD
+      return { baseWorking: 16, variability: 6, breakdownChance: 0.3, operatesWeekend: true, description: "Loading and hauling operations" };
+    } else if (equipmentCode.includes('DR')) { // Jumbo Drill
+      return { baseWorking: 12, variability: 4, breakdownChance: 0.25, operatesWeekend: false, description: "Development drilling operations" };
+    } else if (equipmentCode.includes('MT')) { // Mine Truck
+      return { baseWorking: 16, variability: 4, breakdownChance: 0.3, operatesWeekend: true, description: "Mine transport operations" };
+    } else if (equipmentCode.includes('SC')) { // Shortcrete
+      return { baseWorking: 8, variability: 4, breakdownChance: 0.35, operatesWeekend: false, description: "Shortcrete operations" };
+    } else if (equipmentCode.includes('MIX')) { // Mixer Truck
+      return { baseWorking: 10, variability: 6, breakdownChance: 0.4, operatesWeekend: false, description: "Concrete mixing operations" };
+    } else if (equipmentCode.includes('TL')) { // Trolley Locomotive
+      return { baseWorking: 14, variability: 4, breakdownChance: 0.25, operatesWeekend: true, description: "Underground transport operations" };
+    }
+    return { baseWorking: 16, variability: 4, breakdownChance: 0.25, operatesWeekend: true, description: "General operations" }; // Default
+  };
+
+  // Generate detailed reports for last 30 days for ALL equipment (untuk data monthly yang lebih baik)
+  console.log(`Generating operational reports for ${allActiveEquipment.length} equipment over 30 days...`);
+  
+  for (let dayOffset = 1; dayOffset <= 30; dayOffset++) {
+    const reportDate = new Date(today);
+    reportDate.setDate(reportDate.getDate() - dayOffset);
+    const isWeekend = reportDate.getDay() === 0 || reportDate.getDay() === 6;
+    
+    // Generate for each equipment (but not all every day to create realistic variety)
+    for (const eq of allActiveEquipment) {
+      const pattern = getOperationalPattern(eq.code);
+      
+      // Skip if equipment doesn't operate on weekends and it's weekend
+      if (isWeekend && !pattern.operatesWeekend && Math.random() > 0.2) {
+        continue;
+      }
+
+      // Skip some equipment some days to create realistic operational patterns
+      if (Math.random() > 0.85) {
+        continue;
+      }
+
+      // Get department for this equipment
+      const equipmentDept = await getEquipmentDepartment(eq.id);
+
+      const workingHours = Math.max(4, pattern.baseWorking + Math.floor(Math.random() * pattern.variability) - Math.floor(pattern.variability/2));
+      const breakdownHours = Math.random() < pattern.breakdownChance ? Math.floor(Math.random() * 3) : 0;
+      const standbyHours = Math.max(0, 24 - workingHours - breakdownHours);
+
+      const notes = breakdownHours > 1 ? 
+        `Maintenance required - ${eq.name}` : 
+        `Normal operation - ${eq.name}`;
+
+      operationalReportsData.push({
+        reportDate: reportDate,
+        equipmentId: eq.id,
+        departmentId: equipmentDept.id,
+        createdById: [inputterUser.id, plannerPmtc.id, plannerMmtc.id][Math.floor(Math.random() * 3)],
+        totalWorking: workingHours,
+        totalStandby: standbyHours,
+        totalBreakdown: breakdownHours,
+        shiftType: ["Shift 1", "Shift 2", "Shift 3"][Math.floor(Math.random() * 3)],
+        isComplete: true,
+        notes: notes,
+        activities: [
+          {
+            equipmentId: eq.id,
+            startDateTime: createSafeDateTime(reportDate, 6),
+            endDateTime: createSafeDateTime(reportDate, 18),
+            duration: workingHours,
+            maintenanceType: "Operational",
+            description: `${pattern.description} - ${eq.name}`,
+            object: eq.name,
+            status: EquipmentStatus.WORKING,
+            createdById: inputterUser.id,
+          },
+        ],
+      });
+    }
+  }
 
   let reportsCreated = 0;
   for (const reportData of operationalReportsData) {

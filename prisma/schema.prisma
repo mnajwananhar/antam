@@ -47,6 +47,12 @@ enum ApprovalStatus {
   REJECTED
 }
 
+enum CriticalIssueStatus {
+  INVESTIGASI
+  PROSES
+  SELESAI
+}
+
 // Core Tables
 model Department {
   id          Int           @id @default(autoincrement())
@@ -372,7 +378,7 @@ model CriticalIssue {
   id            Int        @id @default(autoincrement())
   issueName     String     @db.VarChar(255)
   departmentId  Int
-  status        EquipmentStatus
+  status        CriticalIssueStatus @default(INVESTIGASI)
   description   String     @db.Text
   createdById   Int
   createdAt     DateTime   @default(now())

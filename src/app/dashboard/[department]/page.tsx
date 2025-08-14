@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Construction } from "lucide-react";
 import { DEPARTMENTS } from "@/lib/constants";
 import { MtcEngDashboard } from "@/components/dashboard/mtceng/mtc-eng-dashboard";
+import { OperationalDashboard } from "@/components/dashboard";
 
 export default function DepartmentDetailPage(): React.JSX.Element {
   const params = useParams();
@@ -53,7 +54,22 @@ export default function DepartmentDetailPage(): React.JSX.Element {
     );
   }
 
-  // Default coming soon for other departments
+  // Show operational dashboard for other departments (MMTC, PMTC, ECDC, HETU)
+  const operationalDepartments = ["MMTC", "PMTC", "ECDC", "HETU"];
+  if (operationalDepartments.includes(department.code)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-secondary-900 to-secondary-800">
+        <div className="container mx-auto px-4 py-6">
+          <OperationalDashboard
+            departmentCode={department.code}
+            departmentName={department.name}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Default coming soon for any other departments
   return (
     <div className="space-y-6">
       {/* Header Section */}
