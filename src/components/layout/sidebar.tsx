@@ -16,6 +16,7 @@ import {
   Bell,
   Settings,
   Cog,
+  Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,12 @@ const navigationItems: NavItem[] = [
     icon: Wrench,
     roles: ["ADMIN", "PLANNER", "INPUTTER"],
   },
-
+  {
+    title: "Kelola Data",
+    href: "/manage-data",
+    icon: Edit,
+    roles: ["ADMIN", "PLANNER", "INPUTTER"],
+  },
   {
     title: "Persetujuan",
     href: "/approvals",

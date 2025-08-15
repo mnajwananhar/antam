@@ -90,13 +90,15 @@ export const authConfig: NextAuthConfig = {
             sessionToken,
           };
         } catch (error) {
-          // Re-throw specific error messages, otherwise log and throw generic
+          // Handle authentication errors gracefully
           if (
             error instanceof Error &&
             error.message === "Username atau password salah."
           ) {
+            // Don't log authentication failures to console
             throw error;
           }
+          // Only log actual system errors, not authentication failures
           console.error("Auth error:", error);
           throw new Error("Terjadi kesalahan saat login.");
         }
@@ -163,6 +165,25 @@ export const authConfig: NextAuthConfig = {
     },
   },
   debug: process.env.NODE_ENV === "development",
+  logger: {
+    error: (error: Error) => {
+      // Only log actual system errors, suppress auth failures
+      if (!error.message.includes("Username atau password salah") && 
+          !error.message.includes("CallbackRouteError")) {
+        console.error("NextAuth Error:", error.message);
+      }
+    },
+    warn: (code: string) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`NextAuth Warning: ${code}`);
+      }
+    },
+    debug: (code: string, metadata?: unknown) => {
+      if (process.env.NODE_ENV === "development") {
+        console.debug(`NextAuth Debug [${code}]:`, metadata);
+      }
+    },
+  },
 };
 
 export default authConfig;

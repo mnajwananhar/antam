@@ -8,6 +8,18 @@ import {
   calculateUpdateStatus,
 } from "@/lib/utils/kta-tta";
 
+// Helper function to find PIC mapping ID
+async function findPicMappingId(picDepartemen: string): Promise<number | null> {
+  const mapping = await prisma.departmentPicMapping.findFirst({
+    where: { 
+      picValue: picDepartemen,
+      isActive: true 
+    },
+    select: { id: true }
+  });
+  return mapping?.id || null;
+}
+
 interface ExcelRowData {
   noRegister?: string;
   nppPelapor?: string;
@@ -154,6 +166,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Find PIC mapping ID
+        let picMappingId = null;
+        if (row.picDepartemen) {
+          picMappingId = await findPicMappingId(row.picDepartemen);
+        }
+
         // Create record - use upsert to handle duplicates
         const result = await prisma.ktaKpiData.upsert({
           where: { noRegister },
@@ -170,6 +188,7 @@ export async function POST(request: NextRequest) {
             kategori: row.kategori,
             sumberTemuan: row.sumberTemuan || "Inspeksi",
             picDepartemen: row.picDepartemen,
+            picMappingId: picMappingId,
             kriteriaKtaTta: cleanedKriteriaKtaTta,
             perusahaanPengelola: row.perusahaanPengelola,
             tindakLanjutLangsung: row.tindakLanjutLangsung,
@@ -192,6 +211,7 @@ export async function POST(request: NextRequest) {
             kategori: row.kategori,
             sumberTemuan: row.sumberTemuan || "Inspeksi", // Default value
             picDepartemen: row.picDepartemen,
+            picMappingId: picMappingId,
             kriteriaKtaTta: cleanedKriteriaKtaTta, // Use cleaned kriteria
             perusahaanPengelola: row.perusahaanPengelola,
             tindakLanjutLangsung: row.tindakLanjutLangsung,

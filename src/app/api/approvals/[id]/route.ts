@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { ApprovalStatus } from "@prisma/client";
 
 const updateApprovalSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED"]),
@@ -61,14 +60,24 @@ export async function PUT(
       );
     }
 
-    // Update approval request
-    const updatedApproval = await prisma.approvalRequest.update({
+    // Process approval request using ApprovalManager
+    const { ApprovalManager } = await import("@/lib/approval-manager");
+    const processResult = await ApprovalManager.processApprovalRequest(
+      approvalId,
+      parseInt(session.user.id),
+      validatedData.status
+    );
+
+    if (!processResult.success) {
+      return NextResponse.json(
+        { error: processResult.error },
+        { status: 400 }
+      );
+    }
+
+    // Get updated approval with relations
+    const updatedApproval = await prisma.approvalRequest.findUnique({
       where: { id: approvalId },
-      data: {
-        status: validatedData.status as ApprovalStatus,
-        approverId: parseInt(session.user.id),
-        approvedAt: new Date(),
-      },
       include: {
         requester: {
           select: { id: true, username: true, role: true },
@@ -78,28 +87,6 @@ export async function PUT(
         },
       },
     });
-
-    // If approved, apply the changes to actual data
-    if (validatedData.status === "APPROVED") {
-      try {
-        const { ApprovalManager } = await import("@/lib/approval-manager");
-        const applyResult = await ApprovalManager.applyApprovedChanges({
-          tableName: updatedApproval.tableName,
-          recordId: updatedApproval.recordId || undefined,
-          newData: updatedApproval.newData as Record<string, unknown>,
-          requestType: updatedApproval.requestType,
-        });
-        
-        if (!applyResult.success) {
-          console.error("Failed to apply approved changes:", applyResult.error);
-          // Could revert the approval status or handle differently
-        } else {
-          console.log(`Approval ${approvalId} approved and changes applied successfully`);
-        }
-      } catch (error) {
-        console.error("Error applying approved changes:", error);
-      }
-    }
 
     return NextResponse.json({
       success: true,

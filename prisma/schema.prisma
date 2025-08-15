@@ -70,6 +70,7 @@ model Department {
   maintenanceRoutine MaintenanceRoutine[]
   criticalIssues     CriticalIssue[]
   equipmentDepartments EquipmentDepartment[]
+  picMappings         DepartmentPicMapping[]
 
   @@map("departments")
 }
@@ -232,6 +233,7 @@ model KtaKpiData {
   kategori              String?  @db.VarChar(100)
   sumberTemuan          String?  @db.VarChar(100)
   picDepartemen         String?  @db.VarChar(100) // Store as string: "ECDC", "Mine Electrical", etc.
+  picMappingId          Int?     // Relation to DepartmentPicMapping
   kriteriaKtaTta        String?  @db.VarChar(200)
   perusahaanPengelola   String?  @db.VarChar(100)
   tindakLanjutLangsung  String?  @db.Text
@@ -244,7 +246,8 @@ model KtaKpiData {
   updatedAt             DateTime @updatedAt
 
   // Relations
-  createdBy             User       @relation(fields: [createdById], references: [id])
+  createdBy             User                    @relation(fields: [createdById], references: [id])
+  picMapping            DepartmentPicMapping?   @relation(fields: [picMappingId], references: [id])
 
   @@index([tanggal])
   @@index([picDepartemen])
@@ -256,10 +259,15 @@ model KtaKpiData {
 model DepartmentPicMapping {
   id             Int      @id @default(autoincrement())
   departmentCode String   @db.VarChar(10)
+  departmentId   Int?     // Relation to Department
   picValue       String   @db.VarChar(100)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  // Relations
+  department     Department?   @relation(fields: [departmentId], references: [id])
+  ktaKpiData     KtaKpiData[]
 
   @@unique([departmentCode, picValue])
   @@index([departmentCode])

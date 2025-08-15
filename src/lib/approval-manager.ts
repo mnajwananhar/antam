@@ -84,6 +84,77 @@ export class ApprovalManager {
     }
   }
 
+  /**
+   * Approve or reject an approval request
+   */
+  static async processApprovalRequest(
+    approvalId: number,
+    approverId: number,
+    status: "APPROVED" | "REJECTED"
+  ) {
+    try {
+      // Get the approval request
+      const approvalRequest = await prisma.approvalRequest.findUnique({
+        where: { id: approvalId },
+        include: {
+          requester: {
+            select: {
+              id: true,
+              username: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!approvalRequest) {
+        return { success: false, error: "Approval request not found" };
+      }
+
+      if (approvalRequest.status !== ApprovalStatus.PENDING) {
+        return { success: false, error: "Approval request has already been processed" };
+      }
+
+      // Update approval status
+      const updatedRequest = await prisma.approvalRequest.update({
+        where: { id: approvalId },
+        data: {
+          status: status as ApprovalStatus,
+          approverId,
+          approvedAt: status === "APPROVED" ? new Date() : null,
+        },
+      });
+
+      // If approved, apply the changes
+      if (status === "APPROVED") {
+        const applyResult = await ApprovalManager.applyApprovedChanges({
+          tableName: approvalRequest.tableName,
+          recordId: approvalRequest.recordId || undefined,
+          newData: approvalRequest.newData as Record<string, unknown>,
+          requestType: approvalRequest.requestType,
+        });
+
+        if (!applyResult.success) {
+          // Rollback approval status if application failed
+          await prisma.approvalRequest.update({
+            where: { id: approvalId },
+            data: {
+              status: ApprovalStatus.PENDING,
+              approverId: null,
+              approvedAt: null,
+            },
+          });
+          return { success: false, error: applyResult.error };
+        }
+      }
+
+      return { success: true, data: updatedRequest };
+    } catch (error) {
+      console.error("Error processing approval request:", error);
+      return { success: false, error: "Failed to process approval request" };
+    }
+  }
+
 
   /**
    * Handle data update
@@ -139,6 +210,12 @@ export class ApprovalManager {
           result = await prisma.energyConsumption.update({
             where: { id: recordId },
             data: data as Prisma.EnergyConsumptionUpdateInput,
+          });
+          break;
+        case "energy_realizations":
+          result = await prisma.energyRealization.update({
+            where: { id: recordId },
+            data: data as Prisma.EnergyRealizationUpdateInput,
           });
           break;
         default:
@@ -197,6 +274,11 @@ export class ApprovalManager {
           break;
         case "energy_consumption":
           result = await prisma.energyConsumption.delete({
+            where: { id: recordId },
+          });
+          break;
+        case "energy_realizations":
+          result = await prisma.energyRealization.delete({
             where: { id: recordId },
           });
           break;
