@@ -130,11 +130,11 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     value: string
   ) => {
     // Allow only digits, convert to number with max limit 1000
-    const numericValue = value.replace(/\D/g, '');
+    const numericValue = value.replace(/\D/g, "");
     const numValue = parseInt(numericValue) || 0;
-    setNewIncident((prev) => ({ 
-      ...prev, 
-      [field]: Math.max(0, Math.min(1000, numValue))
+    setNewIncident((prev) => ({
+      ...prev,
+      [field]: Math.max(0, Math.min(1000, numValue)),
     }));
   };
 
@@ -212,7 +212,7 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
                   type="text"
                   value={newIncident.year.toString()}
                   onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, '');
+                    const numericValue = e.target.value.replace(/\D/g, "");
                     const numValue = parseInt(numericValue) || currentYear;
                     setNewIncident((prev) => ({
                       ...prev,
@@ -323,7 +323,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
           </form>
         </CardContent>
       </Card>
-
     </div>
   );
 }

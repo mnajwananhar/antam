@@ -82,27 +82,24 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     emissionRealization: 0,
   });
 
-  const handleNumberChange = (
-    field: keyof typeof newData,
-    value: string
-  ) => {
+  const handleNumberChange = (field: keyof typeof newData, value: string) => {
     // Allow digits and decimal point for numeric values
-    let cleanValue = value.replace(/[^\d.]/g, '');
-    
+    let cleanValue = value.replace(/[^\d.]/g, "");
+
     // Prevent multiple decimal points
-    const parts = cleanValue.split('.');
+    const parts = cleanValue.split(".");
     if (parts.length > 2) {
-      cleanValue = parts[0] + '.' + parts.slice(1).join('');
+      cleanValue = parts[0] + "." + parts.slice(1).join("");
     }
-    
+
     // Convert to number for validation, but keep as string for input
     const numValue = parseFloat(cleanValue) || 0;
     const clampedValue = Math.max(0, Math.min(999999, numValue));
-    
+
     // Update state with the clamped numeric value
-    setNewData((prev) => ({ 
-      ...prev, 
-      [field]: clampedValue
+    setNewData((prev) => ({
+      ...prev,
+      [field]: clampedValue,
     }));
   };
 
@@ -180,7 +177,7 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
       ikesRealization: 0,
       emissionRealization: 0,
     });
-    
+
     setIsSubmitting(false);
   };
 
@@ -198,7 +195,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     "November",
     "Desember",
   ];
-
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -275,7 +271,7 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                   type="text"
                   value={newData.year.toString()}
                   onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, '');
+                    const numericValue = e.target.value.replace(/\D/g, "");
                     const numValue = parseInt(numericValue) || currentYear;
                     setNewData((prev) => ({
                       ...prev,
@@ -298,8 +294,12 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                   type="text"
                   value={
                     dataType === "target"
-                      ? newData.ikesTarget === 0 ? "" : newData.ikesTarget.toString()
-                      : newData.ikesRealization === 0 ? "" : newData.ikesRealization.toString()
+                      ? newData.ikesTarget === 0
+                        ? ""
+                        : newData.ikesTarget.toString()
+                      : newData.ikesRealization === 0
+                      ? ""
+                      : newData.ikesRealization.toString()
                   }
                   onChange={(e) => {
                     handleNumberChange(
@@ -322,12 +322,18 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                   type="text"
                   value={
                     dataType === "target"
-                      ? newData.emissionTarget === 0 ? "" : newData.emissionTarget.toString()
-                      : newData.emissionRealization === 0 ? "" : newData.emissionRealization.toString()
+                      ? newData.emissionTarget === 0
+                        ? ""
+                        : newData.emissionTarget.toString()
+                      : newData.emissionRealization === 0
+                      ? ""
+                      : newData.emissionRealization.toString()
                   }
                   onChange={(e) => {
                     handleNumberChange(
-                      dataType === "target" ? "emissionTarget" : "emissionRealization",
+                      dataType === "target"
+                        ? "emissionTarget"
+                        : "emissionRealization",
                       e.target.value
                     );
                   }}
@@ -356,7 +362,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
           </form>
         </CardContent>
       </Card>
-
     </div>
   );
 }

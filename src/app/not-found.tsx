@@ -5,11 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  ArrowLeft, 
-  FileX,
-  Shield
-} from "lucide-react";
+import { ArrowLeft, FileX, Shield } from "lucide-react";
 
 export default function NotFoundPage(): React.JSX.Element {
   const { data: session, status } = useSession();
@@ -48,8 +44,12 @@ export default function NotFoundPage(): React.JSX.Element {
               <Shield className="h-8 w-8 text-black font-bold" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-yellow-500">ANTAM SIMBAPRO</h1>
-              <p className="text-sm text-gray-400">Sistem Informasi Maintenance & Engineering Bureau</p>
+              <h1 className="text-2xl font-bold text-yellow-500">
+                ANTAM SIMBAPRO
+              </h1>
+              <p className="text-sm text-gray-400">
+                Sistem Informasi Maintenance & Engineering Bureau
+              </p>
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function NotFoundPage(): React.JSX.Element {
 
             {/* Single Back Button */}
             <div className="flex justify-center pt-4">
-              <Button 
+              <Button
                 onClick={handleGoBack}
                 className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-8 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
               >

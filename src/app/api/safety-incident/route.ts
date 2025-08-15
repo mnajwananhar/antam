@@ -17,28 +17,29 @@ interface SafetyIncidentResponse {
   message?: string;
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse<SafetyIncidentResponse | { error: string }>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<SafetyIncidentResponse | { error: string }>> {
   try {
     const session = await auth();
-    
+
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const year = parseInt(searchParams.get("year") || new Date().getFullYear().toString());
-    
+    const year = parseInt(
+      searchParams.get("year") || new Date().getFullYear().toString()
+    );
+
     // Get safety incident data for the specified year
     const safetyData = await prisma.safetyIncident.findMany({
       where: {
-        year: year
+        year: year,
       },
       orderBy: {
-        month: 'asc'
-      }
+        month: "asc",
+      },
     });
 
     // If no data exists, create default data for the year
@@ -54,23 +55,22 @@ export async function GET(request: NextRequest): Promise<NextResponse<SafetyInci
             kecKecil: 0,
             kecRingan: 0,
             kecBerat: 0,
-            fatality: 0
-          }
+            fatality: 0,
+          },
         });
         defaultData.push(incident);
       }
-      
+
       return NextResponse.json({
         success: true,
-        data: defaultData
+        data: defaultData,
       });
     }
 
     return NextResponse.json({
       success: true,
-      data: safetyData
+      data: safetyData,
     });
-    
   } catch (error) {
     console.error("Error fetching safety incident data:", error);
     return NextResponse.json(
@@ -80,19 +80,38 @@ export async function GET(request: NextRequest): Promise<NextResponse<SafetyInci
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<SafetyIncidentResponse | { error: string }>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<SafetyIncidentResponse | { error: string }>> {
   try {
     const session = await auth();
-    
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "PLANNER" && session.user.role !== "INPUTTER")) {
+
+    if (
+      !session ||
+      (session.user.role !== "ADMIN" &&
+        session.user.role !== "PLANNER" &&
+        session.user.role !== "INPUTTER")
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized - Only ADMIN, PLANNER, and INPUTTER can create safety incidents" },
+        {
+          error:
+            "Unauthorized - Only ADMIN, PLANNER, and INPUTTER can create safety incidents",
+        },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-    const { month, year, nearmiss, kecAlat, kecKecil, kecRingan, kecBerat, fatality } = body;
+    const {
+      month,
+      year,
+      nearmiss,
+      kecAlat,
+      kecKecil,
+      kecRingan,
+      kecBerat,
+      fatality,
+    } = body;
 
     // Validate required fields
     if (!month || !year) {
@@ -107,13 +126,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<SafetyInc
       where: {
         month_year: {
           month: parseInt(month),
-          year: parseInt(year)
-        }
-      }
+          year: parseInt(year),
+        },
+      },
     });
 
     let safetyIncident;
-    
+
     if (existingRecord) {
       // Update existing record
       safetyIncident = await prisma.safetyIncident.update({
@@ -124,8 +143,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<SafetyInc
           kecKecil: parseInt(kecKecil) || 0,
           kecRingan: parseInt(kecRingan) || 0,
           kecBerat: parseInt(kecBerat) || 0,
-          fatality: parseInt(fatality) || 0
-        }
+          fatality: parseInt(fatality) || 0,
+        },
       });
     } else {
       // Create new record
@@ -138,17 +157,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<SafetyInc
           kecKecil: parseInt(kecKecil) || 0,
           kecRingan: parseInt(kecRingan) || 0,
           kecBerat: parseInt(kecBerat) || 0,
-          fatality: parseInt(fatality) || 0
-        }
+          fatality: parseInt(fatality) || 0,
+        },
       });
     }
 
     return NextResponse.json({
       success: true,
       data: [safetyIncident],
-      message: "Safety incident data updated successfully"
+      message: "Safety incident data updated successfully",
     });
-    
   } catch (error) {
     console.error("Error updating safety incident data:", error);
     return NextResponse.json(

@@ -54,9 +54,7 @@ interface EnergyConsumption {
 export function EnergyConsumptionTab({
   department,
 }: EnergyConsumptionTabProps) {
-  const [, setConsumptionData] = useState<EnergyConsumption[]>(
-    []
-  );
+  const [, setConsumptionData] = useState<EnergyConsumption[]>([]);
   const [, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,28 +78,28 @@ export function EnergyConsumptionTab({
     value: string
   ) => {
     // Handle year field (integer only)
-    if (field === 'year') {
-      const numericValue = value.replace(/\D/g, '');
+    if (field === "year") {
+      const numericValue = value.replace(/\D/g, "");
       const numValue = parseInt(numericValue) || currentYear;
       const clampedValue = Math.max(2020, Math.min(currentYear + 5, numValue));
       setNewConsumption((prev) => ({ ...prev, [field]: clampedValue }));
-    } 
-    // Handle month field (integer only) 
-    else if (field === 'month') {
-      const numericValue = value.replace(/\D/g, '');
+    }
+    // Handle month field (integer only)
+    else if (field === "month") {
+      const numericValue = value.replace(/\D/g, "");
       const numValue = parseInt(numericValue) || currentMonth;
       setNewConsumption((prev) => ({ ...prev, [field]: numValue }));
-    } 
+    }
     // Handle consumption fields (allow decimal)
     else {
-      let cleanValue = value.replace(/[^\d.]/g, '');
-      
+      let cleanValue = value.replace(/[^\d.]/g, "");
+
       // Prevent multiple decimal points
-      const parts = cleanValue.split('.');
+      const parts = cleanValue.split(".");
       if (parts.length > 2) {
-        cleanValue = parts[0] + '.' + parts.slice(1).join('');
+        cleanValue = parts[0] + "." + parts.slice(1).join("");
       }
-      
+
       // For consumption fields, store the clean string value (preserve decimals)
       setNewConsumption((prev) => ({ ...prev, [field]: cleanValue }));
     }
@@ -169,7 +167,7 @@ export function EnergyConsumptionTab({
       pabrikConsumption: "",
       supportingConsumption: "",
     });
-    
+
     setIsSubmitting(false);
   };
 
@@ -187,7 +185,6 @@ export function EnergyConsumptionTab({
     "November",
     "Desember",
   ];
-
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -247,9 +244,7 @@ export function EnergyConsumptionTab({
                 <Input
                   type="text"
                   value={newConsumption.year.toString()}
-                  onChange={(e) =>
-                    handleNumberChange("year", e.target.value)
-                  }
+                  onChange={(e) => handleNumberChange("year", e.target.value)}
                   placeholder="2025"
                   disabled={isSubmitting}
                 />
@@ -324,7 +319,6 @@ export function EnergyConsumptionTab({
           </form>
         </CardContent>
       </Card>
-
     </div>
   );
 }
