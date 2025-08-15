@@ -22,12 +22,10 @@ import {
 import {
   Plus,
   Battery,
-  BarChart3,
   Factory,
   Pickaxe,
   Building,
   Loader2,
-  AlertTriangle,
 } from "lucide-react";
 
 interface EnergyConsumptionTabProps {
@@ -56,10 +54,10 @@ interface EnergyConsumption {
 export function EnergyConsumptionTab({
   department,
 }: EnergyConsumptionTabProps) {
-  const [consumptionData, setConsumptionData] = useState<EnergyConsumption[]>(
+  const [, setConsumptionData] = useState<EnergyConsumption[]>(
     []
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ CLEAN NOTIFICATION SYSTEM
@@ -76,6 +74,38 @@ export function EnergyConsumptionTab({
     pabrikConsumption: "",
     supportingConsumption: "",
   });
+
+  const handleNumberChange = (
+    field: keyof typeof newConsumption,
+    value: string
+  ) => {
+    // Handle year field (integer only)
+    if (field === 'year') {
+      const numericValue = value.replace(/\D/g, '');
+      const numValue = parseInt(numericValue) || currentYear;
+      const clampedValue = Math.max(2020, Math.min(currentYear + 5, numValue));
+      setNewConsumption((prev) => ({ ...prev, [field]: clampedValue }));
+    } 
+    // Handle month field (integer only) 
+    else if (field === 'month') {
+      const numericValue = value.replace(/\D/g, '');
+      const numValue = parseInt(numericValue) || currentMonth;
+      setNewConsumption((prev) => ({ ...prev, [field]: numValue }));
+    } 
+    // Handle consumption fields (allow decimal)
+    else {
+      let cleanValue = value.replace(/[^\d.]/g, '');
+      
+      // Prevent multiple decimal points
+      const parts = cleanValue.split('.');
+      if (parts.length > 2) {
+        cleanValue = parts[0] + '.' + parts.slice(1).join('');
+      }
+      
+      // For consumption fields, store the clean string value (preserve decimals)
+      setNewConsumption((prev) => ({ ...prev, [field]: cleanValue }));
+    }
+  };
 
   const loadEnergyConsumption = useCallback(async () => {
     setIsLoading(true);
@@ -139,18 +169,8 @@ export function EnergyConsumptionTab({
       pabrikConsumption: "",
       supportingConsumption: "",
     });
-
-    // Reload data
-    loadEnergyConsumption();
-    // Notify other tabs about the data change
+    
     setIsSubmitting(false);
-  };
-
-  const handleNumberChange = (
-    field: keyof typeof newConsumption,
-    value: string
-  ) => {
-    setNewConsumption((prev) => ({ ...prev, [field]: value }));
   };
 
   const monthNames = [
@@ -168,14 +188,6 @@ export function EnergyConsumptionTab({
     "Desember",
   ];
 
-  const getTotalConsumption = (data: EnergyConsumption) => {
-    return (
-      data.totalConsumption ||
-      data.tambangConsumption +
-        data.pabrikConsumption +
-        data.supportingConsumption
-    );
-  };
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -233,16 +245,12 @@ export function EnergyConsumptionTab({
               <div>
                 <label className="text-sm font-medium">Tahun</label>
                 <Input
-                  type="number"
-                  value={newConsumption.year}
+                  type="text"
+                  value={newConsumption.year.toString()}
                   onChange={(e) =>
-                    setNewConsumption((prev) => ({
-                      ...prev,
-                      year: parseInt(e.target.value) || currentYear,
-                    }))
+                    handleNumberChange("year", e.target.value)
                   }
-                  min={2020}
-                  max={currentYear + 1}
+                  placeholder="2025"
                   disabled={isSubmitting}
                 />
               </div>
@@ -255,14 +263,12 @@ export function EnergyConsumptionTab({
                   Tambang Consumption (MWh)
                 </label>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   value={newConsumption.tambangConsumption}
                   onChange={(e) =>
                     handleNumberChange("tambangConsumption", e.target.value)
                   }
-                  min={0}
-                  placeholder="Konsumsi Tambang"
+                  placeholder="0.00"
                   disabled={isSubmitting}
                 />
               </div>
@@ -273,14 +279,12 @@ export function EnergyConsumptionTab({
                   Pabrik Consumption (MWh)
                 </label>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   value={newConsumption.pabrikConsumption}
                   onChange={(e) =>
                     handleNumberChange("pabrikConsumption", e.target.value)
                   }
-                  min={0}
-                  placeholder="Konsumsi Pabrik"
+                  placeholder="0.00"
                   disabled={isSubmitting}
                 />
               </div>
@@ -291,14 +295,12 @@ export function EnergyConsumptionTab({
                   Supporting Consumption (MWh)
                 </label>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   value={newConsumption.supportingConsumption}
                   onChange={(e) =>
                     handleNumberChange("supportingConsumption", e.target.value)
                   }
-                  min={0}
-                  placeholder="Konsumsi Supporting"
+                  placeholder="0.00"
                   disabled={isSubmitting}
                 />
               </div>
@@ -323,92 +325,6 @@ export function EnergyConsumptionTab({
         </CardContent>
       </Card>
 
-      {/* Consumption Data */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Data Energy Consumption
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Memuat data...</p>
-            </div>
-          ) : consumptionData.length > 0 ? (
-            <div className="space-y-4">
-              {consumptionData.map((data) => (
-                <div
-                  key={`${data.year}-${data.month}`}
-                  className="border rounded-lg p-4"
-                >
-                  <h4 className="font-medium mb-3">
-                    {monthNames[data.month - 1]} {data.year}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Tambang</span>
-                      <span className="font-medium text-amber-600">
-                        {data.tambangConsumption.toFixed(2)} MWh
-                      </span>
-                      {data.breakdown && (
-                        <span className="text-xs text-muted-foreground">
-                          ({data.breakdown.tambangPercentage.toFixed(1)}%)
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Pabrik</span>
-                      <span className="font-medium text-green-600">
-                        {data.pabrikConsumption.toFixed(2)} MWh
-                      </span>
-                      {data.breakdown && (
-                        <span className="text-xs text-muted-foreground">
-                          ({data.breakdown.pabrikPercentage.toFixed(1)}%)
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Supporting</span>
-                      <span className="font-medium text-purple-600">
-                        {data.supportingConsumption.toFixed(2)} MWh
-                      </span>
-                      {data.breakdown && (
-                        <span className="text-xs text-muted-foreground">
-                          ({data.breakdown.supportingPercentage.toFixed(1)}%)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="pt-3 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">
-                        Total Consumption:
-                      </span>
-                      <span className="text-lg font-bold text-primary">
-                        {getTotalConsumption(data).toFixed(2)} MWh
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    Update:{" "}
-                    {new Date(data.updatedAt).toLocaleDateString("id-ID")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Belum ada data energy consumption yang tercatat untuk tahun ini.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

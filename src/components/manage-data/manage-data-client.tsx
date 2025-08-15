@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { ManageDataTable } from "./manage-data-table";
 import { ManageDataFilters } from "./manage-data-filters";
@@ -19,7 +18,11 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle2,
+  ArrowLeft,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useToastContext, useApiToast } from "@/components/providers/toast-provider";
 
 interface ManageDataItem {
   id: number;
@@ -50,6 +53,9 @@ interface Pagination {
 
 export function ManageDataClient(): React.JSX.Element {
   const { data: session } = useSession();
+  const { showError } = useToastContext();
+  const { executeDelete, executeWithToast } = useApiToast();
+  
   const [items, setItems] = useState<ManageDataItem[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
     types: [],
@@ -62,10 +68,6 @@ export function ManageDataClient(): React.JSX.Element {
     totalPages: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
 
   // Filter states
   const [selectedType, setSelectedType] = useState<string>("");
@@ -98,26 +100,18 @@ export function ManageDataClient(): React.JSX.Element {
         setItems(result.data || []);
         setPagination(result.pagination);
         setFilters(result.filters);
-        
-        setMessage(null);
       } else {
         const error = await response.json();
         console.error("Failed to load manage data:", error);
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal memuat data",
-        });
+        showError(error.error || "Gagal memuat data");
       }
     } catch (error) {
       console.error("Error loading manage data:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat memuat data",
-      });
+      showError("Error saat memuat data");
     } finally {
       setIsLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, selectedType, selectedDepartment, searchQuery, startDate, endDate]);
+  }, [pagination.page, pagination.pageSize, selectedType, selectedDepartment, searchQuery, startDate, endDate, showError]);
 
   useEffect(() => {
     loadManageData();
@@ -133,69 +127,40 @@ export function ManageDataClient(): React.JSX.Element {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/manage-data/${item.type}/${item.id}`, {
+    const result = await executeDelete(
+      () => fetch(`/api/manage-data/${item.type}/${item.id}`, {
         method: "DELETE",
-      });
+      }),
+      item.title
+    );
 
-      if (response.ok) {
-        const result = await response.json();
-        setMessage({
-          type: "success",
-          text: result.message,
-        });
-        loadManageData(); // Reload data
-      } else {
-        const error = await response.json();
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal menghapus data",
-        });
-      }
-    } catch (error) {
-      console.error("Error deleting data:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat menghapus data",
-      });
+    if (result.success) {
+      loadManageData(); // Reload data
     }
   };
 
   const handleSaveEdit = async (data: Record<string, unknown>): Promise<void> => {
     if (!editingItem) return;
 
-    try {
-      const response = await fetch(`/api/manage-data/${editingItem.type}/${editingItem.id}`, {
+    await executeWithToast(
+      () => fetch(`/api/manage-data/${editingItem.type}/${editingItem.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setMessage({
-          type: "success",
-          text: result.message,
-        });
-        setIsEditDialogOpen(false);
-        setEditingItem(null);
-        loadManageData(); // Reload data
-      } else {
-        const error = await response.json();
-        setMessage({
-          type: "error",
-          text: error.error || "Gagal menyimpan perubahan",
-        });
+      }),
+      undefined, // Let API response determine success message
+      "Gagal menyimpan perubahan",
+      {
+        showLoading: true,
+        onSuccess: () => {
+          setIsEditDialogOpen(false);
+          setEditingItem(null);
+          loadManageData(); // Reload data
+        }
       }
-    } catch (error) {
-      console.error("Error saving edit:", error);
-      setMessage({
-        type: "error",
-        text: "Error saat menyimpan perubahan",
-      });
-    }
+    );
   };
 
   const handlePageChange = (page: number): void => {
@@ -258,16 +223,15 @@ export function ManageDataClient(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
-      {message && (
-        <Alert variant={message.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Link href="/input">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke Input
+            </Button>
+          </Link>
           <Database className="h-6 w-6 flex-shrink-0" />
           <div>
             <h1 className="text-xl sm:text-2xl font-bold truncate">Kelola Data</h1>

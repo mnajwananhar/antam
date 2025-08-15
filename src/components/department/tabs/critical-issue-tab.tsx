@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
   useToastContext,
   useApiToast,
@@ -24,10 +23,7 @@ import { useStandardFeedback } from "@/lib/hooks/use-standard-feedback";
 import {
   Plus,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
   Loader2,
-  Trash2,
 } from "lucide-react";
 import { departmentUtils } from "@/lib/utils";
 import { CriticalIssueStatus } from "@prisma/client";
@@ -64,16 +60,15 @@ interface CriticalIssue {
 
 export function CriticalIssueTab({
   department,
-  session,
 }: CriticalIssueTabProps) {
-  const [issues, setIssues] = useState<CriticalIssue[]>([]);
+  const [, setIssues] = useState<CriticalIssue[]>([]);
   const [accessibleDepartments, setAccessibleDepartments] = useState<
     AccessibleDepartment[]
   >([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number>(
     department.id
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -81,7 +76,7 @@ export function CriticalIssueTab({
   // Menggunakan toast system yang robust
   const { showError } = useToastContext();
   const { executeWithToast } = useApiToast();
-  const { crud, ConfirmationComponent } = useStandardFeedback();
+  const { ConfirmationComponent } = useStandardFeedback();
 
   const [newIssue, setNewIssue] = useState({
     issueName: "",
@@ -231,11 +226,6 @@ export function CriticalIssueTab({
             description: "",
           });
           setFormErrors({});
-
-          // Reload data
-          loadCriticalIssues();
-
-          // Notify other tabs about the data change
         },
         onError: (error) => {
           // Handle validation errors
@@ -258,18 +248,6 @@ export function CriticalIssueTab({
     setIsSubmitting(false);
   };
 
-  const handleDelete = async (issueId: number): Promise<void> => {
-    await crud.delete(
-      () =>
-        fetch(`/api/critical-issue/${issueId}`, {
-          method: "DELETE",
-        }),
-      "critical issue",
-      () => {
-        loadCriticalIssues();
-      }
-    );
-  };
 
   const getSelectedDepartmentName = () => {
     const selectedDept = accessibleDepartments.find(
@@ -298,26 +276,6 @@ export function CriticalIssueTab({
     return false;
   };
 
-  const getStatusBadge = (status: CriticalIssueStatus) => {
-    const variants = {
-      [CriticalIssueStatus.SELESAI]: "default",
-      [CriticalIssueStatus.PROSES]: "secondary",
-      [CriticalIssueStatus.INVESTIGASI]: "destructive",
-    } as const;
-
-    const icons = {
-      [CriticalIssueStatus.SELESAI]: <CheckCircle2 className="h-3 w-3" />,
-      [CriticalIssueStatus.PROSES]: <AlertTriangle className="h-3 w-3" />,
-      [CriticalIssueStatus.INVESTIGASI]: <XCircle className="h-3 w-3" />,
-    };
-
-    return (
-      <Badge variant={variants[status]} className="flex items-center gap-1">
-        {icons[status]}
-        {status}
-      </Badge>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -459,76 +417,6 @@ export function CriticalIssueTab({
         </CardContent>
       </Card>
 
-      {/* Issues List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Daftar Critical Issues - {getSelectedDepartmentName()}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Memuat data...</p>
-            </div>
-          ) : issues.length > 0 ? (
-            <div className="space-y-4">
-              {issues.map((issue) => (
-                <div key={issue.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{issue.issueName}</h4>
-                        {getStatusBadge(issue.status)}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {issue.description}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Department: {issue.department.name}</span>
-                        <span>
-                          Dibuat:{" "}
-                          {new Date(issue.createdAt).toLocaleString("id-ID")}
-                        </span>
-                        <span>
-                          Oleh: {issue.createdBy.username} (
-                          {issue.createdBy.role})
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action buttons - only show for ADMIN */}
-                    {session.user.role === "ADMIN" && (
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(issue.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                Belum Ada Critical Issues
-              </h3>
-              <p className="text-muted-foreground">
-                Belum ada critical issue yang dilaporkan untuk{" "}
-                {getSelectedDepartmentName()}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Confirmation Dialog */}
       {ConfirmationComponent}

@@ -231,10 +231,8 @@ export function KtaKpiInputTable({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>
-              Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"} (
-              {data.length})
+              Data {dataType === "KTA_TTA" ? "KTA & TTA" : "KPI Utama"}
             </span>
-            <Badge variant="outline">{data.length} records</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">

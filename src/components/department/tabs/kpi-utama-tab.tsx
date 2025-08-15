@@ -207,19 +207,6 @@ export function KpiUtamaTab({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Alert>
-        <TrendingUp className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Excel Upload Center - MTC&ENG Bureau</strong>
-          <br />
-          Sebagai MTC&ENG Bureau, Anda dapat upload data Excel untuk{" "}
-          <strong>KPI Utama</strong> dan <strong>KTA & TTA</strong> dari semua
-          departemen. Fitur upload Excel telah dipindahkan ke sini dari tab-tab
-          departemen lain.
-        </AlertDescription>
-      </Alert>
-
       {/* Main Tabs */}
       <Tabs
         value={activeTab}
@@ -233,7 +220,7 @@ export function KpiUtamaTab({
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <TableIcon className="h-4 w-4" />
-            Data Tersimpan ({existingData.length})
+            Data Tersimpan
           </TabsTrigger>
         </TabsList>
 
@@ -282,26 +269,12 @@ export function KpiUtamaTab({
 
         {/* Data View */}
         <TabsContent value="data" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Tersimpan ({existingData.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm mb-4">
-                Menampilkan semua data KTA/TTA dan KPI Utama dari semua
-                departemen. MTC&ENG Bureau dapat melihat dan mengelola semua
-                data tanpa batasan.
-              </p>
-            </CardContent>
-          </Card>
-
           <KtaKpiInputTable
             data={existingData}
-            dataType="KTA_TTA"
+            dataType="KPI_UTAMA"
             isLoading={isLoadingData}
             onStatusChange={handleStatusChange}
             onView={handleView}
-            maxHeight="600px"
           />
         </TabsContent>
       </Tabs>

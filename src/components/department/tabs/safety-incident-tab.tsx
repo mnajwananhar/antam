@@ -19,7 +19,7 @@ import {
   useApiToast,
 } from "@/components/providers/toast-provider";
 // ...existing code...
-import { Plus, Shield, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Shield, Loader2 } from "lucide-react";
 
 interface SafetyIncidentTabProps {
   department: Department;
@@ -42,7 +42,9 @@ interface SafetyIncident {
 }
 
 export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -118,9 +120,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
         kecBerat: 0,
         fatality: 0,
       });
-
-      // Reload data
-      loadSafetyIncidents();
     }
 
     setIsSubmitting(false);
@@ -130,10 +129,13 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     field: keyof typeof newIncident,
     value: string
   ) => {
-    // Remove leading zeros and convert to number
-    const cleanValue = value.replace(/^0+/, "") || "0";
-    const numValue = parseInt(cleanValue) || 0;
-    setNewIncident((prev) => ({ ...prev, [field]: Math.max(0, numValue) }));
+    // Allow only digits, convert to number with max limit 1000
+    const numericValue = value.replace(/\D/g, '');
+    const numValue = parseInt(numericValue) || 0;
+    setNewIncident((prev) => ({ 
+      ...prev, 
+      [field]: Math.max(0, Math.min(1000, numValue))
+    }));
   };
 
   const monthNames = [
@@ -150,17 +152,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
     "November",
     "Desember",
   ];
-
-  const getTotalIncidents = (incident: SafetyIncident) => {
-    return (
-      incident.nearmiss +
-      incident.kecAlat +
-      incident.kecKecil +
-      incident.kecRingan +
-      incident.kecBerat +
-      incident.fatality
-    );
-  };
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -218,20 +209,17 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Tahun</label>
                 <Input
-                  type="number"
-                  value={newIncident.year}
+                  type="text"
+                  value={newIncident.year.toString()}
                   onChange={(e) => {
-                    const cleanValue =
-                      e.target.value.replace(/^0+/, "") ||
-                      currentYear.toString();
-                    const numValue = parseInt(cleanValue) || currentYear;
+                    const numericValue = e.target.value.replace(/\D/g, '');
+                    const numValue = parseInt(numericValue) || currentYear;
                     setNewIncident((prev) => ({
                       ...prev,
                       year: Math.max(2020, Math.min(currentYear + 1, numValue)),
                     }));
                   }}
-                  min={2020}
-                  max={currentYear + 1}
+                  placeholder="2025"
                   disabled={isSubmitting}
                 />
               </div>
@@ -241,12 +229,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Near Miss</label>
                 <Input
-                  type="number"
-                  value={newIncident.nearmiss}
+                  type="text"
+                  value={newIncident.nearmiss.toString()}
                   onChange={(e) =>
                     handleNumberChange("nearmiss", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -254,12 +242,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Kecelakaan Alat</label>
                 <Input
-                  type="number"
-                  value={newIncident.kecAlat}
+                  type="text"
+                  value={newIncident.kecAlat.toString()}
                   onChange={(e) =>
                     handleNumberChange("kecAlat", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -267,12 +255,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Kecelakaan Kecil</label>
                 <Input
-                  type="number"
-                  value={newIncident.kecKecil}
+                  type="text"
+                  value={newIncident.kecKecil.toString()}
                   onChange={(e) =>
                     handleNumberChange("kecKecil", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -280,12 +268,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Kecelakaan Ringan</label>
                 <Input
-                  type="number"
-                  value={newIncident.kecRingan}
+                  type="text"
+                  value={newIncident.kecRingan.toString()}
                   onChange={(e) =>
                     handleNumberChange("kecRingan", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -293,12 +281,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Kecelakaan Berat</label>
                 <Input
-                  type="number"
-                  value={newIncident.kecBerat}
+                  type="text"
+                  value={newIncident.kecBerat.toString()}
                   onChange={(e) =>
                     handleNumberChange("kecBerat", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -306,12 +294,12 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
               <div>
                 <label className="text-sm font-medium">Fatality</label>
                 <Input
-                  type="number"
-                  value={newIncident.fatality}
+                  type="text"
+                  value={newIncident.fatality.toString()}
                   onChange={(e) =>
                     handleNumberChange("fatality", e.target.value)
                   }
-                  min={0}
+                  placeholder="0-1000"
                   disabled={isSubmitting}
                 />
               </div>
@@ -336,85 +324,6 @@ export function SafetyIncidentTab({ department }: SafetyIncidentTabProps) {
         </CardContent>
       </Card>
 
-      {/* Statistics Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Ringkasan Data Safety Incident
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Memuat data...</p>
-            </div>
-          ) : incidents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {incidents.map((incident) => (
-                <div
-                  key={`${incident.year}-${incident.month}`}
-                  className="border rounded-lg p-4"
-                >
-                  <h4 className="font-medium mb-3">
-                    {monthNames[incident.month - 1]} {incident.year}
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Near Miss:</span>
-                      <span className="font-medium">{incident.nearmiss}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Kec. Alat:</span>
-                      <span className="font-medium">{incident.kecAlat}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Kec. Kecil:</span>
-                      <span className="font-medium">{incident.kecKecil}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Kec. Ringan:</span>
-                      <span className="font-medium">{incident.kecRingan}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Kec. Berat:</span>
-                      <span className="font-medium text-orange-600">
-                        {incident.kecBerat}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Fatality:</span>
-                      <span className="font-medium text-red-600">
-                        {incident.fatality}
-                      </span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between">
-                        <span className="font-medium">Total:</span>
-                        <span className="font-bold">
-                          {getTotalIncidents(incident)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    Update:{" "}
-                    {new Date(incident.updatedAt).toLocaleDateString("id-ID")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Belum ada data safety incident yang tercatat.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

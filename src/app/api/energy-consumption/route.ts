@@ -22,11 +22,17 @@ function canAccessEnergyConsumption(session: Session | null): {
     return { canAccess: false, reason: "Not authenticated" };
   }
 
-  // Only ADMIN or MTC&ENG Bureau users can access
+  // ADMIN can access all data
   if (session.user.role === "ADMIN") {
     return { canAccess: true };
   }
 
+  // INPUTTER and PLANNER can access energy consumption data for MTC&ENG operations
+  if (["INPUTTER", "PLANNER"].includes(session.user.role)) {
+    return { canAccess: true };
+  }
+
+  // Users from MTC&ENG Bureau can access
   if (session.user.departmentName === "MTC&ENG Bureau") {
     return { canAccess: true };
   }
@@ -34,7 +40,7 @@ function canAccessEnergyConsumption(session: Session | null): {
   return {
     canAccess: false,
     reason:
-      "Access denied. Only ADMIN or MTC&ENG Bureau users can access this data.",
+      "Access denied. Only ADMIN, INPUTTER, PLANNER, or MTC&ENG Bureau users can access this data.",
   };
 }
 

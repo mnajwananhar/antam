@@ -19,8 +19,7 @@ import {
   useApiToast,
 } from "@/components/providers/toast-provider";
 // ...existing code...
-import { Plus, Zap, TrendingUp, Loader2, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Plus, Zap, Loader2 } from "lucide-react";
 
 interface EnergyIkesTabProps {
   department: Department;
@@ -58,12 +57,12 @@ interface CombinedEnergyData {
 }
 
 export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
-  const [energyData, setEnergyData] = useState<{
+  const [, setEnergyData] = useState<{
     targets?: EnergyTarget[];
     realizations?: EnergyRealization[];
     combined?: CombinedEnergyData[];
   }>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ CLEAN NOTIFICATION SYSTEM
@@ -82,6 +81,30 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     ikesRealization: 0,
     emissionRealization: 0,
   });
+
+  const handleNumberChange = (
+    field: keyof typeof newData,
+    value: string
+  ) => {
+    // Allow digits and decimal point for numeric values
+    let cleanValue = value.replace(/[^\d.]/g, '');
+    
+    // Prevent multiple decimal points
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      cleanValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Convert to number for validation, but keep as string for input
+    const numValue = parseFloat(cleanValue) || 0;
+    const clampedValue = Math.max(0, Math.min(999999, numValue));
+    
+    // Update state with the clamped numeric value
+    setNewData((prev) => ({ 
+      ...prev, 
+      [field]: clampedValue
+    }));
+  };
 
   const loadEnergyData = useCallback(async () => {
     setIsLoading(true);
@@ -157,10 +180,7 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
       ikesRealization: 0,
       emissionRealization: 0,
     });
-
-    // Reload data
-    loadEnergyData();
-    // Notify other tabs about the data change
+    
     setIsSubmitting(false);
   };
 
@@ -179,18 +199,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
     "Desember",
   ];
 
-  const getVarianceColor = (target?: number, realization?: number) => {
-    if (!target || !realization) return "secondary";
-    const variance = ((realization - target) / target) * 100;
-    if (variance >= 0) return "default"; // Green for positive variance
-    if (variance >= -10) return "warning"; // Yellow for small negative variance
-    return "destructive"; // Red for large negative variance
-  };
-
-  const calculateVariance = (target?: number, realization?: number) => {
-    if (!target || !realization) return null;
-    return ((realization - target) / target) * 100;
-  };
 
   // Only show if department is MTC&ENG
   if (department.code !== "MTCENG") {
@@ -264,20 +272,17 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
               <div>
                 <label className="text-sm font-medium">Tahun</label>
                 <Input
-                  type="number"
-                  value={newData.year}
+                  type="text"
+                  value={newData.year.toString()}
                   onChange={(e) => {
-                    const cleanValue =
-                      e.target.value.replace(/^0+/, "") ||
-                      currentYear.toString();
-                    const numValue = parseInt(cleanValue) || currentYear;
+                    const numericValue = e.target.value.replace(/\D/g, '');
+                    const numValue = parseInt(numericValue) || currentYear;
                     setNewData((prev) => ({
                       ...prev,
                       year: Math.max(2020, Math.min(currentYear + 5, numValue)),
                     }));
                   }}
-                  min={2020}
-                  max={currentYear + 5}
+                  placeholder="2025"
                   disabled={isSubmitting}
                 />
               </div>
@@ -290,23 +295,17 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                   (kWh/wmt)
                 </label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="999999"
+                  type="text"
                   value={
                     dataType === "target"
-                      ? newData.ikesTarget
-                      : newData.ikesRealization
+                      ? newData.ikesTarget === 0 ? "" : newData.ikesTarget.toString()
+                      : newData.ikesRealization === 0 ? "" : newData.ikesRealization.toString()
                   }
                   onChange={(e) => {
-                    const value = e.target.value.replace(/^0+/, "") || "0";
-                    setNewData((prev) => ({
-                      ...prev,
-                      [dataType === "target"
-                        ? "ikesTarget"
-                        : "ikesRealization"]: parseFloat(value) || 0,
-                    }));
+                    handleNumberChange(
+                      dataType === "target" ? "ikesTarget" : "ikesRealization",
+                      e.target.value
+                    );
                   }}
                   placeholder="0.00"
                   disabled={isSubmitting}
@@ -320,23 +319,17 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
                   (tCO2e)
                 </label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="999999"
+                  type="text"
                   value={
                     dataType === "target"
-                      ? newData.emissionTarget
-                      : newData.emissionRealization
+                      ? newData.emissionTarget === 0 ? "" : newData.emissionTarget.toString()
+                      : newData.emissionRealization === 0 ? "" : newData.emissionRealization.toString()
                   }
                   onChange={(e) => {
-                    const value = e.target.value.replace(/^0+/, "") || "0";
-                    setNewData((prev) => ({
-                      ...prev,
-                      [dataType === "target"
-                        ? "emissionTarget"
-                        : "emissionRealization"]: parseFloat(value) || 0,
-                    }));
+                    handleNumberChange(
+                      dataType === "target" ? "emissionTarget" : "emissionRealization",
+                      e.target.value
+                    );
                   }}
                   placeholder="0.00"
                   disabled={isSubmitting}
@@ -364,188 +357,6 @@ export function EnergyIkesTab({ department }: EnergyIkesTabProps) {
         </CardContent>
       </Card>
 
-      {/* Data Summary - Combined View */}
-      {energyData.combined && energyData.combined.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Target vs Realisasi Energy & IKES
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p className="text-muted-foreground">Memuat data...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {energyData.combined.map((data) => {
-                  const ikesVariance = calculateVariance(
-                    data.ikesTarget,
-                    data.ikesRealization
-                  );
-                  const emissionVariance = calculateVariance(
-                    data.emissionTarget,
-                    data.emissionRealization
-                  );
-
-                  return (
-                    <div
-                      key={`${data.year}-${data.month}`}
-                      className="border rounded-lg p-4"
-                    >
-                      <h4 className="font-medium mb-3">
-                        {monthNames[data.month - 1]} {data.year}
-                      </h4>
-
-                      {/* IKES Data */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-medium text-muted-foreground mb-2">
-                          IKES (kWh/wmt)
-                        </h5>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">
-                              Target:
-                            </span>
-                            <div className="font-medium">
-                              {data.ikesTarget?.toFixed(2) || "-"}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Realisasi:
-                            </span>
-                            <div className="font-medium">
-                              {data.ikesRealization?.toFixed(2) || "-"}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Variance:
-                            </span>
-                            <div className="font-medium">
-                              {ikesVariance !== null ? (
-                                <Badge
-                                  variant={getVarianceColor(
-                                    data.ikesTarget,
-                                    data.ikesRealization
-                                  )}
-                                >
-                                  {ikesVariance > 0 ? "+" : ""}
-                                  {ikesVariance.toFixed(1)}%
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Status:
-                            </span>
-                            <div className="font-medium">
-                              {data.ikesTarget && data.ikesRealization ? (
-                                data.ikesRealization <= data.ikesTarget ? (
-                                  <span className="text-green-600">✓ Baik</span>
-                                ) : (
-                                  <span className="text-red-600">
-                                    ✗ Over Target
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Emission Data */}
-                      <div>
-                        <h5 className="text-sm font-medium text-muted-foreground mb-2">
-                          Total Emission (tCO2e)
-                        </h5>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">
-                              Target:
-                            </span>
-                            <div className="font-medium">
-                              {data.emissionTarget?.toFixed(2) || "-"}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Realisasi:
-                            </span>
-                            <div className="font-medium">
-                              {data.emissionRealization?.toFixed(2) || "-"}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Variance:
-                            </span>
-                            <div className="font-medium">
-                              {emissionVariance !== null ? (
-                                <Badge
-                                  variant={getVarianceColor(
-                                    data.emissionTarget,
-                                    data.emissionRealization
-                                  )}
-                                >
-                                  {emissionVariance > 0 ? "+" : ""}
-                                  {emissionVariance.toFixed(1)}%
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Status:
-                            </span>
-                            <div className="font-medium">
-                              {data.emissionTarget &&
-                              data.emissionRealization ? (
-                                data.emissionRealization <=
-                                data.emissionTarget ? (
-                                  <span className="text-green-600">✓ Baik</span>
-                                ) : (
-                                  <span className="text-red-600">
-                                    ✗ Over Target
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {!isLoading &&
-        energyData.combined &&
-        energyData.combined.length === 0 && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Belum ada data energy & IKES yang tercatat untuk tahun ini.
-            </AlertDescription>
-          </Alert>
-        )}
     </div>
   );
 }

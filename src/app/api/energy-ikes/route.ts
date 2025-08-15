@@ -53,15 +53,24 @@ function canAccessEnergyData(session: Session | null): {
   canAccess: boolean;
   reason?: string;
 } {
-  if (!session) {
-    return { canAccess: false, reason: "Not authenticated" };
+  if (!session?.user) {
+    return {
+      canAccess: false,
+      reason: "Authentication required",
+    };
   }
 
-  // Only ADMIN or MTC&ENG Bureau users can access
+  // ADMIN can access all data
   if (session.user.role === "ADMIN") {
     return { canAccess: true };
   }
 
+  // INPUTTER and PLANNER can access energy data for MTC&ENG operations
+  if (["INPUTTER", "PLANNER"].includes(session.user.role)) {
+    return { canAccess: true };
+  }
+
+  // Users from MTC&ENG Bureau can access
   if (session.user.departmentName === "MTC&ENG Bureau") {
     return { canAccess: true };
   }
@@ -69,7 +78,7 @@ function canAccessEnergyData(session: Session | null): {
   return {
     canAccess: false,
     reason:
-      "Access denied. Only ADMIN or MTC&ENG Bureau users can access this data.",
+      "Access denied. Only ADMIN, INPUTTER, PLANNER, or MTC&ENG Bureau users can access this data.",
   };
 }
 

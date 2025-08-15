@@ -84,9 +84,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<SafetyInc
   try {
     const session = await auth();
     
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "PLANNER")) {
+    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "PLANNER" && session.user.role !== "INPUTTER")) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - Only ADMIN, PLANNER, and INPUTTER can create safety incidents" },
         { status: 401 }
       );
     }
@@ -102,33 +102,46 @@ export async function POST(request: NextRequest): Promise<NextResponse<SafetyInc
       );
     }
 
-    // Upsert safety incident data
-    const safetyIncident = await prisma.safetyIncident.upsert({
+    // First check if record exists
+    const existingRecord = await prisma.safetyIncident.findUnique({
       where: {
         month_year: {
           month: parseInt(month),
           year: parseInt(year)
         }
-      },
-      update: {
-        nearmiss: parseInt(nearmiss) || 0,
-        kecAlat: parseInt(kecAlat) || 0,
-        kecKecil: parseInt(kecKecil) || 0,
-        kecRingan: parseInt(kecRingan) || 0,
-        kecBerat: parseInt(kecBerat) || 0,
-        fatality: parseInt(fatality) || 0
-      },
-      create: {
-        month: parseInt(month),
-        year: parseInt(year),
-        nearmiss: parseInt(nearmiss) || 0,
-        kecAlat: parseInt(kecAlat) || 0,
-        kecKecil: parseInt(kecKecil) || 0,
-        kecRingan: parseInt(kecRingan) || 0,
-        kecBerat: parseInt(kecBerat) || 0,
-        fatality: parseInt(fatality) || 0
       }
     });
+
+    let safetyIncident;
+    
+    if (existingRecord) {
+      // Update existing record
+      safetyIncident = await prisma.safetyIncident.update({
+        where: { id: existingRecord.id },
+        data: {
+          nearmiss: parseInt(nearmiss) || 0,
+          kecAlat: parseInt(kecAlat) || 0,
+          kecKecil: parseInt(kecKecil) || 0,
+          kecRingan: parseInt(kecRingan) || 0,
+          kecBerat: parseInt(kecBerat) || 0,
+          fatality: parseInt(fatality) || 0
+        }
+      });
+    } else {
+      // Create new record
+      safetyIncident = await prisma.safetyIncident.create({
+        data: {
+          month: parseInt(month),
+          year: parseInt(year),
+          nearmiss: parseInt(nearmiss) || 0,
+          kecAlat: parseInt(kecAlat) || 0,
+          kecKecil: parseInt(kecKecil) || 0,
+          kecRingan: parseInt(kecRingan) || 0,
+          kecBerat: parseInt(kecBerat) || 0,
+          fatality: parseInt(fatality) || 0
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
