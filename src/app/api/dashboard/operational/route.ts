@@ -226,6 +226,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       0
     );
 
+    // KTA TTA data (filtered by department's picDepartemen)
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const ktaStartDate = new Date(currentYear, currentMonth - 1, 1);
+    const ktaEndDate = new Date(currentYear, currentMonth, 0);
+    
+    // Map department codes to PIC values that might be in the database
+    const departmentPicMappings: Record<string, string[]> = {
+      "ECDC": ["ECDC", "Electric Control", "Electrical"],
+      "HETU": ["HETU", "Heavy Equipment", "Testing"],
+      "MMTC": ["MMTC", "Mine Maintenance"],
+      "PMTC": ["PMTC", "Plant Maintenance"],
+    };
+
+    const picValues = departmentPicMappings[department] || [department];
+    
+    const ktaTtaCount = await prisma.ktaKpiData.count({
+      where: {
+        tanggal: {
+          gte: ktaStartDate,
+          lte: ktaEndDate,
+        },
+        picDepartemen: {
+          in: picValues,
+        },
+      },
+    });
+
     return NextResponse.json({
       productivityData,
       criticalIssues: criticalIssues.map((issue) => ({
@@ -252,7 +280,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         totalActivities,
         completedActivities,
       },
+      ktaTta: {
+        rencana: 186,
+        aktual: ktaTtaCount,
+      },
       availableYears: uniqueYears,
+      monthName: new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(currentYear, currentMonth - 1)),
     });
   } catch (error) {
     console.error("Operational Dashboard API error:", error);

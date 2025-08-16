@@ -5,3 +5,4 @@ export { EquipmentStatusCard } from "./equipment-status-card";
 export { NotificationSpeedometer } from "./notification-speedometer";
 export { OrderSpeedometer } from "./order-speedometer";
 export { ProductivityFilters } from "./productivity-filters";
+export { KpiKtaChart } from "./kpi-kta-chart";

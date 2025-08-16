@@ -14,6 +14,7 @@ import {
   NotificationSpeedometer,
   OrderSpeedometer,
   ProductivityFilters,
+  KpiKtaChart,
 } from "@/components/dashboard/operational";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
@@ -65,6 +66,11 @@ interface DashboardData {
     totalActivities: number;
     completedActivities: number;
   };
+  ktaTta?: {
+    rencana: number;
+    aktual: number;
+  };
+  monthName?: string;
 }
 
 interface OperationalDashboardProps {
@@ -294,6 +300,15 @@ export function OperationalDashboard({
 
       {/* Dashboard Grid */}
       <div className="space-y-6">
+        {/* KTA TTA Dashboard */}
+        {data.ktaTta && (
+          <KpiKtaChart
+            ktaData={data.ktaTta}
+            department={departmentCode}
+            currentMonth={data.monthName || new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date())}
+          />
+        )}
+
         {/* Productivity Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AvailabilityChart

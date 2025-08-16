@@ -18,6 +18,7 @@ import {
   EquipmentStatusCard,
   NotificationSpeedometer,
   OrderSpeedometer,
+  KpiKtaChart,
 } from "./operational"
 
 // Import filter components
@@ -32,6 +33,7 @@ import {
   type CriticalIssuesFilterState,
 } from "@/components/dashboard/filters"
 import { ProductivityFilters } from "@/components/dashboard/operational/productivity-filters"
+import { fetchKpiKtaData } from "@/components/dashboard/helpers/fetch-kpi-kta"
 
 interface EquipmentOption {
   id: number
@@ -58,62 +60,64 @@ interface EquipmentStatus {
   category: string
 }
 
+interface DepartmentData {
+  // MTC&ENG specific data (available for all departments now)
+  safetyIncidents: Array<{
+    month: string
+    nearmiss: number
+    kecAlat: number
+    kecKecil: number
+    kecRingan: number
+    kecBerat: number
+    fatality: number
+  }>
+  energyIkes: Array<{
+    month: string
+    ikesTarget: number | null
+    ikesRealization: number | null
+  }>
+  energyEmission: Array<{
+    month: string
+    emissionTarget: number | null
+    emissionRealization: number | null
+  }>
+  energyConsumption: Array<{
+    month: string
+    tambang: number
+    pabrik: number
+    supporting: number
+    total: number
+  }>
+  // Operational data
+  availability: Array<{
+    period: string
+    pa: number | null
+    ma: number | null
+  }>
+  utilization: Array<{
+    period: string
+    ua: number | null
+    eu: number | null
+  }>
+  // Additional operational data
+  criticalIssues: CriticalIssue[]
+  equipmentStatus: EquipmentStatus[]
+  availableEquipment: EquipmentOption[]
+  notifications: {
+    total: number
+    completed: number
+  }
+  orders: {
+    totalOrders: number
+    totalActivities: number
+    completedActivities: number
+  }
+  availableYears: number[]
+}
+
 interface DashboardData {
   departments?: {
-    [key: string]: {
-      // MTC&ENG specific data (available for all departments now)
-      safetyIncidents: Array<{
-        month: string
-        nearmiss: number
-        kecAlat: number
-        kecKecil: number
-        kecRingan: number
-        kecBerat: number
-        fatality: number
-      }>
-      energyIkes: Array<{
-        month: string
-        ikesTarget: number | null
-        ikesRealization: number | null
-      }>
-      energyEmission: Array<{
-        month: string
-        emissionTarget: number | null
-        emissionRealization: number | null
-      }>
-      energyConsumption: Array<{
-        month: string
-        tambang: number
-        pabrik: number
-        supporting: number
-        total: number
-      }>
-      // Operational data
-      availability: Array<{
-        period: string
-        pa: number | null
-        ma: number | null
-      }>
-      utilization: Array<{
-        period: string
-        ua: number | null
-        eu: number | null
-      }>
-      // Additional operational data
-      criticalIssues: CriticalIssue[]
-      equipmentStatus: EquipmentStatus[]
-      availableEquipment: EquipmentOption[]
-      notifications: {
-        total: number
-        completed: number
-      }
-      orders: {
-        totalOrders: number
-        totalActivities: number
-        completedActivities: number
-      }
-      availableYears: number[]
-    }
+    [key: string]: DepartmentData
   }
 }
 
@@ -225,6 +229,20 @@ export function DashboardCarousel({
     selectedEquipment: [] as number[],
   })
 
+  // KPI & KTA TTA data state
+  const [kpiKtaData, setKpiKtaData] = useState<{
+    [department: string]: {
+      kpiUtama: { rencana: number; aktual: number };
+      ktaTta: { rencana: number; aktual: number };
+      metadata: {
+        department: string;
+        month: number;
+        year: number;
+        monthName: string;
+      };
+    };
+  }>({})
+
 
   // Manual refresh function
   const handleRefresh = async () => {
@@ -235,14 +253,15 @@ export function DashboardCarousel({
       const operationalParams = new URLSearchParams()
       operationalParams.set("period", "monthly")
       
-      const [mtcengResponse, ...allResponses] = await Promise.all([
+      const [mtcengResponse, kpiKtaResponse, ...allResponses] = await Promise.all([
         fetch('/api/dashboard/mtceng').catch(() => null),
+        fetchKpiKtaData().catch(() => ({})),
         ...departments.map(dept => 
           fetch(`/api/dashboard/operational?department=${dept}&${operationalParams.toString()}`).catch(() => null)
         )
       ])
 
-      const departmentsData: { [key: string]: any } = {}
+      const departmentsData: { [key: string]: DepartmentData } = {}
       
       let mtcengBaseData = {
         safetyIncidents: [],
@@ -345,6 +364,9 @@ export function DashboardCarousel({
       setDashboardData({
         departments: departmentsData
       })
+      
+      // Set KPI/KTA data
+      setKpiKtaData(kpiKtaResponse as { [department: string]: { kpiUtama: { rencana: number; aktual: number }; ktaTta: { rencana: number; aktual: number }; metadata: { department: string; month: number; year: number; monthName: string } } })
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
     } finally {
@@ -362,14 +384,15 @@ export function DashboardCarousel({
         const operationalParams = new URLSearchParams()
         operationalParams.set("period", "monthly")
         
-        const [mtcengResponse, ...allResponses] = await Promise.all([
+        const [mtcengResponse, kpiKtaResponse, ...allResponses] = await Promise.all([
           fetch('/api/dashboard/mtceng').catch(() => null),
+          fetchKpiKtaData().catch(() => ({})),
           ...departments.map(dept => 
             fetch(`/api/dashboard/operational?department=${dept}&${operationalParams.toString()}`).catch(() => null)
           )
         ])
 
-        const departmentsData: { [key: string]: any } = {}
+        const departmentsData: { [key: string]: DepartmentData } = {}
         
         let mtcengBaseData = {
           safetyIncidents: [],
@@ -472,6 +495,9 @@ export function DashboardCarousel({
         setDashboardData({
           departments: departmentsData
         })
+        
+        // Set KPI/KTA data
+        setKpiKtaData(kpiKtaResponse as { [department: string]: { kpiUtama: { rencana: number; aktual: number }; ktaTta: { rencana: number; aktual: number }; metadata: { department: string; month: number; year: number; monthName: string } } })
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
       } finally {
@@ -715,8 +741,23 @@ export function DashboardCarousel({
 
   // Define all slides with actual chart components - different charts per department type
   const allSlides: CarouselSlide[] = [
-    // MTCENG Department - Only MTC&ENG specific charts
+    // MTCENG Department - KPI Utama first, then other charts
     ...(['MTCENG'].flatMap(dept => [
+      // KPI Utama Chart (First for MTCENG)
+      {
+        id: `${dept.toLowerCase()}-kpi-utama`,
+        title: "KPI Utama",
+        subtitle: `${dept} Department`,
+        department: dept,
+        component: KpiKtaChart,
+        props: {
+          kpiData: kpiKtaData[dept]?.kpiUtama,
+          ktaData: kpiKtaData[dept]?.ktaTta,
+          department: dept,
+          currentMonth: kpiKtaData[dept]?.metadata?.monthName || new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date()),
+          isLoading: isLoadingData
+        }
+      },
       // Safety Incidents Chart
       {
         id: `${dept.toLowerCase()}-safety-incidents`,
@@ -780,8 +821,23 @@ export function DashboardCarousel({
       }
     ])),
     
-    // Operational Departments - Only operational charts in correct order
+    // Operational Departments - KTA TTA first, then other charts
     ...(['ECDC', 'HETU', 'MMTC', 'PMTC'].flatMap(dept => [
+      // KTA TTA Chart (First for operational departments)
+      {
+        id: `${dept.toLowerCase()}-kta-tta`,
+        title: "KTA & TTA",
+        subtitle: `${dept} Department`,
+        department: dept,
+        component: KpiKtaChart,
+        props: {
+          kpiData: kpiKtaData[dept]?.kpiUtama,
+          ktaData: kpiKtaData[dept]?.ktaTta,
+          department: dept,
+          currentMonth: kpiKtaData[dept]?.metadata?.monthName || new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date()),
+          isLoading: isLoadingData
+        }
+      },
       // Availability Chart
       {
         id: `${dept.toLowerCase()}-availability`,
@@ -868,13 +924,13 @@ export function DashboardCarousel({
     ]))
   ]
 
-  // Get available departments with data in correct order
-  const availableDepartments = ['MTCENG', 'ECDC', 'HETU', 'MMTC', 'PMTC'].filter(dept => 
-    dashboardData.departments?.[dept] && Object.keys(dashboardData.departments[dept]).length > 0
-  )
+  // Get available departments with data in correct order (unused but kept for potential future use)
+  // const availableDepartments = ['MTCENG', 'ECDC', 'HETU', 'MMTC', 'PMTC'].filter(dept => 
+  //   dashboardData.departments?.[dept] && Object.keys(dashboardData.departments[dept]).length > 0
+  // )
   
   // Filter slides based on selected department
-  const slides = allSlides.filter(slide => slide.department === selectedDepartment)
+  const slides = selectedDepartment ? allSlides.filter(slide => slide.department === selectedDepartment) : []
   
   console.log(`Department ${selectedDepartment} has ${slides.length} slides:`, slides.map(s => s.title))
   
@@ -888,7 +944,7 @@ export function DashboardCarousel({
   // Auto-rotation logic - just cycle through slides in current department
   useEffect(() => {
     // If no slides, immediately switch to next department
-    if (slides.length === 0 && onDepartmentChange) {
+    if (slides.length === 0 && onDepartmentChange && selectedDepartment) {
       const nextDept = getNextDepartment(selectedDepartment)
       console.log(`No slides for ${selectedDepartment}, switching to ${nextDept}`)
       onDepartmentChange(nextDept)
@@ -916,7 +972,7 @@ export function DashboardCarousel({
         }
         
         // If we've reached the end of slides, move to next department
-        if (nextIndex >= slides.length) {
+        if (nextIndex >= slides.length && selectedDepartment) {
           const nextDept = getNextDepartment(selectedDepartment)
           
           console.log(`🔄 SWITCHING: ${selectedDepartment} → ${nextDept}`)

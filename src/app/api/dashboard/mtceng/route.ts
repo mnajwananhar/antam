@@ -109,6 +109,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       take: 10,
     });
 
+    // KPI Utama data (all records for current month)
+    const startDate = new Date(currentYear, currentMonth - 1, 1);
+    const endDate = new Date(currentYear, currentMonth, 0);
+    
+    const kpiUtamaCount = await prisma.ktaKpiData.count({
+      where: {
+        tanggal: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
     // Prepare monthly data arrays
     const months = [
       "Jan",
@@ -194,10 +207,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         description: issue.description,
         createdAt: issue.createdAt,
       })),
-
+      kpiUtama: {
+        rencana: 186,
+        aktual: kpiUtamaCount,
+      },
       availableYears: uniqueYears,
       year: currentYear,
       month: currentMonth,
+      monthName: new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(currentYear, currentMonth - 1)),
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

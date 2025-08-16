@@ -10,6 +10,7 @@ import { EnergyIkesChart } from "./energy-ikes-chart";
 import { EnergyEmissionChart } from "./energy-emission-chart";
 import { EnergyConsumptionChart } from "./energy-consumption-chart";
 import { CriticalIssuesTable } from "./critical-issues-table";
+import { KpiKtaChart } from "../operational/kpi-kta-chart";
 
 import {
   SafetyFilters,
@@ -57,9 +58,14 @@ interface DashboardData {
     description: string;
     createdAt: string;
   }>;
+  kpiUtama?: {
+    rencana: number;
+    aktual: number;
+  };
   availableYears: number[];
   year: number;
   month: number;
+  monthName: string;
 }
 
 export function MtcEngDashboard(): React.JSX.Element {
@@ -418,6 +424,13 @@ export function MtcEngDashboard(): React.JSX.Element {
       {/* Dashboard Grid */}
       <div className="space-y-6">
         {/* KPI Utama Dashboard */}
+        {data.kpiUtama && (
+          <KpiKtaChart
+            kpiData={data.kpiUtama}
+            department="MTCENG"
+            currentMonth={data.monthName}
+          />
+        )}
 
         {/* Safety Incidents Chart with Filter */}
         <div className="space-y-4">
