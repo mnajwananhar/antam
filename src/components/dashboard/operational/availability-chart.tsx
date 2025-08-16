@@ -43,7 +43,7 @@ export function AvailabilityChart({
 
   const formatTooltipValue = (value: number | null): string => {
     if (value === null) return "No data";
-    return `${value.toFixed(2)}%`;
+    return `${Number.isInteger(value) ? value.toString() : value.toFixed(1)}%`;
   };
 
   const CustomTooltip = ({ active, payload, label }: {

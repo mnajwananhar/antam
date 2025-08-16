@@ -31,6 +31,27 @@ export function EnergyConsumptionChart({
   showTable = true, 
   showAverage = true 
 }: EnergyConsumptionChartProps): React.JSX.Element {
+  
+  // Calculate dynamic Y-axis domains based on actual data
+  // Validate data and filter out invalid values
+  const validData = data.filter(item => 
+    !isNaN(item.tambang) && !isNaN(item.pabrik) && !isNaN(item.supporting) &&
+    item.tambang >= 0 && item.pabrik >= 0 && item.supporting >= 0 &&
+    item.tambang < 100000 && item.pabrik < 100000 && item.supporting < 100000
+  );
+
+  // Calculate max values with validated data
+  const validMaxIndividual = validData.length > 0 
+    ? Math.max(...validData.map(item => Math.max(item.tambang, item.pabrik, item.supporting)))
+    : 2000;
+  const validMaxTotal = validData.length > 0 
+    ? Math.max(...validData.map(item => item.total))
+    : 4000;
+  
+  // Add 20% padding to the max values for better visualization, with reasonable limits
+  const leftYAxisMax = Math.min(Math.ceil(validMaxIndividual * 1.2), 5000);
+  const rightYAxisMax = Math.min(Math.ceil(validMaxTotal * 1.2), 8000);
+
   const CustomTooltip = ({ active, payload, label }: {
     active?: boolean;
     payload?: Array<{
@@ -116,7 +137,7 @@ export function EnergyConsumptionChart({
         <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={data}
+              data={validData.length > 0 ? validData : data}
               margin={{
                 top: 20,
                 right: 30,
@@ -137,7 +158,7 @@ export function EnergyConsumptionChart({
                 yAxisId="left"
                 stroke="#fbbf24"
                 fontSize={12}
-                domain={[0, 6000]}
+                domain={[0, leftYAxisMax]}
               />
               {chartType === "combined" && (
                 <YAxis 
@@ -145,7 +166,7 @@ export function EnergyConsumptionChart({
                   orientation="right"
                   stroke="#dc2626"
                   fontSize={12}
-                  domain={[0, 7000]}
+                  domain={[0, rightYAxisMax]}
                 />
               )}
               <Tooltip content={<CustomTooltip />} />
@@ -198,7 +219,7 @@ export function EnergyConsumptionChart({
                 <thead className="bg-gray-800">
                   <tr>
                     <th className="border border-gray-700 p-2 text-gray-300">Kategori</th>
-                    {data.slice(0, 12).map((item) => (
+                    {(validData.length > 0 ? validData : data).slice(0, 12).map((item) => (
                       <th key={item.month} className="border border-gray-700 p-1 text-gray-300 min-w-[60px]">
                         {item.month}
                       </th>
@@ -211,40 +232,40 @@ export function EnergyConsumptionChart({
                 <tbody>
                   <tr>
                     <td className="border border-gray-700 p-2 font-semibold text-green-400">Tambang</td>
-                    {data.slice(0, 12).map((item, index) => (
+                    {(validData.length > 0 ? validData : data).slice(0, 12).map((item, index) => (
                       <td key={index} className="border border-gray-700 p-1 text-center text-green-300">
                         {item.tambang.toFixed(0)}
                       </td>
                     ))}
                     {showAverage && (
                       <td className="border border-gray-700 p-2 text-center text-green-400 font-semibold">
-                        {(data.reduce((sum, item) => sum + item.tambang, 0) / 12).toFixed(0)}
+                        {((validData.length > 0 ? validData : data).reduce((sum, item) => sum + item.tambang, 0) / 12).toFixed(0)}
                       </td>
                     )}
                   </tr>
                   <tr>
                     <td className="border border-gray-700 p-2 font-semibold text-orange-400">Pabrik</td>
-                    {data.slice(0, 12).map((item, index) => (
+                    {(validData.length > 0 ? validData : data).slice(0, 12).map((item, index) => (
                       <td key={index} className="border border-gray-700 p-1 text-center text-orange-300">
                         {item.pabrik.toFixed(0)}
                       </td>
                     ))}
                     {showAverage && (
                       <td className="border border-gray-700 p-2 text-center text-orange-400 font-semibold">
-                        {(data.reduce((sum, item) => sum + item.pabrik, 0) / 12).toFixed(0)}
+                        {((validData.length > 0 ? validData : data).reduce((sum, item) => sum + item.pabrik, 0) / 12).toFixed(0)}
                       </td>
                     )}
                   </tr>
                   <tr>
                     <td className="border border-gray-700 p-2 font-semibold text-purple-400">Supporting</td>
-                    {data.slice(0, 12).map((item, index) => (
+                    {(validData.length > 0 ? validData : data).slice(0, 12).map((item, index) => (
                       <td key={index} className="border border-gray-700 p-1 text-center text-purple-300">
                         {item.supporting.toFixed(0)}
                       </td>
                     ))}
                     {showAverage && (
                       <td className="border border-gray-700 p-2 text-center text-purple-400 font-semibold">
-                        {(data.reduce((sum, item) => sum + item.supporting, 0) / 12).toFixed(0)}
+                        {((validData.length > 0 ? validData : data).reduce((sum, item) => sum + item.supporting, 0) / 12).toFixed(0)}
                       </td>
                     )}
                   </tr>

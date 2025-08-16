@@ -112,7 +112,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // KPI Utama data (all records for current month)
     const startDate = new Date(currentYear, currentMonth - 1, 1);
     const endDate = new Date(currentYear, currentMonth, 0);
-    
+
     const kpiUtamaCount = await prisma.ktaKpiData.count({
       where: {
         tanggal: {
@@ -181,16 +181,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const consumptionData = energyConsumption.find(
         (item) => item.month === index + 1
       );
+
+      const tambang = consumptionData?.tambangConsumption || 0;
+      const pabrik = consumptionData?.pabrikConsumption || 0;
+      const supporting = consumptionData?.supportingConsumption || 0;
+      const total = consumptionData
+        ? consumptionData.tambangConsumption +
+          consumptionData.pabrikConsumption +
+          consumptionData.supportingConsumption
+        : 0;
+
+      // Debug logging untuk nilai yang mencurigakan
+      if (
+        tambang > 10000 ||
+        pabrik > 10000 ||
+        supporting > 10000 ||
+        total > 20000
+      ) {
+        console.warn(`Suspicious energy consumption values for ${month}:`, {
+          tambang,
+          pabrik,
+          supporting,
+          total,
+          rawData: consumptionData,
+        });
+      }
+
       return {
         month,
-        tambang: consumptionData?.tambangConsumption || 0,
-        pabrik: consumptionData?.pabrikConsumption || 0,
-        supporting: consumptionData?.supportingConsumption || 0,
-        total: consumptionData
-          ? consumptionData.tambangConsumption +
-            consumptionData.pabrikConsumption +
-            consumptionData.supportingConsumption
-          : 0,
+        tambang,
+        pabrik,
+        supporting,
+        total,
       };
     });
 
@@ -214,7 +236,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       availableYears: uniqueYears,
       year: currentYear,
       month: currentMonth,
-      monthName: new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(currentYear, currentMonth - 1)),
+      monthName: new Intl.DateTimeFormat("id-ID", { month: "long" }).format(
+        new Date(currentYear, currentMonth - 1)
+      ),
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

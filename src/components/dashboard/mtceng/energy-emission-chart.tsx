@@ -104,6 +104,7 @@ export function EnergyEmissionChart({
                 stroke="#fbbf24"
                 fontSize={12}
                 domain={[0, 6000]}
+                tickFormatter={(value) => Number.isInteger(value) ? value.toString() : value.toFixed(1)}
               />
               <Tooltip content={<CustomTooltip />} />
               {(comparisonMode === "real_only" || comparisonMode === "target_vs_real") && (

@@ -40,7 +40,7 @@ export function EnergyIkesChart({
               <p key={index} style={{ color: entry.color }} className="text-sm">
                 {entry.dataKey === "ikesTarget" && "Target IKES kWh/wmt: "}
                 {entry.dataKey === "ikesRealization" && "Realisasi IKES Total kWh/wmt: "}
-                {entry.value.toFixed(2)}
+                {Number.isInteger(entry.value) ? entry.value.toString() : entry.value.toFixed(1)}
               </p>
             );
           })}
@@ -104,6 +104,7 @@ export function EnergyIkesChart({
                 stroke="#fbbf24"
                 fontSize={12}
                 domain={[200, 400]}
+                tickFormatter={(value) => Number.isInteger(value) ? value.toString() : value.toFixed(1)}
               />
               <Tooltip content={<CustomTooltip />} />
               {(comparisonMode === "real_only" || comparisonMode === "target_vs_real") && (
@@ -162,20 +163,20 @@ export function EnergyIkesChart({
                     {(comparisonMode === "real_only" || comparisonMode === "target_vs_real") && (
                       <td className="text-center text-yellow-400 py-1">
                         {(item.ikesRealization !== null && item.ikesRealization > 0 && item.ikesRealization < 10000) 
-                          ? item.ikesRealization.toFixed(2) 
+                          ? (Number.isInteger(item.ikesRealization) ? item.ikesRealization.toString() : item.ikesRealization.toFixed(1))
                           : "-"}
                       </td>
                     )}
                     {(comparisonMode === "target_only" || comparisonMode === "target_vs_real") && (
                       <td className="text-center text-red-400 py-1">
                         {(item.ikesTarget !== null && item.ikesTarget > 0 && item.ikesTarget < 10000) 
-                          ? item.ikesTarget.toFixed(2) 
+                          ? (Number.isInteger(item.ikesTarget) ? item.ikesTarget.toString() : item.ikesTarget.toFixed(1))
                           : "-"}
                       </td>
                     )}
                     {comparisonMode === "target_vs_real" && (
                       <td className={`text-center py-1 ${variance && variance > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                        {variance !== null ? (variance > 0 ? '+' : '') + variance.toFixed(2) : "-"}
+                        {variance !== null ? (variance > 0 ? '+' : '') + (Number.isInteger(variance) ? variance.toString() : variance.toFixed(1)) : "-"}
                       </td>
                     )}
                   </tr>
