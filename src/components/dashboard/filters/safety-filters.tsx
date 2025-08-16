@@ -7,6 +7,7 @@ import { Filter, RotateCcw } from "lucide-react";
 interface SafetyFiltersProps {
   onFilterChange: (filters: SafetyFilterState) => void;
   currentFilters: SafetyFilterState;
+  availableYears?: number[];
 }
 
 export interface SafetyFilterState {
@@ -23,9 +24,11 @@ export interface SafetyFilterState {
   chartType: "stacked" | "grouped" | "line";
 }
 
-export function SafetyFilters({ onFilterChange, currentFilters }: SafetyFiltersProps): React.JSX.Element {
+export function SafetyFilters({ onFilterChange, currentFilters, availableYears }: SafetyFiltersProps): React.JSX.Element {
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
+  const years = availableYears && availableYears.length > 0 
+    ? availableYears 
+    : Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
   
   const chartTypeOptions = [
     { value: "stacked", label: "Stacked" },

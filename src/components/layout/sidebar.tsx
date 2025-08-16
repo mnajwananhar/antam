@@ -247,31 +247,7 @@ export function Sidebar({ session, className, onClose }: SidebarProps) {
         </div>
       </div>
 
-      {/* User info section at bottom */}
-      {session?.user && (
-        <div className="border-t p-4 overflow-hidden">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium flex-shrink-0">
-              {session.user.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <p className="text-sm font-medium truncate">
-                {session.user.username}
-              </p>
-              <div className="flex items-center gap-1 overflow-hidden">
-                <Badge variant="outline" className="text-xs flex-shrink-0">
-                  {session.user.role}
-                </Badge>
-                {session.user.departmentName && (
-                  <span className="text-xs text-muted-foreground truncate flex-shrink">
-                    {session.user.departmentName}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

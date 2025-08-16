@@ -8,6 +8,7 @@ interface EnergyFiltersProps {
   onFilterChange: (filters: EnergyFilterState) => void;
   currentFilters: EnergyFilterState;
   chartType: "ikes" | "emission";
+  availableYears?: number[];
 }
 
 export interface EnergyFilterState {
@@ -22,10 +23,13 @@ export interface EnergyFilterState {
 export function EnergyFilters({ 
   onFilterChange, 
   currentFilters, 
-  chartType 
+  chartType,
+  availableYears
 }: EnergyFiltersProps): React.JSX.Element {
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
+  const years = availableYears && availableYears.length > 0 
+    ? availableYears 
+    : Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
 
   const comparisonOptions = [
     { value: "target_vs_real", label: "Target vs Real" },

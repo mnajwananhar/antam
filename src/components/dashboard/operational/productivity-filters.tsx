@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,13 @@ export function ProductivityFilters({
 }: ProductivityFiltersProps): React.JSX.Element {
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState<boolean>(false);
 
+  // Auto-select first equipment when availableEquipment loads and no equipment is selected
+  useEffect(() => {
+    if (availableEquipment.length > 0 && selectedEquipment.length === 0 && !isLoading) {
+      onEquipmentChange([availableEquipment[0].id]);
+    }
+  }, [availableEquipment, selectedEquipment.length, onEquipmentChange, isLoading]);
+
   const periodOptions: Array<{ value: PeriodType; label: string }> = [
     { value: "daily", label: "Harian" },
     { value: "weekly", label: "Mingguan" },
@@ -68,7 +75,13 @@ export function ProductivityFilters({
   };
 
   const getSelectedEquipmentNames = (): string => {
-    if (selectedEquipment.length === 0) return "All Equipment";
+    if (selectedEquipment.length === 0) {
+      // If no equipment selected, show first equipment name if available
+      if (availableEquipment.length > 0) {
+        return availableEquipment[0].name;
+      }
+      return "No Equipment";
+    }
     if (selectedEquipment.length === availableEquipment.length) return "All Equipment";
     if (selectedEquipment.length === 1) {
       const equipment = availableEquipment.find(eq => eq.id === selectedEquipment[0]);

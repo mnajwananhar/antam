@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DEPARTMENTS } from "@/lib/constants";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage(): React.JSX.Element {
   const { data: session, status } = useSession();
@@ -31,6 +32,7 @@ export default function DashboardPage(): React.JSX.Element {
 
 function DashboardContent(): React.JSX.Element {
   const [currentDeptIndex, setCurrentDeptIndex] = useState<number>(0);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("MTCENG");
   const departmentsPerPage = 5;
   const maxIndex = Math.ceil(DEPARTMENTS.length / departmentsPerPage) - 1;
 
@@ -61,7 +63,12 @@ function DashboardContent(): React.JSX.Element {
 
       {/* Dashboard Carousel */}
       <div className="w-full">
-        <DashboardCarousel autoRotate={true} rotateInterval={8000} />
+        <DashboardCarousel 
+          autoRotate={true} 
+          rotateInterval={10000} 
+          selectedDepartment={selectedDepartment}
+          onDepartmentChange={setSelectedDepartment}
+        />
       </div>
 
       {/* Department Navigation */}
@@ -92,12 +99,17 @@ function DashboardContent(): React.JSX.Element {
           </div>
         </div>
 
+
         {/* Department Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
           {currentDepartments.map((department) => (
             <Card
               key={`${currentDeptIndex}-${department.id}`}
-              className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-secondary-50 dark:bg-secondary-800 border-primary/20 dark:border-primary/30 hover:border-primary/50 dark:hover:border-primary/60"
+              className={cn(
+                "group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-secondary-50 dark:bg-secondary-800 border-primary/20 dark:border-primary/30 hover:border-primary/50 dark:hover:border-primary/60 cursor-pointer",
+                selectedDepartment === department.code && "border-yellow-500 dark:border-yellow-500 shadow-lg ring-2 ring-yellow-500/20"
+              )}
+              onClick={() => setSelectedDepartment(department.code)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-1">

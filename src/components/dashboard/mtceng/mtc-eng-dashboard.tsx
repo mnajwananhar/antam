@@ -111,7 +111,6 @@ export function MtcEngDashboard(): React.JSX.Element {
 
   const [criticalFilters, setCriticalFilters] =
     useState<CriticalIssuesFilterState>({
-      search: "",
       departments: [],
       statuses: { WORKING: true, STANDBY: true, BREAKDOWN: true },
       dateRange: "all",
@@ -243,16 +242,6 @@ export function MtcEngDashboard(): React.JSX.Element {
     if (!data) return [];
 
     let filtered = data.criticalIssues;
-
-    // Search filter
-    if (criticalFilters.search) {
-      const searchLower = criticalFilters.search.toLowerCase();
-      filtered = filtered.filter(
-        (issue) =>
-          issue.issueName.toLowerCase().includes(searchLower) ||
-          issue.description.toLowerCase().includes(searchLower)
-      );
-    }
 
     // Department filter
     if (criticalFilters.departments.length > 0) {
@@ -435,6 +424,7 @@ export function MtcEngDashboard(): React.JSX.Element {
           <SafetyFilters
             currentFilters={safetyFilters}
             onFilterChange={setSafetyFilters}
+            availableYears={data?.availableYears}
           />
           <SafetyIncidentsChart
             data={filteredSafetyData}
@@ -449,6 +439,7 @@ export function MtcEngDashboard(): React.JSX.Element {
               currentFilters={energyFilters}
               onFilterChange={setEnergyFilters}
               chartType="ikes"
+              availableYears={data?.availableYears}
             />
             <EnergyIkesChart
               data={filteredEnergyIkesData}
@@ -462,6 +453,7 @@ export function MtcEngDashboard(): React.JSX.Element {
               currentFilters={energyFilters}
               onFilterChange={setEnergyFilters}
               chartType="emission"
+              availableYears={data?.availableYears}
             />
             <EnergyEmissionChart
               data={filteredEnergyEmissionData}
@@ -476,6 +468,7 @@ export function MtcEngDashboard(): React.JSX.Element {
           <ConsumptionFilters
             currentFilters={consumptionFilters}
             onFilterChange={setConsumptionFilters}
+            availableYears={data?.availableYears}
           />
           <EnergyConsumptionChart
             data={filteredConsumptionData}

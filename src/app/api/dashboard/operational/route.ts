@@ -46,6 +46,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Get available years from operational reports
+    const availableYearsFromReports = await prisma.operationalReport.findMany({
+      where: {
+        departmentId: departmentData.id,
+      },
+      select: {
+        reportDate: true,
+      },
+    });
+
+    const uniqueYears = [
+      ...new Set(
+        availableYearsFromReports
+          .map((item) => new Date(item.reportDate).getFullYear())
+      ),
+    ].sort((a, b) => b - a); // Sort descending
+
     // Get available equipment for this department
     // Get available equipment for this department
     const availableEquipment = await prisma.equipment.findMany({
@@ -235,6 +252,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         totalActivities,
         completedActivities,
       },
+      availableYears: uniqueYears,
     });
   } catch (error) {
     console.error("Operational Dashboard API error:", error);

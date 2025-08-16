@@ -1,9 +1,8 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, RotateCcw } from "lucide-react";
+import { Filter, RotateCcw } from "lucide-react";
 
 interface CriticalIssuesFiltersProps {
   onFilterChange: (filters: CriticalIssuesFilterState) => void;
@@ -13,7 +12,6 @@ interface CriticalIssuesFiltersProps {
 }
 
 export interface CriticalIssuesFilterState {
-  search: string;
   departments: string[];
   statuses: {
     WORKING: boolean;
@@ -45,9 +43,6 @@ export function CriticalIssuesFilters({
     { value: "priority", label: "Prioritas" },
   ];
 
-  const handleSearchChange = (value: string): void => {
-    onFilterChange({ ...currentFilters, search: value });
-  };
 
   const handleDateRangeChange = (range: string): void => {
     onFilterChange({
@@ -65,7 +60,6 @@ export function CriticalIssuesFilters({
 
   const resetFilters = (): void => {
     onFilterChange({
-      search: "",
       departments: [],
       statuses: { WORKING: true, STANDBY: true, BREAKDOWN: true },
       dateRange: "all",
@@ -80,16 +74,6 @@ export function CriticalIssuesFilters({
       <div className="flex items-center gap-2">
         <Filter className="h-4 w-4 text-yellow-400" />
         <span className="text-sm text-gray-300">Filter ({filteredCount}/{totalCount}):</span>
-      </div>
-      
-      <div className="relative">
-        <Search className="h-4 w-4 absolute left-2 top-2.5 text-gray-400" />
-        <Input
-          placeholder="Cari issues..."
-          value={currentFilters.search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-48 pl-8"
-        />
       </div>
 
       <Select value={currentFilters.dateRange} onValueChange={handleDateRangeChange}>
